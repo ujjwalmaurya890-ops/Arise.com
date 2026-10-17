@@ -253,3 +253,58 @@ artifact**.
   already added in v221 is sound.
 - **Item 6's "one `setInterval` per subscriber" was wrong too:** there is a single
   shared interval; the cost was the per-subscriber `getItem` inside it. Now deduped.
+
+---
+
+# v238c — the last two audit questions, closed by measurement
+
+No behaviour changed in this section on purpose. Both open items ended as "measured, and
+the answer is no", which is only a defensible outcome if the measurement is recorded — so
+it is, plus a guard test that keeps it true.
+
+## "Defer the remaining eager `<head>` scripts" — measured, not shipped
+
+| measurement | result |
+|---|---|
+| cold compile of all 12 `<script defer>` files (V8, fresh process per file) | **0.01 ms** |
+| top-level eval of all 12 (jsdom, best of 7) | **4.4 ms** |
+| head JS besides `app-bundle.js` | 178 KB raw / **62 KB gz** |
+| of the 12, read by `app-bundle.js` or an inline head script (directly or transitively) | **8** |
+| movable at all (`animation-upgrade`, `placement-engine`, `exam-tracker-intelligence`, `learning-heatmap`) | 33.7 KB gz |
+| cost of moving them | every chunk boundary reshuffles (the splitter is size-greedy), and `PRIORITY_CHUNK_COUNT = 2` then pushes dashboard widgets into the deferred phase to make room |
+
+Four files, ~4 ms of JS work, and DCL is bounded by `app-bundle.js` — which is
+**294 KB gz = 83% of everything `<head>` requests** and has no source in this repo
+(`package.json` has no build script), so it can only be split upstream. Moving the four
+would trade a reshuffle of 12 immutable chunks for single-digit milliseconds on a path the
+service worker already answers. Left alone; recorded in `PERF-AUDIT-v237.md` under
+"Deferred by measurement, not preference".
+
+## "The five duplicate stylesheet `<link>`s in `<head>`" — not duplicates
+
+`theme.css`/`app-styles.css`/`responsive-patch.css` are the only render-blocking CSS.
+The rest are `media="print" onload="this.media='all'"` and each one is paired with a
+`<noscript>` twin — that is the pattern, not an accident, and "cleaning up" the pairs
+would strip styles from no-JS users. Verified, nothing to do.
+
+## `test-head-eager-set.cjs` — 30 assertions, with teeth
+
+- all 12 head scripts, run in document order with **zero chunk code loaded**, throw
+  nothing and publish their sentinel globals — in *both* perf modes;
+- the unreferenced-by-shell set is pinned to exactly the four above, so a new unloved
+  `<script defer>` in `<head>` fails the suite instead of quietly shipping;
+- `CORE_SHELL` covers the module entry, all 12 head scripts and all 8 head stylesheets;
+- `media="print"` ⇔ `<noscript>` twin pairing, and `modulepreload` href+crossorigin
+  still matches the module script (so it is consumed, not doubled);
+- eager head JS capped at 380 KB gz, with the failure message pointing at
+  `tools/build-widget-chunks.cjs` rather than at adding another head script.
+
+Mutation-checked: adding a 13th unreferenced head script, deleting a `noscript` twin,
+removing a file from `CORE_SHELL`, and making a head script read a chunk-only global each
+make it fail with an explanation. That is the whole point — the next person does not have
+to re-derive any of this.
+
+## Suite status after v238c
+
+46 suites run against this tree: everything exits 0 except the pre-existing
+`test-aptitude-practice.js` (1 failure, identical in pristine v237).

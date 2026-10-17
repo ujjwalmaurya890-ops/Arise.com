@@ -51,6 +51,13 @@ Fix: filter `EXTENDED_SHELL` against `CHUNK_FILES` values, and replace the sleep
 time). Also gives up to 246 wasted `cache.put` calls per deploy.
 
 ### 3. `app-bundle.js` is one 1 MB monolith — split it and drop recharts
+> **Status (v238c): partially done, the rest is blocked outside this repo.** The
+> `modulepreload` shipped in Tier 1. The split itself cannot be done here: `package.json`
+> has **no build script and no bundler config** — `assets/app-bundle.js` is a committed
+> artifact of an upstream React project that is not in this repository, so any edit made
+> here is overwritten at the next export. Two facts worth carrying into that project:
+> this file is **294 KB gz = 83% of every byte the `<head>` requests**, and the twelve
+> `<script defer>` files beside it are not the problem (measured below).
 `import()` count in the bundle: **0**. There *are* 15 `lazy(` + 13 `Suspense` sites, but
 they all resolve inside the same file, so every visitor pays for every view.
 Charts: widgets hand-roll SVG (`<svg>`/`createElementNS` in 12 widget files) while the
@@ -153,20 +160,46 @@ offline coverage, not an oversight; the actual defect was only the serial
 153-request/400 ms-sleep scheduling, which is what v238 fixed. Everything else in this
 file stands as measured.
 
+## Deferred by measurement, not preference (v238c)
+
+Tier 2 also asked whether the remaining eager `<head>` scripts should move into the chunk
+phases. Measured rather than assumed:
+
+| | value |
+|---|---|
+| cold compile, all 12 `defer` files (V8, fresh process each) | **0.01 ms** |
+| top-level eval, all 12 (jsdom, best of 7) | **4.4 ms** |
+| head JS payload besides `app-bundle.js` | 178 KB raw / **62 KB gz** |
+| files the React shell or an inline head script actually reads | **8 of 12** |
+| files nobody in head or the shell reads (`animation-upgrade`, `placement-engine`, `exam-tracker-intelligence`, `learning-heatmap`) | 33.7 KB gz, movable |
+| cost of moving them | the size-greedy splitter reshuffles **every** chunk boundary, and `PRIORITY_CHUNK_COUNT` then drags dashboard widgets into the deferred phase to make room |
+
+Single-digit ms of main-thread work, served from the service worker on every repeat
+visit, and DCL is bounded by the one file that cannot move. **Not shipped.** The
+`media="print"` + `<noscript>` pairs in `head` are the same story: they *look* like five
+duplicated stylesheets and are not, and deleting the `<noscript>` halves breaks no-JS users.
+
+`test-head-eager-set.cjs` (**30 assertions**) is what makes these conclusions stick. It
+runs the 12 head scripts in document order with zero chunk code loaded and requires each
+to publish its sentinel global in *both* perf modes — so a head script can never quietly
+start depending on a widget that lives in `assets/chunks/*` — pins the measured-and-left
+set, checks `CORE_SHELL` covers every head URL, checks the `noscript` and `modulepreload`
+patterns, and caps eager head JS at 380 KB gz. All four mutations tried against it (a
+13th unreferenced script, a deleted `noscript` twin, a file removed from `CORE_SHELL`, a
+head script touching a chunk-only global) fail it with an explanatory message.
+
 ## What to measure, so this stays honest
-Add a tiny reporter (guarded by `perf-lite`/dev flag) that logs to
-`window.__arisePerf`:
+**Done in v238b, and better than this sketch:** `perf-probe.js`, switched on by
+`?perf=1` or `localStorage.setItem('arise-perf','on')`, behind a 12-line bootstrap in
+`index.html` that creates the `<script>` only when the flag is on. `__arisePerf.report()`
+prints FCP/LCP/CLS/INP, long-task blocking ms, per-type transfer bytes, **how many
+resources came from cache** (the signal that proves item 1 worked),
+`__ariseWidgetsReadyAt` vs `load`, the chunk-split state, the `perf-lite` decision and the
+storage-bus reads/tick against its pre-dedupe projection; `__arisePerf.json()` is the
+copy-pasteable payload. `test-perf-probe.js` keeps it honest in browsers with no
+`PerformanceObserver` at all.
 
-```js
-new PerformanceObserver(l => {
-  for (const e of l.getEntries())
-    (window.__arisePerf ??= []).push({ t: Math.round(e.startTime), dur: Math.round(e.duration), name: e.name });
-}).observe({ type: 'event', durationThreshold: 50 });            // INP candidates
-new PerformanceObserver(l => window.__arisePerfLong = l.getEntries()).observe({ type: 'longtask', buffered: true });
-performance.getEntriesByType('paint');                            // FCP
-performance.getEntriesByType('navigation')[0].domContentLoadedEventEnd;
-// + LCP (largest-contentful-paint) and per-chunk loadScriptsInOrder timings
-```
-
-Baseline targets: FCP < 1.2 s, LCP < 2.0 s, no `longtask` > 100 ms during widget mount,
-repeat-visit network ≈ 0 KB (all 304 / immutable), SW precache ≤ 4 MB.
+Baseline targets, now actually checkable: FCP < 1.2 s, LCP < 2.0 s, no `longtask`
+> 100 ms during widget mount, repeat-visit network ≈ 0 KB (read `served from cache` in
+the report), SW precache ≤ 4 MB — currently 6.81 MB, which is item 2's deliberate
+duplicate-source offline fallback, not an oversight.

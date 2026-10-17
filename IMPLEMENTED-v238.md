@@ -114,3 +114,29 @@ shipped ones.
 - Tier 2 (observer scope, `storage-watch-bus` polling, event delegation, fragment
   batching) and the `dev-*`/`dsa-*` twin merge are untouched.
 - `test-storage-watch-bus.js` reports nothing on either copy — worth a look on its own.
+
+---
+
+## Follow-ups added while testing this
+
+- `serve.mjs` now derives `Cache-Control` from a `cacheControlFor()` mirror of the
+  Netlify rules, so the policy is inspectable in devtools locally, and it listens on
+  `0.0.0.0`. Verified against the running server:
+
+  | path | served header |
+  |---|---|
+  | `/index.html`, `/service-worker.js` | `no-cache, no-store, must-revalidate` |
+  | `/assets/chunks/w07.10bf55fc.js` | `public, max-age=31536000, immutable` |
+  | `/assets/app-bundle.js` | `public, max-age=60, must-revalidate` |
+  | `/features/exam-tracker/exam-tracker.css` | `public, max-age=60, must-revalidate` |
+  | `/interview_sheets_data.json` | `public, max-age=60, must-revalidate` |
+
+- New `test-cache-policy.cjs` (**34 passed, 0 failed**) walks the real deploy tree and
+  asserts, for all 150 shipped `.js/.css/.json/.png/.svg` files, that (a) a rule exists
+  in `netlify.toml`, (b) the same rule exists in `_headers`, (c) the two agree,
+  (d) hashed chunks are immutable, (e) `index.html`/`service-worker.js` stay no-store,
+  and (f) nothing un-hashed is pinned longer than a week. It caught three real gaps
+  during this change: root `/*.mjs` was uncovered, `_headers` had no root `/*.js` rule
+  (so `/service-worker.js` fell through to `/*.js` with no `no-store` override), and
+  the initial `/*.css`/`/*.json` mirror was missing.
+- `.gitignore` for `node_modules/` and the `_run-test.cjs` `.cjs.cjs` temp copies.

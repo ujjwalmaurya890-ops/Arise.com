@@ -131,6 +131,16 @@ per panel into one.
 
 ---
 
+## Correction to item 2 (found while implementing)
+
+`tools/build-widget-chunks.cjs` builds `EXTENDED_SHELL` from
+`tools/sw-extended-base.json` **on purpose** — its comment calls the per-file entries
+"the offline fallback" for the `?chunks=0` path, and `test-widget-chunks.cjs` guards
+that the chunks are in the list. So the 2.46 MB of duplicated bytes is intentional
+offline coverage, not an oversight; the actual defect was only the serial
+153-request/400 ms-sleep scheduling, which is what v238 fixed. Everything else in this
+file stands as measured.
+
 ## What to measure, so this stays honest
 Add a tiny reporter (guarded by `perf-lite`/dev flag) that logs to
 `window.__arisePerf`:

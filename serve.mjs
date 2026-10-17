@@ -29,6 +29,27 @@ const MIME = {
   ".map": "application/json"
 };
 
+// v238 perf: mirrors the [[headers]] blocks in netlify.toml (and ./_headers) so the
+// policy can be checked in devtools locally. Netlify's own globs are single-segment,
+// hence the explicit subdirectory branches here rather than one recursive pattern.
+// Only used for local verification — Netlify applies netlify.toml/_headers in prod.
+function cacheControlFor(pathname) {
+  if (pathname === "/index.html" || pathname === "/service-worker.js") {
+    return "no-cache, no-store, must-revalidate";
+  }
+  if (/^\/assets\/chunks\/[^/]+$/.test(pathname)) return "public, max-age=31536000, immutable";
+  if (/^\/sounds\/[^/]+$/.test(pathname)) return "public, max-age=31536000, immutable";
+  if (/^\/assets\/(manifest\.webmanifest)$/.test(pathname)) return "public, max-age=0, must-revalidate";
+  if (/^\/[^/]+\.(?:png|svg|ico|webp|jpg|jpeg)$/.test(pathname) || /^\/assets\/[^/]+\.(?:png|svg|ico|webp|jpg|jpeg)$/.test(pathname)) {
+    return "public, max-age=604800, must-revalidate";
+  }
+  if (/^\/(?:assets\/|features\/[^/]+\/)?[^/]+\.(?:js|mjs|css|json)$/.test(pathname)) {
+    return "public, max-age=60, must-revalidate";
+  }
+  if (pathname === "/manifest.webmanifest") return "public, max-age=0, must-revalidate";
+  return "public, max-age=60, must-revalidate";
+}
+
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://localhost");
@@ -42,15 +63,9 @@ createServer(async (req, res) => {
     const body = await readFile(file);
     const ext = path.extname(file).toLowerCase();
     const headers = { "Content-Type": MIME[ext] || "application/octet-stream" };
-    if (pathname === "/index.html" || pathname === "/service-worker.js") {
-      headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-    } else if (ext === ".js" || ext === ".css") {
-      headers["Cache-Control"] = "public, max-age=60, must-revalidate";
-    } else if (pathname.startsWith("/sounds/")) {
-      headers["Cache-Control"] = "public, max-age=31536000, immutable";
-    }
+    headers["Cache-Control"] = cacheControlFor(pathname);
     res.writeHead(200, headers).end(body);
   } catch {
     res.writeHead(404).end("not found");
   }
-}).listen(port, () => console.log(`Arise dashboard serving at http://localhost:${port}`));
+}).listen(port, "0.0.0.0", () => console.log(`Arise dashboard serving at http://localhost:${port}  (0.0.0.0)`));

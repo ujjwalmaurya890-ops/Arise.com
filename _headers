@@ -1,8 +1,16 @@
-# v238 perf: mirrors the [[headers]] blocks in netlify.toml for the /_headers
-# file route (Netlify reads both; the values are identical, so having both is
-# redundant but harmless and protects the policy if one file is skipped by a
-# monorepo/base-dir change). Patterns are literal single-segment globs —
-# Netlify has no `**`, and `*` does not cross `/` inside a segment.
+# v238 perf: mirrors the [[headers]] blocks in netlify.toml (Netlify reads both; the
+# values are identical, so having both is redundant but harmless and protects the
+# policy if one file is skipped by a base-dir/monorepo change). Patterns are literal
+# single-segment globs — Netlify has no `**` notation and `*` does not cross `/`
+# inside a segment, which is why the subdirectory rules below have to be spelled out.
+# Keep this file and the [[headers]] blocks in netlify.toml in sync
+# (test-cache-policy.cjs fails if they diverge or if a shipped file is uncovered).
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/service-worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /assets/chunks/*
   Cache-Control: public, max-age=31536000, immutable
@@ -26,6 +34,15 @@
   Cache-Control: public, max-age=60, must-revalidate
 
 /features/*/*.json
+  Cache-Control: public, max-age=60, must-revalidate
+
+/*.js
+  Cache-Control: public, max-age=60, must-revalidate
+
+/*.css
+  Cache-Control: public, max-age=60, must-revalidate
+
+/*.mjs
   Cache-Control: public, max-age=60, must-revalidate
 
 /*.json

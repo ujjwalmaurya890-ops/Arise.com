@@ -1,0 +1,125 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/ai-ask"
+  to = "/.netlify/functions/ai-ask"
+  status = 200
+
+[[redirects]]
+  from = "/api/sync"
+  to = "/.netlify/functions/sync"
+  status = 200
+
+[[redirects]]
+  from = "/api/leetcode/*"
+  to = "/.netlify/functions/leetcode/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/codechef/*"
+  to = "/.netlify/functions/codechef/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/gfg/*"
+  to = "/.netlify/functions/gfg/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/sounds/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    # These filenames aren't content-hashed on build, so "immutable, 1 year"
+    # meant browsers never even checked for a new deploy. A short max-age
+    # with must-revalidate lets the browser do a cheap conditional GET
+    # (304 on no change) instead of blindly trusting a year-old cache.
+    Cache-Control = "public, max-age=60, must-revalidate"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=60, must-revalidate"
+
+# ── v238 perf: subdirectory assets ────────────────────────────────────────────
+# These patterns are literal single-segment globs: Netlify's header globs have no
+# `**` notation, and `*` inside a segment does not cross `/` (that is why the
+# `/*.js` / `/*.css` rules above never reached anything under assets/ or
+# features/). Result: ~150 files — including assets/app-bundle.js
+# (1,047 KB raw / ~295 KB gz) and all 12 widget chunks — were served with
+# Netlify's default `max-age=0, must-revalidate` and paid a conditional
+# round-trip on every visit. More-specific paths win over broader ones.
+# The same rules are duplicated in ./_headers for the _headers file route.
+
+[[headers]]
+# chunks/wNN.<sha1>.js is emitted by tools/build-widget-chunks.cjs, which hashes
+# its own contents into the filename, so a byte change always yields a new URL.
+# Safe to pin for a year with zero revalidation.
+  for = "/assets/chunks/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+# Logos/images: only ever changed by hand, alongside a cache-name bump.
+  for = "/assets/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"
+
+[[headers]]
+  for = "/assets/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, must-revalidate"
+
+[[headers]]
+# Remaining unhashed files under assets/ (app-bundle.js, app-styles.css) —
+# same policy as the root-level rules above, so a new deploy is picked up on the
+# next navigation via a cheap 304 instead of a full refetch.
+  for = "/assets/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=60, must-revalidate"
+
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=60, must-revalidate"
+
+[[headers]]
+  for = "/features/*/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=60, must-revalidate"
+
+[[headers]]
+  for = "/features/*/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=60, must-revalidate"
+
+[[headers]]
+  for = "/features/*/*.json"
+  [headers.values]
+    Cache-Control = "public, max-age=60, must-revalidate"
+
+[[headers]]
+# Root-level data payload (interview_sheets_data.json, 136 KB raw / ~14 KB gz).
+  for = "/*.json"
+  [headers.values]
+    Cache-Control = "public, max-age=60, must-revalidate"

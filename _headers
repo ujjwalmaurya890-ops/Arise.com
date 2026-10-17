@@ -1,0 +1,32 @@
+# v238 perf: mirrors the [[headers]] blocks in netlify.toml for the /_headers
+# file route (Netlify reads both; the values are identical, so having both is
+# redundant but harmless and protects the policy if one file is skipped by a
+# monorepo/base-dir change). Patterns are literal single-segment globs —
+# Netlify has no `**`, and `*` does not cross `/` inside a segment.
+
+/assets/chunks/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.png
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/assets/*.svg
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/assets/*.js
+  Cache-Control: public, max-age=60, must-revalidate
+
+/assets/*.css
+  Cache-Control: public, max-age=60, must-revalidate
+
+/features/*/*.js
+  Cache-Control: public, max-age=60, must-revalidate
+
+/features/*/*.css
+  Cache-Control: public, max-age=60, must-revalidate
+
+/features/*/*.json
+  Cache-Control: public, max-age=60, must-revalidate
+
+/*.json
+  Cache-Control: public, max-age=60, must-revalidate

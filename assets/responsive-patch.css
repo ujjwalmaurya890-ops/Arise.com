@@ -1,0 +1,70 @@
+img,svg,video,canvas,picture{max-width:100%;height:auto}.na-table,.cp-table,.ptx-table{max-width:100%}.na-preview{overflow-x:auto}.na-preview table{display:table;min-width:100%}.ptx-head h2{font-size:clamp(1.05rem,.9rem + 1.2vw,1.35rem)}.ptx-score-number,.cr-w-rs-score{font-size:clamp(1.5rem,1.2rem + 2vw,2.2rem)}.ptx-stat strong{font-size:clamp(1.05rem,.95rem + .8vw,1.35rem)}.upp-health-head h3{font-size:clamp(.95rem,.88rem + .6vw,1.12rem)}.cp-subtitle{font-size:clamp(.72rem,.68rem + .3vw,.8rem);max-width:100%}@media(pointer:coarse){.ptw-icon-btn,.upp-command-icon,.ptx-icon,.ptx-btn,.ptx-tab,.cr-w-mini-btn,.cgpa-mini-btn,.na-tag-input,.smw-btn,button,select,input[type=checkbox],input[type=radio],.ish-check{min-height:44px;min-width:44px}.ptx-icon,.ptw-icon-btn,.upp-command-icon{display:inline-flex;align-items:center;justify-content:center}.ish-check{position:relative}.ish-check:before{content:"";position:absolute;inset:-12px}}@media(max-width:480px){.ptx-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}}.ptx-dialog,[class*=-modal]>[class*=-dialog],[class*=-modal] [class$=-panel]{max-width:calc(100vw - 2rem);box-sizing:border-box}@media(max-width:480px){.ptx-toolbar input,.ptx-toolbar select,.smw-row .smw-input{min-width:100%}}
+
+/* ===== v226 mobile responsiveness (appended; reuses the existing selectors) ===== */
+/* Stop iOS landscape font inflation; use dynamic viewport height where supported. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@supports(height:100dvh){.h-screen{height:100dvh}.min-h-screen{min-height:100dvh}}
+/* Safe areas: index.html now sets viewport-fit=cover, so keep content out of landscape notches. */
+body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+.ptx-form>*,.ptx-field{min-width:0}
+.ptx-field input,.ptx-field select,.ptx-field textarea{min-width:0;max-width:100%;box-sizing:border-box}
+
+@media(max-width:1023px){
+  /* Header: shrink-to-fit, clear the fixed theme button, wrap only as a last resort. */
+  header.sticky.top-0{flex-wrap:wrap;row-gap:.35rem;column-gap:.5rem;padding-left:max(.75rem,env(safe-area-inset-left));padding-right:calc(3.5rem + env(safe-area-inset-right))}
+  header.sticky.top-0>div{min-width:0}
+  header.sticky.top-0>div:first-child{flex:1 1 auto;gap:.5rem}
+  header.sticky.top-0>div:last-child{flex:0 1 auto;margin-left:auto}
+  header.sticky.top-0 h1{min-width:0;overflow-wrap:break-word;line-height:1.25}
+  /* Drawer + backdrop sit above the floating bottom nav / theme button instead of beneath them. */
+  .fixed.inset-0.bg-black\/70.backdrop-blur-sm.z-40{z-index:12090}
+  .fixed.left-0.top-0.bottom-0.w-64.glass-strong.z-50{z-index:12100;padding-left:env(safe-area-inset-left);padding-bottom:env(safe-area-inset-bottom);box-sizing:border-box}
+  /* The drawer reuses the icon-only rail; phones have no hover tooltips, so show the existing title as a label. */
+  .fixed.left-0.top-0.bottom-0.w-64.glass-strong.z-50 .nav-item{justify-content:flex-start;padding-left:1rem;padding-right:1rem;min-height:44px;text-align:left}
+  .fixed.left-0.top-0.bottom-0.w-64.glass-strong.z-50 .nav-item[title]::after{content:attr(title);flex:1 1 auto;min-width:0;font-size:.875rem;line-height:1.25;overflow-wrap:break-word}
+  /* Floating controls: keep them clear of the bottom nav and the side insets. */
+  body .upp-bottom-nav{left:calc(50% + (env(safe-area-inset-left) - env(safe-area-inset-right)) / 2);width:min(calc(100vw - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right)),36rem)}
+}
+@media(max-width:700px){
+  /* An inline repeat(3,1fr) on the CTC form blew past 320px; inline styles need !important to override. */
+  .ptx-form.ptx-nf-ctc-form{grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))!important}
+}
+@media(max-width:420px){
+  header.sticky.top-0 .stat-badge{padding-left:.5rem;padding-right:.5rem}
+  header.sticky.top-0>div:last-child{gap:.35rem}
+}
+/* Short landscape phones: reclaim vertical space without hiding anything. */
+@media(max-height:500px) and (orientation:landscape){
+  header.sticky.top-0{padding-top:.4rem;padding-bottom:.4rem}
+}
+@media(pointer:coarse){
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=hidden]),select,textarea{min-height:44px}
+  button.csp-icon-btn.csp-units-chip,button.csu-rs-pill{min-height:44px;min-width:44px}
+}
+@media(max-width:480px){
+  /* Inputs/selects in a flex row have a ~180px intrinsic minimum; let them shrink, and wrap the row where :has() exists. */
+  .flex>input.flex-1,.flex>select{min-width:0}
+  @supports selector(:has(*)){.flex.gap-2:has(>input.flex-1){flex-wrap:wrap}.flex.gap-2>input.flex-1{flex:1 1 10rem}}
+}
+@media(max-width:700px){
+  /* Zero-specificity defaults: lets form controls shrink inside flex/grid rows instead of forcing page overflow. */
+  :where(input:not([type=checkbox]):not([type=radio]),select,textarea){min-width:0;max-width:100%}
+  .arise-la-grid-2>*,.arise-la-block{min-width:0;max-width:100%}
+  .att-bunk-sim{overflow-x:auto;max-width:100%}
+  .att-sub-threshold-row{flex-wrap:wrap}
+  /* Bar charts: keep readable columns and scroll inside the chart instead of squeezing or overflowing the page. */
+  .exw-trend-row,.exwi-week-row{overflow-x:auto;overflow-y:hidden;max-width:100%}
+  .exw-trend-row>.exw-trend-col,.exwi-week-row>.exwi-week-col{flex:1 0 2.75rem}
+}
+@media(max-width:1023px){
+  /* theme.css sets this with html[data-theme] (higher specificity); match it so the button clears the bottom nav. */
+  html[data-theme] .theme-switcher-root{right:calc(12px + env(safe-area-inset-right));bottom:calc(var(--upp-nav-height,74px) + 1.25rem + env(safe-area-inset-bottom))}
+}
+@media(min-width:480px) and (max-width:1023px){
+  /* Enough room: keep the header on one row (it only needs to wrap on phones in portrait). */
+  header.sticky.top-0{flex-wrap:nowrap}
+}
+@media(max-width:1023px){
+  /* Drawer labels that already start with an emoji would show it twice (icon + title); drop the redundant icon glyph. */
+  .fixed.left-0.top-0.bottom-0.w-64.glass-strong.z-50 .nav-item:is([title^="🏆"],[title^="📱"],[title^="🚀"],[title^="💼"],[title^="🎓"],[title^="💰"])>span:first-child{display:none}
+}

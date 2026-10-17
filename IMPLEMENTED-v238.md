@@ -143,3 +143,113 @@ shipped ones.
   (so `/service-worker.js` fell through to `/*.js` with no `no-store` override), and
   the initial `/*.css`/`/*.json` mirror was missing.
 - `.gitignore` for `node_modules/` and the `_run-test.cjs` `.cjs.cjs` temp copies.
+
+---
+
+# v238b — Tier 2 (runtime cost)
+
+Same rule: no widget, storage key or mount contract changes. Files touched:
+`storage-watch-bus.js`, `animation-upgrade.js`, `index.html`, `service-worker.js`
+(`CACHE_NAME` bump), regenerated `assets/chunks/*`, plus two new tests and
+`perf-probe.js`.
+
+## 5. `animation-upgrade.js` now respects `perf-lite`
+
+`index.html` sets `.perf-lite` synchronously for Brave / ≤4-core / ≤4 GB / saveData
+devices, and the inline `.perf-lite` CSS already kills `will-change`,
+`backdrop-filter` and infinite loops — but it cannot stop this *script*, which kept
+running a `documentElement` `MutationObserver`, two full-document
+`[class*="-card"]`/`[class*="-row"]` `querySelectorAll` passes and a
+`getBoundingClientRect()` per candidate, forever, on exactly the hardware that can
+least afford it.
+
+Gated: on `perf-lite` the reveal pipeline never starts (no observer, no scans, no IO
+registrations). Only the entrance animation disappears — `.uxa-reveal{opacity:0}` is
+never added, so nothing can end up invisible. The click ripple is deliberately **kept**
+(it is bounded per user action, not per DOM mutation, and is touch feedback).
+Escape hatch: `localStorage['arise-anim-reveal']='on'` restores it.
+
+`test-animation-lite-mode.js` — **14 passed**: normal device gets 1 `observe()` + 6 IO
+registrations + 6 revealed cards; `perf-lite` gets **0 `observe()` calls** and 0 reveal
+classes; the escape hatch, the `prefers-reduced-motion` early return and "30 late-added
+cards cost nothing" are all pinned. It also documents (as info, not a defect) that
+above-viewport candidates are tagged and revealed on scroll-back — intentional upstream
+behaviour that this change neither adds nor removes.
+
+## 6. `storage-watch-bus.js` reads each key once per tick
+
+25 `watch()` call sites cover **17 distinct keys** (`hackathonPipelineV1` ×3,
+`focusSessionsV2` ×3, `cse-syllabus-progress-v1` ×2, `devTasks` ×2, `studySessions` ×2,
+`hackathonTrackerV1` ×2 …), and every 1200 ms tick did one **synchronous**
+`localStorage.getItem` per *subscriber* — 25 reads, forever, in every tab. Now keyed:
+`key → {last, subs[]}`, one read per distinct key, same fan-out (every subscriber still
+fires exactly once with the same raw value). A future duplicate watcher costs zero reads.
+
+Also: the interval is cleared when the last watcher unsubscribes (an empty-but-running
+timer could survive before), `stats()` is exposed for measurement, and 64+ watchers on
+one key logs a warning — that shape means a render loop is calling `watch()` without
+the returned `unwatch()`, which the existing call sites mostly don't use.
+
+Preserved deliberately: no caching/parsing of values, raw-string callbacks, and the
+"key removed updates `lastValue` but does not fire" quirk — that is what the 16
+subscriber files and the existing `test-storage-watch-bus.js` are written against, and
+it still passes **16/16** unmodified. New `test-storage-watch-bus-v238.js` — **18 passed**
+— pins the dedupe ratio, the shared-timer identity, unwatch/re-watch correctness and
+watcher isolation.
+
+## 1–4 follow-up: cache-name bump
+
+`CACHE_NAME` → `arise-developer-system-v238-perf-cache-policy`, per the UPGRADE-README
+convention (bump it whenever the precache list or app version changes). Chunk `w01` was
+regenerated (`w01.ff3cafab.js` → `w01.95a2c9f9.js`) because it embeds
+`storage-watch-bus.js`; `tools/build-widget-chunks.cjs` is the only thing that should
+ever edit those files.
+
+## New: `perf-probe.js` — the measurement half of this audit
+
+Opt-in field measurement, so "did it actually get faster" is answerable without
+guesswork. It costs literally nothing when off: the bootstrap in `index.html` is ~12
+lines and only *creates the `<script>`* when `?perf=1` or
+`localStorage['arise-perf']='on'`, so the probe file is not even fetched otherwise.
+`__arisePerf.report()` prints TTFB/FCP/LCP/CLS/INP, DCL/load, `__ariseWidgetsReadyAt`
+vs load, long-task count/total/**blocking** ms, per-type transfer bytes, **how many
+resources came from cache** (the `transferSize 0` signal — that is what item 1 shows up
+in), the chunk-split state, the `perf-lite` decision, and the storage-bus
+reads/tick vs the pre-dedupe projection. `?perf=1` also pins a 4-line HUD.
+Deliberately **not** in the SW precache. `test-perf-probe.js` — **16 passed** — runs it
+with no `PerformanceObserver` at all and asserts it degrades instead of throwing, plus
+HUD-once and idempotent re-`eval`.
+
+## Verified through the real deploy path
+
+`node build.mjs && node tools/build-widget-chunks.cjs` on a copy: `storage-watch-bus.js`
+4.5 → 1.4 KB, `animation-upgrade.js` 4.6 → 3.7 KB (so the readable sources I committed
+cost ~1 KB gzipped only before minification), all 12 chunks regenerate, and
+`test-widget-chunks` / `test-chunk-priority-loader` / `test-animation-lite-mode` /
+`test-storage-watch-bus{,-v238}` / `test-cache-policy` all pass **against the minified
+artifact**.
+
+## Audit items I did NOT do, and why
+
+- **Item 7 (event delegation / unmount teardown).** 727 `addEventListener('click')`
+  sites across ~100 widget files. A correct fix means a `dispose()` contract per widget
+  and rewriting each mount path — that is a refactor of widget logic, which is outside
+  "zero behavior change". Best treated as a convention for *new* widgets plus a
+  migration pass per file with its own tests.
+- **Item 9 (`createDocumentFragment` batching).** Same shape: 24 `innerHTML=` and 27
+  `appendChild` sites in `w07` alone, each inside widget-specific render code.
+- **Item 8 (the `dev-*`/`dsa-*` twin merge). My audit was wrong.** I measured the pairs
+  instead of assuming: only **1 of 11** (`mastery-trend`, 2.9 KB each) is a real
+  parameterization after normalizing identifiers and literals. `revision-scheduler`
+  (82.8% raw) drops to 16% and `topic-breakdown` (89.7% raw) to 61% — they share a
+  naming scheme and DOM skeleton, not code. Total genuinely duplicated code is ~6 KB,
+  not the ~85 KB I claimed. Merging them would change chunk boundaries for a rounding
+  error, so the right move is *not* to merge.
+- **Item 5's framing was also overstated:** of 10 document-wide `childList+subtree`
+  observers, **9 already subscribe to the shared `mutation-bus`** and only fall back to
+  their own observer. The genuinely unconditional ones are `mutation-bus.js` itself (it
+  *is* the bus) and `animation-upgrade.js` (eager in `<head>`, so the bus does not exist
+  yet when it runs) — hence the `perf-lite` gate is the real fix, and the coalescing
+  already added in v221 is sound.
+- **Item 6's "one `setInterval` per subscriber" was wrong too:** there is a single
+  shared interval; the cost was the per-subscriber `getItem` inside it. Now deduped.

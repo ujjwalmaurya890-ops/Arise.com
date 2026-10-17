@@ -75,6 +75,11 @@ already tolerates late arrival, so this is a routing change, not a rewrite.
 ## Tier 2 — runtime cost on the dashboard
 
 ### 5. Three document-wide observers fighting each other
+> **Corrected while implementing (v238b).** Of the 10 document-wide
+> `childList+subtree` observers, 9 *already* subscribe to the shared `mutation-bus`
+> and only fall back to their own. The unconditional ones are `mutation-bus.js` itself
+> and `animation-upgrade.js` (eager in `<head>`, before the bus exists). Real fix
+> shipped: gate `animation-upgrade.js` on `perf-lite`.
 * `mutation-bus.js:54` → `observe(document.body, {childList,subtree})` + ~35 subscribers
 * `animation-upgrade.js` → `observe(document.documentElement, …)`, then per batch:
   `querySelectorAll('[class*="-card"]…')` ×2 **and** `getBoundingClientRect()` per node
@@ -88,6 +93,9 @@ attribute-substring selectors with one `MutationObserver` on
 `attributes: ['class']` filtered by a Set.
 
 ### 6. `storage-watch-bus.js` polls localStorage with a timer per subscriber
+> **Corrected while implementing (v238b).** There is a *single* shared interval, not one
+> per subscriber. The cost was 25 synchronous `getItem` calls per tick for 17 distinct
+> keys. Fixed by keying the map: 17 reads/tick.
 `r()` starts **one `setInterval(f, 1200)`**, and `f()` does a synchronous
 `localStorage.getItem` per watched key every tick — forever, for every tab, including
 keys nothing writes. Cache a single tick, de-dupe the key set, read each key **once**
@@ -102,6 +110,10 @@ a `dispose()` contract so listeners and `setInterval`s die with the panel instea
 leaking on tab switches.
 
 ### 8. 11 `dev-*` / `dsa-*` twin widgets are near-duplicates
+> **Withdrawn.** Measured after normalizing identifiers/literals: only `mastery-trend`
+> is a true duplicate (2.9 KB). `revision-scheduler` 82.8% raw → 16% normalized,
+> `topic-breakdown` 89.7% → 61%. They share a naming scheme, not code. Real duplicated
+> bytes ~6 KB, not ~85 KB — do **not** merge.
 `difficulty-radar, mastery-premium, mastery-trend, milestone-badges, pace-projection,
 placement-engine, revision-scheduler, solve-speed, streak, topic-breakdown,
 weekly-sparkline` — ~85 KB of copied code. One parameterised factory (`kind`, storage

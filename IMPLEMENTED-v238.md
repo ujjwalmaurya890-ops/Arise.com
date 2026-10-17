@@ -64,8 +64,11 @@ timer), or the user interacts.
 
 | | before | after (dashboard-only visit) |
 |---|---|---|
-| widget JS executed before the fold | 12 chunks / 2.48 MB raw | 2 chunks / 368 KB raw |
-| deferred | — | 10 chunks / 2.12 MB raw (~0.55 MB gz), low-priority pre-warm |
+| widget JS before the fold | 12 chunks, 2,542 KB raw / 661 KB gz | 2 chunks, 368 KB raw / 102 KB gz |
+| deferred | — | 10 chunks, 2,174 KB raw / **560 KB gz**, low-priority pre-warm |
+
+A dashboard-only visitor therefore no longer pulls **85% of the widget JS transfer**
+onto the early path; the bytes still arrive, just at idle or on first interaction.
 
 **Behavior-preserving details** (each is asserted by
 `test-chunk-priority-loader.js`):

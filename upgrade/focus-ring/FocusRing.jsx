@@ -3,14 +3,14 @@
  *
  * Replaces the ring JSX inline in the timer/stopwatch component (currently
  * minified as `Hx` in assets/app-bundle.js) AND retires the vanilla-JS
- * "upgrade" overlay (timer-visual-upgrade-widget.js / focus-timer-upgrade-widget.js)
+ * "upgrade" overlay (src/timer-visual-upgrade-widget.js / src/focus-timer-upgrade-widget.js)
  * for everything visual. Category icon + streak are now real props, computed
  * once by the parent from actual state instead of scraped from the DOM /
  * polled from localStorage every 2s.
  *
  * Fixes applied (see PR notes at bottom of file):
  *  1. ONE tick ring (60 ticks), same cx/cy/r as the progress circle — the
- *     old 40-tick overlay drawn by timer-visual-upgrade-widget.js is deleted.
+ *     old 40-tick overlay drawn by src/timer-visual-upgrade-widget.js is deleted.
  *  2. category / streakCount / runState are props, not DOM/localStorage reads.
  *  3. The "breathing" glow no longer animates `filter` (blur/drop-shadow)
  *     every frame — that forces the browser to re-rasterize the whole SVG.
@@ -603,20 +603,20 @@ export default function FocusRing({
  *   `currentCategory` and `streak` come from real component/app state (lift
  *   them the same way `f`/`m`/`S` already live in this component or a parent
  *   — see useStudyStreak.js for a drop-in replacement of the polling version
- *   in timer-visual-upgrade-widget.js), and `completedCount` is a
+ *   in src/timer-visual-upgrade-widget.js), and `completedCount` is a
  *   `useState(0)` bumped with `n => n + 1` at the same point that already
  *   calls `t(...)` / fires the session-complete callback.
  *
- * - timer-visual-upgrade-widget.js is now fully redundant for the ring:
+ * - src/timer-visual-upgrade-widget.js is now fully redundant for the ring:
  *   ticks, category icon, streak badge, paused ring, and completion burst
  *   are all ported above and driven by props instead of DOM-scraping /
  *   localStorage polling / a global CustomEvent. Once FocusRing is wired
- *   in, delete timer-visual-upgrade-widget.js and its <script> tag entirely
- *   — nothing in it still does useful work. (focus-timer-upgrade-widget.js
+ *   in, delete src/timer-visual-upgrade-widget.js and its <script> tag entirely
+ *   — nothing in it still does useful work. (src/focus-timer-upgrade-widget.js
  *   is a separate concern — the session-complete modal with the note/star
  *   rating form — and is unaffected by this change.)
  *
- * - Add to your global stylesheet (animation-upgrade.css is the right home):
+ * - Add to your global stylesheet (styles/animation-upgrade.css is the right home):
  *
  *   /* Comet pulse — base duration is the fallback; component overrides inline */
  *   .focus-ring-comet-pulse { animation: focus-ring-comet-pulse 1.3s ease-in-out infinite; }

@@ -3,23 +3,47 @@
   "short_name": "Arise",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0F172A",
-  "theme_color": "#0F172A",
+  "background_color": "#090B10",
+  "theme_color": "#090B10",
   "description": "Arise Developer productivity dashboard.",
   "id": "./",
   "scope": "./",
   "icons": [
     {
+      "src": "./assets/arise-logo-192.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/arise-logo-512.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
       "src": "./assets/arise-logo-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/arise-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "./assets/arise-logo-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/arise-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

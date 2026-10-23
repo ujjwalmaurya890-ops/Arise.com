@@ -1,4 +1,9 @@
 [
+"./assets/app-analytics.js",
+"./assets/fonts/inter-latin-wght-normal.woff2",
+"./assets/fonts/jetbrains-mono-latin-wght-normal.woff2",
+"./assets/arise-logo-192.webp",
+"./assets/arise-logo-512.webp",
 "./mutation-bus.js",
 "./storage-watch-bus.js",
 "./storage-keys.js",

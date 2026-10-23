@@ -33,12 +33,13 @@ import process from "node:process";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")));
 const SKIP_DIRS = new Set(["node_modules", ".git", "netlify", "tools"]);
-const SKIP_FILES = new Set(["app-bundle.js", "build.mjs", "serve.mjs"]);
+const SKIP_FILES = new Set(["app-bundle.js", "app-analytics.js", "widget-nav.css", "storage-watch-bus.js", "service-worker.js", "build.mjs", "serve.mjs"]);
 
 function findEsbuild() {
   const candidates = [
     process.env.ESBUILD,
     path.join(root, "node_modules", ".bin", "esbuild" + (process.platform === "win32" ? ".cmd" : "")),
+    "/tmp/perf-bench/node_modules/.bin/esbuild",
     path.join(root, "..", "tools", "package", "esbuild.exe")
   ].filter(Boolean);
   for (const candidate of candidates) {

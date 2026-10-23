@@ -208,6 +208,135 @@ async function main() {
   check("Linear-style 'G then P' chord shortcut navigates straight to Projects",
     window.document.querySelector("header h1").textContent.trim() === "Projects");
 
+  // Verify Ctrl + Shift + K Theme Settings shortcut & conflict guards
+  const themePanel = window.document.querySelector(".theme-switcher-panel");
+  const themeTrigger = window.document.querySelector(".theme-switcher-trigger");
+  const themeCloseBtn = window.document.querySelector(".theme-switcher-close");
+  const themeSearchInput = window.document.querySelector(".theme-search-input");
+
+  // 1. Editable fields (input, textarea, search, contenteditable) must not trigger Ctrl+Shift+K
+  const testInput = window.document.createElement("input");
+  testInput.type = "text";
+  const testTextarea = window.document.createElement("textarea");
+  const testSearch = window.document.createElement("input");
+  testSearch.type = "search";
+  const testEditableDiv = window.document.createElement("div");
+  testEditableDiv.setAttribute("contenteditable", "true");
+  window.document.body.append(testInput, testTextarea, testSearch, testEditableDiv);
+
+  let editableBlockedAll = true;
+  for (const el of [testInput, testTextarea, testSearch, testEditableDiv]) {
+    el.focus();
+    const ev = new window.KeyboardEvent("keydown", {
+      key: "K",
+      code: "KeyK",
+      ctrlKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    el.dispatchEvent(ev);
+    if (ev.defaultPrevented || themePanel.getAttribute("data-open") === "true") {
+      editableBlockedAll = false;
+    }
+  }
+  testInput.remove();
+  testTextarea.remove();
+  testSearch.remove();
+  testEditableDiv.remove();
+  if (window.document.activeElement && typeof window.document.activeElement.blur === "function") {
+    window.document.activeElement.blur();
+  }
+  check("Ctrl + Shift + K does not trigger or preventDefault inside input, textarea, search, or contenteditable fields",
+    editableBlockedAll && themePanel.getAttribute("data-open") === "false");
+
+  // 2. Unrelated modifier combos (Shift+K, Alt+Shift+K, Ctrl+Alt+Shift+K) do not open Theme Settings
+  for (const mods of [
+    { shiftKey: true },
+    { altKey: true, shiftKey: true },
+    { ctrlKey: true, altKey: true, shiftKey: true }
+  ]) {
+    const ev = new window.KeyboardEvent("keydown", Object.assign({
+      key: "K",
+      code: "KeyK",
+      bubbles: true,
+      cancelable: true
+    }, mods));
+    window.document.dispatchEvent(ev);
+  }
+  check("Unrelated modifier combinations do not open Theme Settings panel",
+    themePanel.getAttribute("data-open") === "false");
+
+  // 3. Ctrl + Shift + K opens Theme Settings panel without opening Command Palette
+  const openEv = new window.KeyboardEvent("keydown", {
+    key: "K",
+    code: "KeyK",
+    ctrlKey: true,
+    shiftKey: true,
+    bubbles: true,
+    cancelable: true
+  });
+  window.document.dispatchEvent(openEv);
+  const allThemeKeys = Object.keys(window.AriseThemeSystem.allThemes());
+  const renderedSwatches = themePanel.querySelectorAll("[data-theme-option]");
+  check("Ctrl + Shift + K opens Theme Settings panel with all supported themes and does not trigger Command Palette",
+    openEv.defaultPrevented === true &&
+    themePanel.getAttribute("data-open") === "true" &&
+    themePanel.getAttribute("aria-hidden") === "false" &&
+    themeTrigger.getAttribute("aria-expanded") === "true" &&
+    paletteOverlay.getAttribute("data-open") === "false" &&
+    renderedSwatches.length === allThemeKeys.length &&
+    renderedSwatches.length >= 41);
+
+  // 4. Repeated Ctrl + Shift + K presses do not duplicate panel or reset search state
+  themeSearchInput.value = "dracula";
+  themeSearchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+  for (let i = 0; i < 3; i++) {
+    window.document.dispatchEvent(new window.KeyboardEvent("keydown", {
+      key: "K",
+      code: "KeyK",
+      ctrlKey: true,
+      shiftKey: true,
+      repeat: i > 0,
+      bubbles: true,
+      cancelable: true
+    }));
+  }
+  check("Repeated Ctrl + Shift + K presses keep single panel instance and preserve search input filter",
+    window.document.querySelectorAll(".theme-switcher-root").length === 1 &&
+    window.document.querySelectorAll(".theme-switcher-panel").length === 1 &&
+    themePanel.getAttribute("data-open") === "true" &&
+    themeSearchInput.value === "dracula" &&
+    themePanel.querySelectorAll("[data-theme-option]").length === 1);
+
+  // 5. Selecting a theme from the opened panel applies and persists it
+  const draculaSwatch = themePanel.querySelector('[data-theme-option="dracula"]');
+  assert(draculaSwatch, "Dracula swatch should be rendered");
+  draculaSwatch.click();
+  themeSearchInput.value = "";
+  themeSearchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
+  check("Selecting a theme inside Theme Settings applies data-theme and persists to localStorage",
+    window.document.documentElement.getAttribute("data-theme") === "dracula" &&
+    window.localStorage.getItem(window.AriseThemeSystem.storageKey) === "dracula");
+
+  // 6. Escape closes the panel, Cmd+Shift+K reopens it, and close button closes it
+  window.document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  const closedByEsc = themePanel.getAttribute("data-open") === "false" && themePanel.getAttribute("aria-hidden") === "true";
+  const macEv = new window.KeyboardEvent("keydown", {
+    key: "k",
+    code: "KeyK",
+    metaKey: true,
+    shiftKey: true,
+    bubbles: true,
+    cancelable: true
+  });
+  window.document.dispatchEvent(macEv);
+  const reopenedByCmdShiftK = macEv.defaultPrevented && themePanel.getAttribute("data-open") === "true";
+  themeCloseBtn.click();
+  const closedByBtn = themePanel.getAttribute("data-open") === "false" && themeTrigger.getAttribute("aria-expanded") === "false";
+  check("Escape and close button close Theme Settings panel and Cmd + Shift + K reopens it",
+    closedByEsc && reopenedByCmdShiftK && closedByBtn);
+
   dom.window.close();
   console.log(`\nSaaS Upgrade Verification: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);

@@ -71,6 +71,20 @@ The project uses modern web technologies to deliver an interactive student-focus
 
 ---
 
+## 🗂️ Repository Layout
+
+- `src/` — application JavaScript and feature modules.
+- `styles/` — global and feature-specific stylesheets.
+- `tests/` — all 44 Node/jsdom test suites.
+- `scripts/` — local server, build helpers, and test runner.
+- `assets/` — images, fonts, generated widget chunks, sound files, and static data.
+- `docs/` — upgrade notes and project documentation.
+- Root-level `index.html`, `service-worker.js`, `netlify.toml`, and package manifests remain at the site root because static hosting, service-worker scope, and Netlify publish paths rely on those entry points.
+
+Use `npm run dev` to serve the site locally, `npm run build:chunks` after editing widget sources, and `npm test` to build and run all 44 suites.
+
+---
+
 ## 🚀 Getting Started
 
 Follow these steps to run the project locally.

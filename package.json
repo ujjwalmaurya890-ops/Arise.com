@@ -4,10 +4,10 @@
   "private": true,
   "description": "Arise CSE — Local-First Software Engineering & Academic Workspace",
   "scripts": {
-    "dev": "node serve.mjs 8123",
-    "start": "node serve.mjs 8123",
-    "build:chunks": "node tools/build-widget-chunks.cjs",
-    "test": "node tools/build-widget-chunks.cjs && node test-widget-chunks.cjs && node test-cross-browser-compat.cjs && node test-learning-page-tabs.js && node test-saas-upgrade.cjs"
+    "dev": "node scripts/serve.mjs 8123",
+    "start": "node scripts/serve.mjs 8123",
+    "build:chunks": "node scripts/tools/build-widget-chunks.cjs",
+    "test": "node scripts/tools/build-widget-chunks.cjs && node scripts/_run-test.cjs --all"
   },
   "dependencies": {
     "jsdom": "^30.1.1"

@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="en" data-theme="cyberMidnightPro" data-theme-mode="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="theme-color" content="#090B10" />
+    <meta name="description" content="Arise — Your complete local-first CSE & Software Engineering workspace for DSA mastery, academics, projects, competitive programming, and placement readiness." />
+    <link rel="icon" type="image/svg+xml" href="./assets/arise-logo.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/arise-logo-32.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="./assets/arise-logo-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Arise — CSE &amp; Developer Workspace</title>
+    <!-- Font preload -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="./theme.css" />
+    <link rel="stylesheet" crossorigin href="./assets/app-styles.css" />
+    <link rel="stylesheet" href="./assets/responsive-patch.css" />
+    <link rel="stylesheet" href="./saas-upgrade.css" />
+    <script>
+      // Stability patch: with 50+ independently-authored widget scripts,
+      // an uncaught exception or rejected promise in any one of them used
+      // to fail completely silently in production - no console trace a
+      // user would ever see, no record anywhere that it happened. This is
+      // installed first, before any other script, so it catches errors
+      // from the whole page lifecycle (deferred scripts, the app-bundle
+      // module, and the lazily-injected widgets alike). Purely additive:
+      // it only observes and records, it never suppresses an error or
+      // changes how anything runs.
+      (function () {
+        var MAX_ENTRIES = 50;
+        var errors = [];
+        window.__ariseRuntimeErrors = errors;
+
+        function record(entry) {
+          entry.time = new Date().toISOString();
+          errors.push(entry);
+          if (errors.length > MAX_ENTRIES) errors.shift();
+          console.error("[runtime-error]", entry);
+          if (typeof window.__ariseReportRuntimeError === "function") {
+            try { window.__ariseReportRuntimeError(entry); } catch (e) {}
+          }
+        }
+
+        window.addEventListener("error", function (event) {
+          // Ignore resource load errors here (img/script/link 404s) -
+          // the widget loader already tracks script failures separately;
+          // this is for actual JS runtime exceptions.
+          if (event.error === undefined && event.message === undefined) return;
+          record({
+            type: "error",
+            message: event.message || (event.error && event.error.message) || "Unknown error",
+            source: event.filename || null,
+            line: event.lineno || null,
+            column: event.colno || null,
+            stack: event.error && event.error.stack ? event.error.stack : null
+          });
+        });
+
+        window.addEventListener("unhandledrejection", function (event) {
+          var reason = event.reason;
+          record({
+            type: "unhandledrejection",
+            message: (reason && (reason.message || String(reason))) || "Unknown rejection",
+            stack: reason && reason.stack ? reason.stack : null
+          });
+        });
+      })();
+    </script>
+    <script>
+      // Stability patch: the React shell calls window.__mountX(el) exactly once, in a
+      // useEffect, when a section appears. The ~100 widget scripts load lazily after
+      // first paint, so a section opened (or restored) before its widget script had
+      // executed silently stayed blank until the user navigated away and back. These
+      // stubs remember such early calls; the loader replays them (only for elements
+      // still in the DOM) once every widget script has executed, using the FINAL
+      // definition of each mount function. Real definitions simply overwrite a stub.
+      (function () {
+        var NAMES = ["__mountAttendanceTracker","__mountBackupCenter","__mountBattlePlan","__mountBurnoutDetector","__mountCGPATracker","__mountCSEPlacementCritical","__mountCareerCommandCenter","__mountCertificates","__mountCompetitiveProgramming","__mountDevMasteryHeatmap","__mountExamTracker","__mountExamTrackerDashboard","__mountExpenses","__mountFocusModeToggle","__mountHabitHeatmap","__mountHackathonTracker","__mountInterviewSheets","__mountLocalFiles","__mountNotesApp","__mountPersonalWiki","__mountPlacementTracker","__mountProjectsWidget","__mountRevisionSystem","__mountSemesterMastery","__mountSkillsTimeline","__mountSmartLearningPath","__mountSocialMedia","__mountWaterReminder"];
+        var queue = window.__ariseMountQueue = [];
+        var flushing = false;
+        NAMES.forEach(function (name) {
+          if (typeof window[name] === "function") return;
+          var stub = function () {
+            if (flushing || window.__ariseWidgetsReady) return;
+            var el = arguments[0];
+            if (typeof window.__ariseExpedite === "function") window.__ariseExpedite();
+            if (el && el.nodeType === 1 && !el.children.length) {
+              el.innerHTML = '<div class="arise-mount-skeleton" data-arise-skeleton="1" aria-busy="true"><div class="arise-skel-bar"></div><div class="arise-skel-grid"><div class="arise-skel-box"></div><div class="arise-skel-box"></div><div class="arise-skel-box"></div></div></div>';
+            }
+            for (var i = 0; i < queue.length; i++) {
+              if (queue[i].name === name && queue[i].args[0] === el) return;
+            }
+            queue.push({ name: name, args: Array.prototype.slice.call(arguments) });
+          };
+          stub.__ariseStub = true;
+          window[name] = stub;
+        });
+        function isStub(fn) {
+          return !!(fn && (fn.__ariseStub || (fn.__ariseOriginal && fn.__ariseOriginal.__ariseStub)));
+        }
+        function clearSkeleton(el) {
+          if (el && el.nodeType === 1 && el.firstElementChild && el.firstElementChild.hasAttribute("data-arise-skeleton") && el.children.length === 1) {
+            el.innerHTML = "";
+          }
+        }
+        var MULTI_STAGE_MOUNTS = { __mountSemesterMastery: 1, __mountLocalFiles: 1, __mountPlacementTracker: 1 };
+        window.__ariseFlushReadyMounts = function () {
+          if (!queue.length || flushing) return;
+          flushing = true;
+          try {
+            for (var i = queue.length - 1; i >= 0; i--) {
+              var item = queue[i];
+              if (MULTI_STAGE_MOUNTS[item.name]) continue;
+              var fn = window[item.name];
+              if (typeof fn !== "function" || isStub(fn)) continue;
+              queue.splice(i, 1);
+              try {
+                var el = item.args[0];
+                if (el && el.isConnected === false) continue;
+                clearSkeleton(el);
+                fn.apply(window, item.args);
+              } catch (err) {
+                console.error("[mount-replay] " + item.name + " threw:", err);
+              }
+            }
+          } finally {
+            flushing = false;
+          }
+        };
+        window.__ariseFlushMounts = function () {
+          var pending = queue.splice(0, queue.length);
+          flushing = true;
+          try {
+            pending.forEach(function (item) {
+              try {
+                var el = item.args[0];
+                if (el && el.isConnected === false) return;
+                var fn = window[item.name];
+                if (typeof fn === "function" && !isStub(fn)) {
+                  clearSkeleton(el);
+                  fn.apply(window, item.args);
+                }
+              } catch (err) {
+                console.error("[mount-replay] " + item.name + " threw:", err);
+              }
+            });
+          } finally {
+            flushing = false;
+          }
+        };
+      })();
+    </script>
+    <script>
+      // v221 perf-lite: Brave (and low-end / data-saver devices) often run without GPU
+      // compositing, where decorative always-on effects are expensive. Detected
+      // synchronously; users can force it either way with localStorage arise-perf-mode = "lite" | "full".
+      (function () {
+        try {
+          var pref = localStorage.getItem("arise-perf-mode");
+          var nav = navigator, c = nav.connection || {};
+          var lite = pref ? pref === "lite" : (!!nav.brave || (nav.hardwareConcurrency && nav.hardwareConcurrency <= 4) || (nav.deviceMemory && nav.deviceMemory <= 4) || c.saveData === true);
+          if (lite) document.documentElement.classList.add("perf-lite");
+        } catch (e) {}
+      })();
+    </script>
+    <script>
+      (function () {
+        var darkThemes = ["cyberMidnightPro", "amoled", "dracula", "linearDark", "vercelMono", "supabaseDark"];
+        try {
+          var mode = localStorage.getItem("arise-dashboard-theme-mode") || "dark";
+          var prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+          var storedTheme = mode === "system" ? (prefersLight ? "white" : "cyberMidnightPro") : (localStorage.getItem("arise-dashboard-theme") || "cyberMidnightPro");
+          document.documentElement.setAttribute("data-theme", storedTheme);
+          document.documentElement.setAttribute("data-theme-mode", darkThemes.indexOf(storedTheme) !== -1 ? "dark" : "light");
+          document.documentElement.classList.remove("dark");
+        } catch (error) {
+          document.documentElement.setAttribute("data-theme", "cyberMidnightPro");
+          document.documentElement.setAttribute("data-theme-mode", "dark");
+          document.documentElement.classList.remove("dark");
+        }
+      })();
+    </script>
+    <script defer src="./animation-upgrade.js"></script>
+    <script defer src="./readiness-scoring-config.js"></script>
+    <script defer src="./readiness-engine.js"></script>
+    <script defer src="./placement-engine.js"></script>
+    <script defer src="./xp-engine.js"></script>
+    <script defer src="./features/exam-tracker/exam-tracker-calculations.js"></script>
+    <script defer src="./features/exam-tracker/exam-tracker-intelligence.js"></script>
+    <script defer src="./features/exam-tracker/exam-tracker-storage.js"></script>
+    <script defer src="./features/exam-tracker/exam-tracker-dday.js"></script>
+    <script defer src="./features/exam-tracker/exam-tracker.js"></script>
+    <script defer src="./features/exam-tracker/exam-tracker-analytics-widget.js"></script>
+    <script defer src="./learning-heatmap-widget.js"></script>
+    <script type="module" crossorigin src="./assets/app-bundle.js"></script>
+    <!-- Perf: non-critical stylesheets live AFTER every script tag on
+         purpose. Deferred scripts wait for stylesheets that appear above
+         them, so a slow font CDN or cosmetic stylesheet previously delayed
+         DOMContentLoaded even when loaded with media=print. Placed here:
+         - they no longer gate script execution or DCL (first paint uses
+           fallback fonts / default typography, then swaps in — the fonts
+           already use display=swap);
+         - cascade order is preserved (they still come after app-styles.css);
+         - the media=print + onload pattern keeps them off the render path. -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet" /></noscript>
+    <link rel="stylesheet" href="./features/exam-tracker/exam-tracker.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="./features/exam-tracker/exam-tracker.css" /></noscript>
+    <link rel="stylesheet" href="./features/exam-tracker/exam-tracker-dday.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="./features/exam-tracker/exam-tracker-dday.css" /></noscript>
+    <link rel="stylesheet" href="./features/exam-tracker/exam-tracker-analytics.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="./features/exam-tracker/exam-tracker-analytics.css" /></noscript>
+    <link rel="stylesheet" href="./animation-upgrade.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="./animation-upgrade.css" /></noscript>
+    <link rel="stylesheet" href="./typography-upgrade.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="./typography-upgrade.css" /></noscript>
+    <style id="perf-lite-css">
+      /* v221: only active when <html class="perf-lite">. Decorative loops play a few times then rest;
+         spinners/skeletons/shimmers keep looping; blur on non-modal chrome is removed. */
+      .perf-lite *:not([class*="spin"]):not([class*="load"]):not([class*="skeleton"]):not([class*="shimmer"]):not([class*="pulse-dot"]):not([class*="boot"]),
+      .perf-lite *:not([class*="spin"]):not([class*="load"]):not([class*="skeleton"]):not([class*="shimmer"]):not([class*="boot"])::before,
+      .perf-lite *:not([class*="spin"]):not([class*="load"]):not([class*="skeleton"]):not([class*="shimmer"]):not([class*="boot"])::after { animation-iteration-count: 3 !important; }
+      .perf-lite .upp-bottom-nav, .perf-lite .upp-command-palette, .perf-lite [class*="upp-"] { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+      .perf-lite [class*="drop-shadow"], .perf-lite .ccc-ring { filter: none !important; }
+      .perf-lite * { will-change: auto !important; }
+    </style>
+  </head>
+  <body>
+    <div id="root"><div class="uxa-boot-skeleton" aria-hidden="true"><img class="uxa-boot-logo" src="./assets/arise-logo.svg" alt="" /></div></div>
+<style id="ambient-sound-system-style">
+  html,body,#root{max-width:100%;overflow-x:hidden}
+  body{overscroll-behavior-y:auto}
+  .ambient-sound-controls{width:min(100%,28rem);max-width:calc(100vw - 2rem);box-sizing:border-box;margin-top:1rem;margin-bottom:clamp(1.5rem,4vh,3rem);padding:.9rem;border-radius:1rem;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-md);backdrop-filter:blur(14px);position:relative;z-index:2;flex-shrink:0;clear:both}
+  .ambient-sound-title{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.55rem;font-size:.72rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+  .ambient-sound-now{font-size:.68rem;color:var(--info);text-transform:none;letter-spacing:0;max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ambient-sound-grid{display:grid;grid-template-columns:1fr;gap:.5rem}.ambient-sound-row{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap}
+  .ambient-sound-select{flex:1;min-width:10rem;height:2.15rem;border-radius:.75rem;padding:0 .65rem;font-size:.78rem;background:var(--surface);border:1px solid var(--border);color:var(--text-primary)}
+  .ambient-sound-btn{height:2.15rem;border-radius:.75rem;padding:0 .7rem;font-size:.72rem;font-weight:700;background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);transition:transform .15s,background .15s,border-color .15s,color .15s;cursor:pointer}
+  .ambient-sound-btn:hover{background:var(--surface-hover);border-color:var(--border-strong);color:var(--text-primary)}.ambient-sound-btn:active{transform:scale(.96)}
+  .ambient-sound-volume{display:flex;align-items:center;gap:.55rem;color:var(--text-tertiary);font-size:.72rem}.ambient-sound-volume input{flex:1;accent-color:var(--primary)}.ambient-sound-error{margin-top:.35rem;font-size:.68rem;color:var(--danger);display:none}.ambient-sound-error.show{display:block}
+
+  /* Dashboard root: allow real vertical scrolling while blocking horizontal layout bleed. */
+  .flex.h-screen.bg-cyber-black.overflow-hidden{min-height:100dvh!important;height:auto!important;overflow-x:hidden!important;overflow-y:hidden!important}
+  main.flex-1.overflow-y-auto{overflow-x:hidden!important;scrollbar-gutter:stable;min-height:100dvh!important}
+  main.flex-1.overflow-y-auto > div:last-child{padding-bottom:calc(8rem + env(safe-area-inset-bottom))!important}
+
+  /* Sidebar positioning fix: the desktop rail was a normal in-flow flex item sized via h-screen,
+     so when the dashboard root grows taller than the viewport (see rule above) or the page/body
+     scrolls, the rail scrolled/disappeared along with it. Pin it to the viewport instead and give
+     the main column matching left space so content never sits underneath it. Scoped to the exact
+     desktop rail (glass-strong + border-r + border-cyber-border/30) so the mobile off-canvas rail
+     (already position:fixed, different border opacity) and unrelated widgets are untouched. */
+  .glass-strong.border-r.border-cyber-border\/30{
+    position:fixed!important;
+    top:0!important;
+    left:0!important;
+    bottom:0!important;
+    height:100dvh!important;
+    z-index:40;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+  }
+  @media (min-width:64rem){
+    .glass-strong.border-r.border-cyber-border\/30.w-16 ~ main.flex-1.overflow-y-auto{margin-left:4rem!important}
+    .glass-strong.border-r.border-cyber-border\/30.w-60 ~ main.flex-1.overflow-y-auto{margin-left:15rem!important}
+  }
+
+  /* Collapsible sidebar + mobile drawer. Width and the main column's margin share one duration/easing so
+     the content slides with the rail instead of jumping; labels never wrap mid-animation. */
+  @media (min-width:64rem){
+    .glass-strong.border-r.border-cyber-border\/30{transition-property:width!important;transition-duration:.35s!important;transition-timing-function:cubic-bezier(.4,0,.2,1)!important}
+    main.flex-1.overflow-y-auto{transition:margin-left .35s cubic-bezier(.4,0,.2,1)}
+    .glass-strong.border-r.border-cyber-border\/30 .nav-item>span:not(:first-child){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  }
+  .arise-sb-toggle-row{padding:.5rem;border-top:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
+  .arise-sb-toggle{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;min-height:44px;padding:.5rem;border-radius:.75rem;border:1px solid transparent;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:500;cursor:pointer;transition:background-color .2s,color .2s}
+  .arise-sb-toggle:hover{background:var(--surface-hover);color:var(--text-primary)}
+  .arise-sb-toggle svg{flex-shrink:0;transition:transform .35s cubic-bezier(.4,0,.2,1)}
+  #arise-desktop-sidebar[data-collapsed="true"] .arise-sb-toggle svg{transform:rotate(180deg)}
+  .arise-drawer-close{position:absolute;top:50%;right:.5rem;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:.75rem;border:1px solid transparent;background:transparent;color:var(--text-secondary);cursor:pointer}
+  .arise-drawer-close:hover{background:var(--surface-hover);color:var(--text-primary)}
+  .arise-sb-toggle:focus-visible,.arise-drawer-close:focus-visible,#arise-menu-btn:focus-visible,#arise-desktop-sidebar .nav-item:focus-visible{outline:2px solid var(--info,#38bdf8);outline-offset:-2px}
+  #arise-menu-btn:focus-visible{outline-offset:2px}
+  #arise-mobile-drawer{overscroll-behavior:contain;touch-action:pan-y}
+  #arise-mobile-drawer:focus{outline:none}
+  #arise-mobile-drawer nav{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  #arise-mobile-backdrop{touch-action:none}
+  @media (pointer:coarse){#arise-menu-btn{min-width:44px;min-height:44px}}
+  @media (prefers-reduced-motion:reduce){
+    .glass-strong.border-r.border-cyber-border\/30,main.flex-1.overflow-y-auto,.arise-sb-toggle,.arise-sb-toggle svg,.arise-nav-group-chev{transition:none!important}
+  }
+
+  /* Navigation groups, skip link, focus rings (v228). Group buttons are disclosure controls; the list
+     they control uses the hidden attribute, so collapsed items leave the tab order and a11y tree. */
+  .arise-nav-group-btn{display:flex;align-items:center;gap:.4rem;width:100%;min-height:32px;padding:.25rem 1rem;background:transparent;border:0;border-radius:0;color:var(--text-secondary);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;text-align:left;cursor:pointer}
+  .arise-nav-group-btn:hover{color:var(--text-primary);background:var(--surface-hover)}
+  .arise-nav-group-chev{margin-left:auto;flex-shrink:0;transition:transform .2s}
+  .arise-nav-group-btn[aria-expanded="false"] .arise-nav-group-chev{transform:rotate(-90deg)}
+  .arise-nav-group-dot{width:6px;height:6px;border-radius:9999px;background:var(--info,#38bdf8);flex-shrink:0}
+  #arise-desktop-sidebar[data-collapsed="true"] .arise-nav-group+.arise-nav-group{border-top:1px solid color-mix(in srgb,var(--border) 60%,transparent);padding-top:.5rem}
+  #arise-desktop-sidebar .nav-item:focus-visible,#arise-mobile-drawer .nav-item:focus-visible,.arise-nav-group-btn:focus-visible{outline:2px solid var(--info,#38bdf8)!important;outline-offset:-2px}
+  .arise-skip-link{position:fixed;top:.5rem;left:.5rem;z-index:12200;padding:.6rem 1rem;border-radius:.5rem;background:var(--surface);color:var(--text-primary);border:2px solid var(--info,#38bdf8);font-size:.875rem;font-weight:600;text-decoration:none;transform:translateY(-250%)}
+  .arise-skip-link:focus{transform:translateY(0)}
+  #arise-main:focus{outline:none}
+
+  /* Sidebar fullscreen fix: hide the fixed logo rail (and, defensively, the mobile off-canvas
+     drawer/backdrop if it happened to be open) completely while the Timer section is in
+     fullscreen mode. Covers both the app's own custom fullscreen state (html/body get
+     .arise-focus-active, toggled by the focus-overlay watcher script) and the native
+     browser Fullscreen API (document.documentElement is the requested element, so it
+     receives the :fullscreen pseudo-class). When it exits, none of these selectors match
+     any more and the fixed logo rail reappears automatically. */
+  html.arise-focus-active .glass-strong.border-r.border-cyber-border\/30,
+  body.arise-focus-active .glass-strong.border-r.border-cyber-border\/30,
+  html:fullscreen .glass-strong.border-r.border-cyber-border\/30,
+  html:-webkit-full-screen .glass-strong.border-r.border-cyber-border\/30,
+  html:-moz-full-screen .glass-strong.border-r.border-cyber-border\/30,
+  html:-ms-fullscreen .glass-strong.border-r.border-cyber-border\/30,
+  html.arise-focus-active .fixed.left-0.top-0.bottom-0.w-64.glass-strong.z-50,
+  body.arise-focus-active .fixed.left-0.top-0.bottom-0.w-64.glass-strong.z-50,
+  html:fullscreen .fixed.left-0.top-0.bottom-0.w-64.glass-strong.z-50,
+  html.arise-focus-active .fixed.inset-0.bg-black\/70.backdrop-blur-sm.z-40,
+  body.arise-focus-active .fixed.inset-0.bg-black\/70.backdrop-blur-sm.z-40,
+  html:fullscreen .fixed.inset-0.bg-black\/70.backdrop-blur-sm.z-40{
+    display:none!important;
+  }
+  @media (min-width:64rem){
+    html.arise-focus-active .glass-strong.border-r.border-cyber-border\/30 ~ main.flex-1.overflow-y-auto,
+    body.arise-focus-active .glass-strong.border-r.border-cyber-border\/30 ~ main.flex-1.overflow-y-auto,
+    html:fullscreen .glass-strong.border-r.border-cyber-border\/30 ~ main.flex-1.overflow-y-auto{
+      margin-left:0!important;
+    }
+  }
+
+  /* App focus mode: it was a fixed overlay, but the content was vertically centered and the theme switcher sat above it. */
+  .focus-mode{z-index:13000!important;overflow-y:auto!important;overflow-x:hidden!important;scrollbar-gutter:stable;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  html.arise-focus-active .theme-switcher-root,body.arise-focus-active .theme-switcher-root,.focus-mode ~ .theme-switcher-root{display:none!important;pointer-events:none!important}
+  .focus-mode-backdrop{z-index:0!important}
+  .focus-mode .ambient-focus-shell{width:100%!important;min-height:100dvh!important;height:auto!important;justify-content:flex-start!important;align-items:center!important;padding-top:clamp(1rem,2.5vh,2rem)!important;padding-bottom:calc(1.5rem + env(safe-area-inset-bottom))!important;box-sizing:border-box!important;overflow:visible!important}
+  .focus-mode .ambient-focus-grid{align-items:start!important;width:100%!important}
+  .focus-mode .ambient-focus-left{align-self:start!important;justify-content:flex-start!important;min-height:0!important;overflow:visible!important}
+  .focus-mode .ambient-focus-left > div{width:100%;display:flex;justify-content:center;overflow:visible!important}
+  .focus-mode .timer-ring-container,.arise-active-focus-root .timer-ring-container{flex-shrink:0!important}
+  .focus-mode .ambient-sound-controls,.fixed.inset-0.z-\[9999\] .ambient-sound-controls,.arise-active-focus-root .ambient-sound-controls{width:min(92vw,30rem);max-width:30rem;margin-top:clamp(.75rem,2vh,1.1rem)!important;margin-bottom:calc(1rem + env(safe-area-inset-bottom))!important}
+  .focus-mode .ambient-sound-row{justify-content:center}
+
+  /* Standalone timer fullscreen overlay: use scroll instead of clipping. */
+  html.arise-focus-active,body.arise-focus-active{overflow:hidden!important;height:100%!important;overscroll-behavior:none!important}
+  body.arise-focus-active .ambient-sound-controls{display:none!important}
+  body.arise-focus-active .arise-active-focus-root .ambient-sound-controls{display:block!important}
+  body.arise-focus-active .arise-active-focus-root:not(.focus-mode){height:100dvh!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;align-items:center!important;justify-content:flex-start!important;padding:clamp(1rem,3vh,2rem) clamp(1rem,3vw,2rem) calc(1.5rem + env(safe-area-inset-bottom))!important;box-sizing:border-box!important;scrollbar-gutter:stable;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  body.arise-focus-active .arise-active-focus-root:not(.focus-mode) > *{max-height:none!important}
+  body.arise-focus-active .arise-active-focus-root:not(.focus-mode) [class*=overflow-y-auto],body.arise-focus-active .arise-active-focus-root:not(.focus-mode) [class*=overflow-auto]{max-height:none!important;scrollbar-gutter:stable!important}
+
+  @media (min-width:1024px) and (max-height:820px){
+    .focus-mode .ambient-focus-shell{padding-top:.75rem!important;padding-bottom:1.25rem!important}
+    .focus-mode .ambient-focus-grid{gap:1rem!important}
+    .focus-mode .ambient-sound-controls,.arise-active-focus-root .ambient-sound-controls{margin-top:.65rem!important;margin-bottom:1rem!important}
+  }
+  @media (max-width:1023px){
+    .focus-mode .ambient-focus-shell{justify-content:flex-start!important;padding-bottom:1.5rem!important}
+    .focus-mode .ambient-focus-grid{align-items:start!important}
+    .ambient-sound-controls{width:min(100%,28rem)}
+  }
+  @media (max-width:520px){
+    .ambient-sound-controls{padding:.7rem;margin-top:.85rem;margin-bottom:6rem}
+    .ambient-sound-row{gap:.35rem}.ambient-sound-select{min-width:100%}.ambient-sound-btn{padding:0 .55rem}.ambient-sound-now{max-width:9rem}
+  }
+
+  /* Fullscreen focus-mode fix: lock shell to exact viewport, kill leaked bottom gap/scrollbar. */
+  html.arise-focus-active,
+  body.arise-focus-active {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+  }
+  body.arise-focus-active #root,
+  body.arise-focus-active .flex.h-screen.bg-cyber-black.overflow-hidden,
+  body.arise-focus-active main.flex-1.overflow-y-auto {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+  body.arise-focus-active main.flex-1.overflow-y-auto > div:last-child {
+    padding-bottom: 0 !important;
+  }
+  body.arise-focus-active .focus-mode {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    scrollbar-gutter: auto !important;
+    box-sizing: border-box !important;
+  }
+  body.arise-focus-active .focus-mode .ambient-focus-shell {
+    width: 100% !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    padding: clamp(0.75rem, 2vh, 1.25rem) clamp(1rem, 2.5vw, 1.5rem) !important;
+    box-sizing: border-box !important;
+  }
+  body.arise-focus-active .focus-mode .ambient-focus-grid {
+    width: 100% !important;
+    max-width: min(92rem, calc(100vw - 3rem)) !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    align-items: center !important;
+    overflow: hidden !important;
+    margin-inline: auto !important;
+    box-sizing: border-box !important;
+  }
+  body.arise-focus-active .focus-mode .arise-timer-upgrade-panel {
+    display: none !important;
+  }
+  @media (min-width: 1024px) {
+    body.arise-focus-active .focus-mode .ambient-sound-controls {
+      position: fixed !important;
+      left: clamp(1rem, 2vw, 2rem) !important;
+      bottom: clamp(0.75rem, 2vh, 1.25rem) !important;
+      z-index: 14000 !important;
+      width: min(28rem, calc(100vw - 2rem)) !important;
+      max-width: min(28rem, calc(100vw - 2rem)) !important;
+      margin: 0 !important;
+      padding: 0.75rem !important;
+      box-sizing: border-box !important;
+    }
+    body.arise-focus-active .focus-mode .timer-ring-container {
+      transform: scale(0.92);
+      transform-origin: center;
+      margin-top: -0.5rem !important;
+      margin-bottom: -0.5rem !important;
+    }
+  }
+  @media (max-height: 820px) {
+    body.arise-focus-active .focus-mode .ambient-sound-controls {
+      display: none !important;
+    }
+    body.arise-focus-active .focus-mode .timer-ring-container {
+      transform: scale(0.86);
+    }
+  }
+</style>
+<script id="ambient-sound-system-script">
+(function(){
+  if(window.__ARISE_AMBIENT_SOUND__) return;
+  const SOUNDS=[
+    {id:'rain',label:'Rain',src:'./sounds/rain.mp3'},
+    {id:'moody',label:'Moody',src:'./sounds/moody.mp3'},
+    {id:'relaxing',label:'Relaxing',src:'./sounds/relaxing.mp3'},
+    {id:'calming',label:'Calming',src:'./sounds/calming.mp3'},
+    {id:'forest',label:'Forest / Nature',src:'./sounds/forest.mp3'},
+    {id:'wind',label:'Soft Wind',src:'./sounds/wind.mp3'},
+    {id:'night',label:'Night Ambience',src:'./sounds/night.mp3'}
+  ];
+  const KEY='ariseAmbientSound:v1';
+  const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
+  const loadState=()=>{try{const raw=localStorage.getItem(KEY);if(raw){const s=JSON.parse(raw);return{selected:SOUNDS.some(x=>x.id===s.selected)?s.selected:'rain',volume:clamp(Number(s.volume)||0.45,0,1),muted:!!s.muted,playing:false}}}catch(e){}return{selected:'rain',volume:.45,muted:false,playing:false}};
+  const state=loadState(); let audio=null; let loadedId=null; let pendingPlay=null; let errorMsg='';
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({selected:state.selected,volume:state.volume,muted:state.muted}))}catch(e){}};
+  const current=()=>SOUNDS.find(s=>s.id===state.selected)||SOUNDS[0];
+  const clearError=()=>{errorMsg='';};
+  const showError=(msg)=>{errorMsg=msg||'Audio couldn\'t start. Click Play again or replace sound files if needed.';};
+  // Explicitly track which sound id is actually loaded into the <audio> element,
+  // instead of guessing from resolved src strings (which browsers normalize to
+  // absolute URLs and made the old endsWith() comparison unreliable).
+  const ensureAudio=(forceReload)=>{
+    const s=current();
+    if(!audio){
+      audio=new Audio();
+      audio.loop=true;
+      audio.preload='auto';
+      // Keep `state.playing` truthful by listening to the element's real
+      // playback events instead of only trusting what we set on click.
+      audio.addEventListener('playing',()=>{state.playing=true;clearError();sync();});
+      audio.addEventListener('pause',()=>{if(!pendingPlay){state.playing=false;sync();}});
+      audio.addEventListener('error',()=>{
+        state.playing=false;
+        showError('Couldn\'t load "'+current().label+'". Check the file or try another track.');
+        sync();
+      });
+    }
+    if(forceReload || loadedId!==s.id){
+      audio.pause();
+      audio.src=s.src;
+      loadedId=s.id;
+      audio.load();
+    }
+    audio.volume=state.muted?0:state.volume;
+    audio.muted=state.muted;
+    audio.loop=true;
+    return audio;
+  };
+  const sync=()=>{if(audio){audio.volume=state.muted?0:state.volume;audio.muted=state.muted;} document.querySelectorAll('.ambient-sound-controls').forEach(renderInto); save();};
+  const play=()=>{
+    clearError();
+    const el=ensureAudio();
+    const req=el.play();
+    pendingPlay=req;
+    sync(); // reflect "starting..." optimistically, corrected by events/catch below
+    Promise.resolve(req).then(()=>{
+      if(pendingPlay===req){pendingPlay=null;state.playing=true;clearError();sync();}
+    }).catch(err=>{
+      if(pendingPlay!==req) return; // superseded by a newer play()/setSound() call
+      pendingPlay=null;
+      state.playing=false;
+      // AbortError fires when a play() is interrupted by a follow-up load()/pause()
+      // (e.g. quickly switching tracks) — that's expected, not a real failure.
+      if(err && err.name==='AbortError'){sync();return;}
+      showError();
+      sync();
+    });
+  };
+  const pause=()=>{pendingPlay=null;state.playing=false;if(audio)audio.pause();sync();};
+  const stop=()=>{pendingPlay=null;state.playing=false;if(audio){audio.pause();try{audio.currentTime=0}catch(e){}}sync();};
+  const setSound=(id)=>{
+    if(!SOUNDS.some(s=>s.id===id)||id===state.selected)return;
+    const was=state.playing||!!pendingPlay;
+    pendingPlay=null;
+    state.selected=id;
+    if(was){play();}else{if(audio){audio.pause();} loadedId=null; sync();}
+  };
+  function renderInto(panel){
+    const s=current(); panel.innerHTML='';
+    const title=document.createElement('div'); title.className='ambient-sound-title'; title.innerHTML='<span>🎧 Ambient Sound</span><span class="ambient-sound-now">'+(state.playing?'Playing: ':'Ready: ')+s.label+'</span>';
+    const grid=document.createElement('div'); grid.className='ambient-sound-grid';
+    const row=document.createElement('div'); row.className='ambient-sound-row';
+    const select=document.createElement('select'); select.className='ambient-sound-select'; select.setAttribute('aria-label','Ambient sound');
+    SOUNDS.forEach(opt=>{const o=document.createElement('option');o.value=opt.id;o.textContent=opt.label;o.selected=opt.id===state.selected;select.appendChild(o)}); select.onchange=()=>setSound(select.value);
+    const playBtn=document.createElement('button'); playBtn.className='ambient-sound-btn'; playBtn.type='button'; playBtn.textContent=state.playing?'Pause':'Play'; playBtn.onclick=()=>state.playing?pause():play();
+    const stopBtn=document.createElement('button'); stopBtn.className='ambient-sound-btn'; stopBtn.type='button'; stopBtn.textContent='Stop'; stopBtn.onclick=stop;
+    const muteBtn=document.createElement('button'); muteBtn.className='ambient-sound-btn'; muteBtn.type='button'; muteBtn.textContent=state.muted?'Unmute':'Mute'; muteBtn.onclick=()=>{state.muted=!state.muted;sync()};
+    row.append(select,playBtn,stopBtn,muteBtn);
+    const vol=document.createElement('label'); vol.className='ambient-sound-volume'; vol.innerHTML='<span>Vol</span>';
+    const range=document.createElement('input'); range.type='range'; range.min='0'; range.max='100'; range.value=String(Math.round(state.volume*100)); range.oninput=()=>{state.volume=clamp(Number(range.value)/100,0,1); if(audio)audio.volume=state.muted?0:state.volume; save();};
+    const pct=document.createElement('span'); pct.textContent=Math.round(state.volume*100)+'%'; range.addEventListener('input',()=>pct.textContent=Math.round(state.volume*100)+'%'); vol.append(range,pct);
+    const err=document.createElement('div'); err.className='ambient-sound-error'+(errorMsg?' show':''); err.textContent=errorMsg;
+    grid.append(row,vol,err); panel.append(title,grid);
+  }
+  function timerRootFromTab(tab){let node=tab.parentElement; for(let i=0;node&&i<6;i++,node=node.parentElement){ if(node.querySelector('.timer-ring-container')) return node; } return null; }
+  function getFocusOverlay(){
+    const focusMode=document.querySelector('.focus-mode');
+    if(focusMode && focusMode.querySelector('.timer-ring-container')) return focusMode;
+    // Perf: the fallback used to scan EVERY div in the document (with a
+    // getComputedStyle per candidate) after every debounced mutation batch —
+    // measurable main-thread cost on low-end phones, since React mutations
+    // arrive constantly. Two safe cuts:
+    //   1. The overlay always contains the timer ring, so when no timer UI
+    //      exists at all the whole scan is pointless — bail immediately.
+    //   2. Cheap className checks now run before any getComputedStyle call;
+    //      the real overlay is tailwind class-based ("fixed inset-0 z-[9999]").
+    //      Elements that don't carry a fixed/z hint class can never satisfy
+    //      the original isFixed&&highZ test in this app, so semantics for the
+    //      overlays that actually exist are unchanged.
+    if(!document.querySelector('.timer-ring-container')) return null;
+    const nodes=[...document.querySelectorAll('div')];
+    return nodes.find(el=>{
+      const cls=el.className||'';
+      const clsFixed=/(^|\s)fixed(\s|$)/.test(cls);
+      const clsHighZ=cls.includes('z-[9999]');
+      if(!clsFixed&&!clsHighZ) return false;
+      const cs=getComputedStyle(el);
+      const isFixed=cs.position==='fixed'||clsFixed;
+      const highZ=(parseInt(cs.zIndex,10)||0)>=9000||clsHighZ;
+      if(!isFixed||!highZ) return false;
+      const covers=(el.offsetWidth>=innerWidth*.75 && el.offsetHeight>=innerHeight*.75);
+      const hasTimer=el.textContent&&el.textContent.includes('Ready')&&el.querySelector('button');
+      return covers&&hasTimer;
+    })||null;
+  }
+  function setFocusState(activeRoot){
+    document.documentElement.classList.toggle('arise-focus-active',!!activeRoot);
+    document.body.classList.toggle('arise-focus-active',!!activeRoot);
+    document.querySelectorAll('.arise-active-focus-root').forEach(el=>{if(el!==activeRoot)el.classList.remove('arise-active-focus-root')});
+    if(activeRoot) activeRoot.classList.add('arise-active-focus-root');
+  }
+  function install(){
+    // Perf: every part of this function is only meaningful when a timer UI
+    // exists on the page. When it doesn't (the common case — most tabs have
+    // no timer), skip the focus-overlay resolution and the whole button scan
+    // and just run the cheap stray-panel cleanup below.
+    const hasTimerUI=!!document.querySelector('.timer-ring-container');
+    const activeRoot=hasTimerUI?getFocusOverlay():null; setFocusState(activeRoot);
+    const scope=activeRoot||document;
+    if(activeRoot&&activeRoot.classList&&activeRoot.classList.contains('focus-mode')){
+      const shell=activeRoot.querySelector('.ambient-focus-shell')||activeRoot.querySelector('.relative.z-10');
+      if(shell) shell.classList.add('ambient-focus-shell');
+      const grid=activeRoot.querySelector('.ambient-focus-grid')||activeRoot.querySelector('.grid');
+      if(grid) grid.classList.add('ambient-focus-grid');
+      const left=activeRoot.querySelector('.ambient-focus-left')||activeRoot.querySelector('.lg\:col-span-2');
+      if(left) left.classList.add('ambient-focus-left');
+    }
+    document.querySelectorAll('.ambient-sound-controls').forEach(panel=>{
+      if(activeRoot && !activeRoot.contains(panel)) panel.remove();
+      if(!activeRoot && panel.closest('.focus-mode')) panel.remove();
+    });
+    if(!hasTimerUI) return;
+    const tabs=[...scope.querySelectorAll('button')].filter(b=>/Timer/.test((b.textContent||'')) && (b.textContent||'').includes('⏱') && b.getClientRects().length);
+    tabs.forEach(tab=>{
+      const root=timerRootFromTab(tab);
+      if(!root || (activeRoot&&!activeRoot.contains(root))) return;
+      const nested=[...root.querySelectorAll('.ambient-sound-controls')].filter(panel=>panel.parentElement!==root);
+      nested.forEach(panel=>panel.remove());
+      const existing=[...root.querySelectorAll(':scope > .ambient-sound-controls')];
+      if(existing.length){existing.slice(1).forEach(panel=>panel.remove()); return;}
+      const panel=document.createElement('div'); panel.className='ambient-sound-controls'; panel.dataset.ambientSound='true'; renderInto(panel);
+      // Anchor right after the timer ring itself — reliable regardless of
+      // whether the control button currently reads "Start" or "Pause".
+      const ring=root.querySelector(':scope > .timer-ring-container');
+      if(ring&&ring.nextSibling) root.insertBefore(panel,ring.nextSibling);
+      else if(ring) root.appendChild(panel);
+      else root.appendChild(panel);
+    });
+  }
+  const debounced=()=>{if(document.hidden)return;clearTimeout(debounced.t);debounced.t=setTimeout(install,80)};
+  document.addEventListener('DOMContentLoaded',install); window.addEventListener('load',install); setTimeout(install,500); setTimeout(install,1500);
+  // Mutations that arrived while the tab was hidden were skipped above; run
+  // install once on visibility regain so the panel is never left un-anchored.
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)install();});
+  var ambObs=new MutationObserver(debounced);
+  ambObs.observe(document.documentElement,{childList:true,subtree:true});
+  window.addEventListener('arise:widgets-ready',function(){
+    if(window.__ARISE_MUTATION_BUS__){try{ambObs.disconnect();}catch(e){} window.__ARISE_MUTATION_BUS__.subscribe(debounced);}
+  },{once:true});
+  window.__ARISE_AMBIENT_SOUND__={play,pause,stop,state,get audio(){return audio},install};
+})();
+</script>
+
+  <script id="arise-lazy-widget-loader">
+  // Perf patch: these widgets are all tab-scoped (not part of the default
+  // Dashboard view) and were previously loaded eagerly via <script defer>,
+  // competing with the critical render path. They're now injected after
+  // first paint is settled, in the exact same order as before (the vanilla
+  // widget files self-mount via window.__mountX contracts read by the React
+  // bundle, and a couple of files intentionally redefine the same global -
+  // e.g. __mountLocalFiles - so preserving order is required for identical
+  // behavior). No widget, feature, or localStorage logic is touched.
+  (function () {
+    'use strict';
+    var CSS_FILES = [
+      './widget-nav.css',
+      './premium-productivity-features.css',
+      './features/placement-tracker/placement-tracker.css',
+      './features/certificates/certificates.css',
+      './theme-quick-toggle.css'
+    ];
+    var SCRIPTS = [
+      './mutation-bus.js',
+      './storage-watch-bus.js',
+      './storage-keys.js',
+      './widget-shared-utils.js',
+      './widget-nav.js',
+      './mobile-nav-enhance.js',
+      './dev-task-timestamps-widget.js',
+      './theme-system.js',
+      './theme-quick-toggle.js',
+      './premium-productivity-features.js',
+      './saas-widget-enhancer.js',
+      './habit-heatmap-widget.js',
+      './burnout-detector-widget.js',
+      './xp-breakdown-widget.js',
+      './readiness-50lpa-widget.js',
+      './career-command-center-widget.js',
+      './readiness-path-planner-widget.js',
+      './battle-plan-widget.js',
+      './ai-smart-learning-path-widget.js',
+      './revision-system-widget.js',
+      './water-reminder-widget.js',
+      './focus-mode-widget.js',
+      './focus-timer-upgrade-widget.js',
+      './timer-visual-upgrade-widget.js',
+      './learning-session-analytics-widget.js',
+      './learning-mastery-correlation-widget.js',
+      './weekly-ai-report-widget.js',
+      './ai-career-mentor-widget.js',
+      './ai-connect-shared.js',
+      './ai-real-insights-widget.js',
+      './attendance-tracker-widget.js',
+      './competitive-programming-widget.js',
+      './social-media-widget.js',
+      './problem-log-explorer-widget.js',
+      './hackathon-tracker-widget.js',
+      './hackathon-expense-tracker-widget.js',
+      './hackathon-timeline-widget.js',
+      './hackathon-pipeline-widget.js',
+      './hackathon-team-directory-widget.js',
+      './hackathon-prize-wall-widget.js',
+      './hackathon-funnel-widget.js',
+      './dev-mastery-heatmap-widget.js',
+      './dev-weekly-sparkline-widget.js',
+      './dev-milestone-badges-widget.js',
+      './dev-pace-projection-widget.js',
+      './dev-difficulty-radar-widget.js',
+      './skills-timeline-widget.js',
+      './notes-app-widget.js',
+      './personal-wiki-widget.js',
+      './interview-sheets-widget.js',
+      './dsa-mastery-premium-widget.js',
+      './dev-mastery-premium-widget.js',
+      './dev-mastery-trend-widget.js',
+      './dev-topic-breakdown-widget.js',
+      './dev-streak-widget.js',
+      './dev-roadmap-coverage-widget.js',
+      './dev-solve-speed-widget.js',
+      './dsa-topic-breakdown-widget.js',
+      './dsa-pace-projection-widget.js',
+      './dsa-streak-widget.js',
+      './dsa-weekly-sparkline-widget.js',
+      './dsa-mastery-trend-widget.js',
+      './dsa-difficulty-radar-widget.js',
+      './dsa-sheet-coverage-widget.js',
+      './dsa-solve-speed-widget.js',
+      './dsa-milestone-badges-widget.js',
+      './dsa-revision-scheduler-widget.js',
+      './dsa-problem-insights-widget.js',
+      './dsa-tier3-readiness-widget.js',
+      './dsa-placement-engine-widget.js',
+      './dsa-daily-goal-widget.js',
+      './dsa-mock-oa-widget.js',
+      './dsa-pattern-playbook-widget.js',
+      './dsa-proof-pack-widget.js',
+      './aptitude-practice-widget.js',
+      './dev-placement-engine-widget.js',
+      './placement-command-center-widget.js',
+      './dev-task-insights-widget.js',
+      './dev-quality-trend-widget.js',
+      './dev-portfolio-flags-widget.js',
+      './dev-revision-scheduler-widget.js',
+      './backup-center-widget.js',
+      './features/placement-tracker/placement-calculations.js',
+      './features/placement-tracker/placement-storage.js',
+      './features/placement-tracker/placement-tracker.js',
+      './features/placement-tracker/placement-tracker-new-features.js',
+      './features/cse-placement-critical/cse-placement-critical-config.js',
+      './features/semester-risk/cse-full-syllabus-config.js',
+      './features/semester-risk/cse-syllabus-plus-widget.js',
+      './features/semester-risk/cse-syllabus-plus-v144-patch.js',
+      './features/semester-risk/cse-syllabus-tabs-v150-patch.js',
+      './features/semester-risk/cse-syllabus-unified-widget.js',
+      './local-files-widget.js',
+      './projects-widget.js',
+      './expenses.js',
+      './cgpa-tracker-widget.js',
+      './features/certificates/certificates-storage.js',
+      './features/certificates/certificates-widget.js',
+      './mount-safety.js',
+      './widget-reset.js',
+      './a11y-toast-patch.js',
+      './a11y-color-patch.js'
+    ];
+    /*CHUNKS:START*/
+    var CHUNKS = [
+      "./assets/chunks/w01.dfe8faec.js",
+      "./assets/chunks/w02.25ba2e88.js",
+      "./assets/chunks/w03.8525c36b.js",
+      "./assets/chunks/w04.b72e23b7.js",
+      "./assets/chunks/w05.f3bf4c6e.js",
+      "./assets/chunks/w06.2d54f9f8.js",
+      "./assets/chunks/w07.4d868f2a.js",
+      "./assets/chunks/w08.3fabf88b.js",
+      "./assets/chunks/w09.64ec75b6.js",
+      "./assets/chunks/w10.fa3b1a8c.js",
+      "./assets/chunks/w11.30dc80f4.js",
+      "./assets/chunks/w12.66c35f49.js"
+    ];
+    var CHUNK_FILES = {"./assets/chunks/w01.dfe8faec.js":["./mutation-bus.js","./storage-watch-bus.js","./storage-keys.js","./widget-shared-utils.js","./widget-nav.js","./mobile-nav-enhance.js","./dev-task-timestamps-widget.js","./theme-system.js","./theme-quick-toggle.js","./premium-productivity-features.js","./saas-widget-enhancer.js","./habit-heatmap-widget.js","./burnout-detector-widget.js","./xp-breakdown-widget.js","./readiness-50lpa-widget.js","./career-command-center-widget.js"],"./assets/chunks/w02.25ba2e88.js":["./readiness-path-planner-widget.js","./battle-plan-widget.js","./ai-smart-learning-path-widget.js","./revision-system-widget.js","./water-reminder-widget.js","./focus-mode-widget.js","./focus-timer-upgrade-widget.js","./timer-visual-upgrade-widget.js","./learning-session-analytics-widget.js","./learning-mastery-correlation-widget.js","./weekly-ai-report-widget.js","./ai-career-mentor-widget.js","./ai-connect-shared.js","./ai-real-insights-widget.js"],"./assets/chunks/w03.8525c36b.js":["./attendance-tracker-widget.js"],"./assets/chunks/w04.b72e23b7.js":["./competitive-programming-widget.js","./social-media-widget.js","./problem-log-explorer-widget.js"],"./assets/chunks/w05.f3bf4c6e.js":["./hackathon-tracker-widget.js","./hackathon-expense-tracker-widget.js","./hackathon-timeline-widget.js","./hackathon-pipeline-widget.js","./hackathon-team-directory-widget.js","./hackathon-prize-wall-widget.js","./hackathon-funnel-widget.js","./dev-mastery-heatmap-widget.js","./dev-weekly-sparkline-widget.js","./dev-milestone-badges-widget.js","./dev-pace-projection-widget.js","./dev-difficulty-radar-widget.js"],"./assets/chunks/w06.2d54f9f8.js":["./skills-timeline-widget.js","./notes-app-widget.js","./personal-wiki-widget.js","./interview-sheets-widget.js","./dsa-mastery-premium-widget.js"],"./assets/chunks/w07.4d868f2a.js":["./dev-mastery-premium-widget.js","./dev-mastery-trend-widget.js","./dev-topic-breakdown-widget.js","./dev-streak-widget.js","./dev-roadmap-coverage-widget.js","./dev-solve-speed-widget.js","./dsa-topic-breakdown-widget.js","./dsa-pace-projection-widget.js","./dsa-streak-widget.js","./dsa-weekly-sparkline-widget.js","./dsa-mastery-trend-widget.js","./dsa-difficulty-radar-widget.js","./dsa-sheet-coverage-widget.js","./dsa-solve-speed-widget.js","./dsa-milestone-badges-widget.js","./dsa-revision-scheduler-widget.js","./dsa-problem-insights-widget.js","./dsa-tier3-readiness-widget.js","./dsa-placement-engine-widget.js","./dsa-daily-goal-widget.js","./dsa-mock-oa-widget.js","./dsa-pattern-playbook-widget.js","./dsa-proof-pack-widget.js"],"./assets/chunks/w08.3fabf88b.js":["./aptitude-practice-widget.js","./dev-placement-engine-widget.js","./placement-command-center-widget.js","./dev-task-insights-widget.js","./dev-quality-trend-widget.js","./dev-portfolio-flags-widget.js","./dev-revision-scheduler-widget.js","./backup-center-widget.js","./features/placement-tracker/placement-calculations.js","./features/placement-tracker/placement-storage.js","./features/placement-tracker/placement-tracker.js","./features/placement-tracker/placement-tracker-new-features.js","./features/cse-placement-critical/cse-placement-critical-config.js"],"./assets/chunks/w09.64ec75b6.js":["./features/semester-risk/cse-full-syllabus-config.js","./features/semester-risk/cse-syllabus-plus-widget.js","./features/semester-risk/cse-syllabus-plus-v144-patch.js","./features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.fa3b1a8c.js":["./features/semester-risk/cse-syllabus-unified-widget.js","./local-files-widget.js","./projects-widget.js"],"./assets/chunks/w11.30dc80f4.js":["./expenses.js"],"./assets/chunks/w12.66c35f49.js":["./cgpa-tracker-widget.js","./features/certificates/certificates-storage.js","./features/certificates/certificates-widget.js","./mount-safety.js","./widget-reset.js","./a11y-toast-patch.js","./a11y-color-patch.js"]};
+    /*CHUNKS:END*/
+
+    function loadCss() {
+      CSS_FILES.forEach(function (href) {
+        if (document.querySelector('link[href="' + href + '"]')) return;
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        document.head.appendChild(link);
+      });
+    }
+
+    // Stability patch: a script that 404s or throws during parsing used to
+    // fail completely silently - the loader just moved on, so a broken
+    // widget file would only ever be noticed if a user happened to click
+    // into that specific tab and reported it. This collects failures (and,
+    // if window.__ariseReportWidgetError is defined elsewhere, reports
+    // them) without changing load order, load timing, or which scripts get
+    // skipped - purely additive visibility.
+    var failedWidgetScripts = [];
+    window.__ariseWidgetLoadFailures = failedWidgetScripts;
+
+    // v222: EXPEDITE. Until every widget script has run, sections the user opens render
+    // as empty shells (the React shell calls __mountX before the widget file exists).
+    // The polite batch-and-yield schedule is only worth it while nobody is waiting.
+    // The moment the user interacts (first pointer/key press) or a section asks for a
+    // not-yet-loaded widget (the __mountX stubs call this), start immediately if we
+    // haven't, drop the yields and load every remaining script in one ordered pass.
+    var expedite = false;
+    var pendingGo = null;
+    var startFn = null;
+    window.__ariseExpedite = function () {
+      if (expedite || window.__ariseWidgetsReady) return;
+      expedite = true;
+      if (startFn) startFn();
+      if (pendingGo) { var g = pendingGo; pendingGo = null; g(); }
+    };
+    ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
+      window.addEventListener(ev, function () { window.__ariseExpedite(); }, { once: true, passive: true, capture: true });
+    });
+
+    function loadScriptsInOrder(list) {
+      // Perf patch #3 (chunked + yielding). Perf patch #2 created all ~100
+      // <script async=false> tags at once: the network was parallel, but the
+      // browser then compiled and executed ~2.5 MB of JS back-to-back, which froze
+      // scrolling/typing for seconds on mid-range hardware right as the dashboard
+      // was becoming interactive. Now scripts are injected in small ordered
+      // batches; between batches the loader yields to the browser (next animation frame) so rendering and input are never starved. Execution order is
+      // still exactly the list order (async=false inside a batch, batches run
+      // sequentially), so every __mountX / redefine-the-same-global contract
+      // holds. Batches after the first are pre-warmed into the HTTP/SW cache at
+      // low priority (max 4 in flight) so each batch starts without a cold-network
+      // wait. A script that fails to load is skipped and logged, as before.
+      var BATCH = (list === CHUNKS) ? 2 : 8;
+      var index = 0;
+      var finished = false;
+
+      function finish() {
+        if (finished) return;
+        finished = true;
+        try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
+        window.__ariseWidgetsReady = true;
+        window.__ariseWidgetsReadyAt = Math.round(performance.now());
+        try { window.dispatchEvent(new Event('arise:widgets-ready')); } catch (e) {}
+        // v224: SW cache warm-up is requested only now (it used to run inside the SW's
+        // activate step and froze every request for 12 s+ on first visit / each update).
+        setTimeout(function () {
+          try { var c = navigator.serviceWorker && navigator.serviceWorker.controller; if (c) c.postMessage({ type: 'arise-fill-cache' }); } catch (e) {}
+        }, 5000);
+      }
+
+      function yieldThen(fn) {
+        // Let one frame paint (and any pending input run) before the next batch.
+        // The 120 ms timer is the fallback for hidden tabs, where rAF is paused.
+        var once = false;
+        if (expedite) { fn(); return; }
+        function go() { if (once) return; once = true; pendingGo = null; fn(); }
+        pendingGo = go;
+        // Perf: after the frame, also wait for an idle slice (max 60 ms) so the
+        // next script batch never lands in the middle of user input or a render.
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(function () {
+            if (typeof requestIdleCallback === 'function') requestIdleCallback(go, { timeout: 60 });
+            else setTimeout(go, 0);
+          });
+        }
+        setTimeout(go, 100);
+      }
+
+      function prewarm(urls) {
+        var queue = urls.slice();
+        var active = 0;
+        function pump() {
+          while (!expedite && active < 4 && queue.length) {
+            active++;
+            fetch(queue.shift(), { priority: 'low' })
+              .then(function (r) { return r.arrayBuffer(); })
+              .catch(function () {})
+              .then(function () { active--; pump(); });
+          }
+        }
+        pump();
+      }
+
+      function nextBatch() {
+        if (index >= list.length) { finish(); return; }
+        var size = expedite ? list.length : BATCH;
+        var batch = list.slice(index, index + size);
+        index += size;
+        var left = batch.length;
+        batch.forEach(function (src) {
+          var s = document.createElement('script');
+          var settled = false;
+          function settle() {
+            if (settled) return;
+            settled = true;
+            if (--left === 0) {
+              try { if (typeof window.__ariseFlushReadyMounts === 'function') window.__ariseFlushReadyMounts(); } catch (e) {}
+              if (index >= list.length) finish();
+              else yieldThen(nextBatch);
+            }
+          }
+          s.src = src;
+          s.async = false;
+          s.onload = settle;
+          s.onerror = function () {
+            var parts = CHUNK_FILES[src];
+            if (parts && parts.length) {
+              // v225: chunk unavailable -> load the original files one-by-one, same order.
+              console.warn('[widget-loader] chunk failed, falling back to ' + parts.length + ' files: ' + src);
+              var n = parts.length;
+              parts.forEach(function (f) {
+                var t = document.createElement('script');
+                t.src = f; t.async = false;
+                t.onload = function () { if (--n === 0) settle(); };
+                t.onerror = function () {
+                  failedWidgetScripts.push(f);
+                  console.error('[widget-loader] failed to load: ' + f);
+                  if (typeof window.__ariseReportWidgetError === 'function') { try { window.__ariseReportWidgetError(f); } catch (e) {} }
+                  if (--n === 0) settle();
+                };
+                document.body.appendChild(t);
+              });
+              return;
+            }
+            failedWidgetScripts.push(src);
+            console.error('[widget-loader] failed to load: ' + src);
+            if (typeof window.__ariseReportWidgetError === 'function') {
+              try { window.__ariseReportWidgetError(src); } catch (e) {}
+            }
+            settle();
+          };
+          document.body.appendChild(s);
+        });
+      }
+
+      // Safety net: if one script hangs, still replay early mounts after 30 s
+      // (finish() still runs when the stragglers eventually settle).
+      setTimeout(function () {
+        try { if (!finished && typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
+      }, 30000);
+      if (typeof fetch === 'function') prewarm(list.slice(BATCH));
+      nextBatch();
+    }
+
+    function startLazyLoad() {
+      if (window.__ariseLazyWidgetsStarted) return;
+      window.__ariseLazyWidgetsStarted = true;
+      loadCss();
+      var useChunks = CHUNKS.length > 0;
+      try {
+        if (/[?&]chunks=0\b/.test(location.search) || localStorage.getItem('arise-chunks') === 'off') useChunks = false;
+      } catch (e) {}
+      loadScriptsInOrder(useChunks ? CHUNKS : SCRIPTS);
+    }
+
+    startFn = startLazyLoad;
+    function schedule() {
+      // v222: was requestIdleCallback(timeout 2000) - on a busy main thread (Brave + React
+      // first render) that delayed the whole widget set by up to 2 s on top of the
+      // batch pauses. 50 ms after `load` is enough to let first paint settle.
+      setTimeout(startLazyLoad, 50);
+    }
+
+    if (document.readyState === 'complete') {
+      schedule();
+    } else {
+      window.addEventListener('load', schedule);
+    }
+  })();
+  </script>
+  </body>
+</html>

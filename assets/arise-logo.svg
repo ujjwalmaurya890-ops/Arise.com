@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Arise logo">
+  <title>Arise</title>
+  <desc>UjjwalXCSE Dashboard Logo — ascending peak in a ring</desc>
+  <circle cx="256" cy="256" r="151" fill="none" stroke="#1c1c1a" stroke-width="24"/>
+  <path d="M256 172
+           C 286 210, 306 256, 322 306
+           C 296 291, 276 284, 256 284
+           C 236 284, 216 291, 190 306
+           C 206 256, 226 210, 256 172 Z"
+        fill="#1c1c1a"
+        stroke="#1c1c1a" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

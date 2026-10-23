@@ -1,0 +1,6 @@
+/api/ai-ask       /.netlify/functions/ai-ask          200
+/api/sync         /.netlify/functions/sync            200
+/api/leetcode/*   /.netlify/functions/leetcode/:splat  200
+/api/codechef/*   /.netlify/functions/codechef/:splat  200
+/api/gfg/*        /.netlify/functions/gfg/:splat       200
+/* /index.html 200

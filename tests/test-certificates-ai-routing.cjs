@@ -23,6 +23,7 @@ function boot(opts) {
     w.__calls.push({ url: String(u), body: o && o.body ? JSON.parse(o.body) : null });
     return w.__reply();
   };
+  w.AriseAuth = { fetch: (...args) => w.fetch(...args) }; // mocked approved session, production injects bearer token
   const load = (f) => w.eval(fs.readFileSync(path.join(path.resolve(__dirname, ".."), f), 'utf8'));
   load('src/features/certificates/certificates-storage.js');
   if (!opts.noShared) load('src/ai-connect-shared.js');

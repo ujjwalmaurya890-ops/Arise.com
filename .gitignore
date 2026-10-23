@@ -3,3 +3,14 @@ node_modules/
 Thumbs.db
 *.log
 .netlify/
+
+dist/
+.env
+.env.*
+!.env.example
+config/approved-users.json
+*service-account*.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+.firebase/
+.test-artifacts/

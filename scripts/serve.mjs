@@ -2,11 +2,14 @@
 // Supports Brotli (`br`) + Gzip (`gzip`) compression caching, ETag `304` validation,
 // HTTP Range requests for ambient audio, and immutable cache headers matching netlify.toml.
 import { createServer } from "node:http";
+import { createRequire } from "node:module";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 
-const root = process.cwd();
+const root = path.join(process.cwd(), "dist");
+const require = createRequire(import.meta.url);
+const functions = new Set(["public-config", "cloud", "sync", "ai-ask", "leetcode", "codechef", "gfg"]);
 const port = Number(process.argv[2] || process.env.PORT || 8123);
 
 const TYPES = {
@@ -44,10 +47,25 @@ function cacheControlFor(urlPath) {
 
 createServer(async (req, res) => {
   try {
+    const parsed = new URL(req.url || "/", "http://arise.local");
+    if (parsed.pathname.startsWith("/api/") || parsed.pathname.startsWith("/.netlify/functions/")) {
+      const functionName = parsed.pathname.replace(/^\/(?:api|\.netlify\/functions)\//, "").split("/")[0];
+      if (!functions.has(functionName)) { res.writeHead(404, { "Content-Type": "application/json" }).end('{"error":"not-found"}'); return; }
+      const chunks = []; let bytes = 0;
+      for await (const chunk of req) {
+        bytes += chunk.length;
+        if (bytes > 5 * 1024 * 1024) { res.writeHead(413).end(); return; }
+        chunks.push(chunk);
+      }
+      const fn = require(path.join(process.cwd(), "netlify/functions", functionName + ".js"));
+      const result = await fn.handler({ httpMethod: req.method, headers: req.headers, path: parsed.pathname,
+        queryStringParameters: Object.fromEntries(parsed.searchParams), body: Buffer.concat(chunks).toString("utf8"), isBase64Encoded: false });
+      res.writeHead(result.statusCode, result.headers || {}).end(result.body || ""); return;
+    }
     const rawUrl = decodeURIComponent((req.url || "/").split("?")[0]);
     const relPath = rawUrl === "/" ? "/index.html" : rawUrl;
     let file = path.resolve(root, "." + relPath);
-    if (!file.startsWith(root)) {
+    if (!file.startsWith(root + path.sep)) {
       res.writeHead(403).end();
       return;
     }

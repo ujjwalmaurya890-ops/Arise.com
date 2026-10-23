@@ -1,3 +1,5 @@
+/api/public-config /.netlify/functions/public-config 200
+/api/cloud /.netlify/functions/cloud 200
 /api/ai-ask       /.netlify/functions/ai-ask          200
 /api/sync         /.netlify/functions/sync            200
 /api/leetcode/*   /.netlify/functions/leetcode/:splat  200

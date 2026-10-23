@@ -12,7 +12,12 @@ const DEFAULT_MODEL = ALLOWED_MODELS[0];
 const MAX_TOKENS_CAP = 800; // hard ceiling regardless of what the client asks for
 const MAX_CHARS = 6000; // guards against runaway prompts / cost
 
+const { authorize } = require('../../server/access.cjs');
+const { getServices } = require('../../server/firebase.cjs');
+const { fail } = require('../../server/http.cjs');
+
 exports.handler = async function (event) {
+  try { await authorize(event, getServices()); } catch (error) { return fail(error); }
   if (event.httpMethod !== "POST") {
     return respond(405, { error: "Method not allowed." });
   }

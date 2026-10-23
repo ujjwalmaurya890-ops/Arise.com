@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All application access is through the authenticated Netlify API. Admin SDK
+    // bypasses rules; server/access.cjs enforces Google, verified email, the five
+    // approved accounts and immutable UID ownership on EVERY protected request.
+    // No client, even an approved user, may self-grant access or call Firestore directly.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

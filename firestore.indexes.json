@@ -1,0 +1,4 @@
+{ "indexes": [], "fieldOverrides": [
+  { "collectionGroup": "parts", "fieldPath": "text", "indexes": [] },
+  { "collectionGroup": "chunks", "fieldPath": "data", "indexes": [] }
+] }

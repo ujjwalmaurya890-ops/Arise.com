@@ -1,0 +1,33 @@
+name: Secure sync checks
+on:
+  pull_request:
+  push:
+    branches: [main, 'arena/**']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm audit --audit-level=high
+      - name: Actual Firestore rules and transaction tests
+        run: npx --yes firebase-tools@15.1.0 emulators:exec --only firestore --project demo-arise-security "npm run test:rules"
+      - name: Chromium dashboard, migration transport and second-device checks
+        run: |
+          npm start > /tmp/arise-test-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true' EXIT
+          node -e "fetch('http://127.0.0.1:8123').catch(()=>new Promise(r=>setTimeout(r,1000))).then(()=>process.exit(0))"
+          npm run test:browser

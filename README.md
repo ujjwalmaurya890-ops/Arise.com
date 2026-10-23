@@ -8,6 +8,21 @@ Whether you're learning Data Structures and Algorithms, preparing for placements
 
 ---
 
+## Secure Google workspace setup
+
+Google sign-in, a **server-controlled exactly-five-account policy**, and UID-isolated Firestore progress sync are now integrated. The existing dashboard/widgets/themes remain in place. Unconfigured deployments are intentionally locked; no production Firebase project or private credentials are included.
+
+**Start here: [Deployment, five-email configuration, migration & rollback guide](docs/SECURE-SYNC.md).**
+
+- [Pre-implementation audit](docs/SECURE-SYNC-AUDIT.md)
+- [Complete storage migration map](docs/SYNC-STORAGE-MAP.md)
+- [Actual test results and remaining provider/emulator verification](docs/SECURE-SYNC-TESTS.md)
+- [Exact changed-file list](docs/SECURE-SYNC-CHANGES.md)
+
+Node 22.22+: `npm ci`, configure `.env` from `.env.example`, then `npm run dev`.
+`npm test` runs the 44 original suites plus the new auth/sync tests. `npm run build` produces a safe **`dist/`** site. **Netlify must publish `dist`, never `.`.** The old shared-code `/api/sync` is retired (HTTP 410); never redeploy its unauthenticated implementation.
+
+
 ## ✨ Core Features
 
 ### 📚 Academic Management
@@ -65,7 +80,8 @@ The project uses modern web technologies to deliver an interactive student-focus
 | JavaScript (ES6+) | Interactive features and application logic |
 | React-based UI components | Interface and dashboard components, where used |
 | Node.js & npm | Development tooling and package management |
-| Browser APIs | Browser-side functionality and local data handling, where implemented |
+| Firebase Authentication / Firestore | Google identity, private five-account policy, UID-isolated cloud progress |
+| Browser APIs | Account-scoped cache, durable pending queue, consented legacy migration |
 | Netlify | Website hosting and deployment |
 | Netlify Functions | Server-side integrations, where configured |
 
@@ -75,13 +91,13 @@ The project uses modern web technologies to deliver an interactive student-focus
 
 - `src/` — application JavaScript and feature modules.
 - `styles/` — global and feature-specific stylesheets.
-- `tests/` — all 44 Node/jsdom test suites.
+- `tests/` — 44 original Node/jsdom suites, auth/sync tests, and opt-in real Firestore rules tests.
 - `scripts/` — local server, build helpers, and test runner.
 - `assets/` — images, fonts, generated widget chunks, sound files, and static data.
 - `docs/` — upgrade notes and project documentation.
 - Root-level `index.html`, `service-worker.js`, `netlify.toml`, and package manifests remain at the site root because static hosting, service-worker scope, and Netlify publish paths rely on those entry points.
 
-Use `npm run dev` to serve the site locally, `npm run build:chunks` after editing widget sources, and `npm test` to build and run all 44 suites.
+Use `npm run dev` to build and serve the site/API locally, `npm run build` for production, and `npm test` for regressions and auth/sync tests. See the secure setup guide before deployment.
 
 ---
 
@@ -100,30 +116,30 @@ Follow these steps to run the project locally.
 **1. Clone the repository**
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/ujjwalmaurya890-ops/Arise.com.git
 ```
 
 **2. Navigate to the project directory**
 
 ```bash
-cd YOUR_PROJECT_FOLDER
+cd Arise.com
 ```
 
 **3. Install dependencies**
 
 ```bash
-npm install
+npm ci
 ```
 
 **4. Start the development server**
 
-Check the `scripts` section of `package.json` for the available command. For projects configured with a `dev` script, run:
+Copy `.env.example` to `.env` and complete [the secure setup guide](docs/SECURE-SYNC.md). Until a real Firebase project and five-account policy are configured, the app intentionally shows a locked sign-in screen. Then run:
 
 ```bash
 npm run dev
 ```
 
-If the project uses a different startup command, follow the instructions in its configuration files.
+The dev command builds `dist/` and serves the app and same-origin API on port 8123.
 
 **5. Open the local website**
 
@@ -133,7 +149,7 @@ Open the local URL printed in your terminal.
 
 ## 🌐 Live Demo
 
-Explore Arise CSE online:
+Existing deployed site (not automatically updated by this repository change):
 
 👉 [https://arisexcse.netlify.app](https://arisexcse.netlify.app)
 

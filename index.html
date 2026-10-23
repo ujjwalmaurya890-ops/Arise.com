@@ -18,6 +18,10 @@
     <link rel="stylesheet" href="./styles/saas-upgrade.css" />
     <link rel="stylesheet" href="./assets/responsive-patch.css" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="./assets/responsive-patch.css" /></noscript>
+    <link rel="stylesheet" href="./styles/cloud-auth.css" />
+    <script src="./src/cloud/storage-schema.js"></script>
+    <script src="./src/cloud/storage-bridge.js"></script>
+    <script type="module" src="./assets/cloud-auth.js"></script>
     <script>
       // Stability patch: with 50+ independently-authored widget scripts,
       // an uncaught exception or rejected promise in any one of them used
@@ -198,14 +202,14 @@
       .uxa-ssr-dash-sub { font: 400 0.9rem/1.55 var(--font-sans, sans-serif); margin: 0; color: var(--text-secondary); }
       @media (min-width: 64rem) { html[data-arise-auth="1"] .uxa-ssr-dash { padding-left: 15rem; } }
     </style>
-    <script defer src="./src/animation-upgrade.js"></script>
-    <script defer src="./src/readiness-scoring-config.js"></script>
-    <script defer src="./src/readiness-engine.js"></script>
-    <script defer src="./src/placement-engine.js"></script>
-    <script defer src="./src/xp-engine.js"></script>
-    <script defer src="./src/saas-widget-enhancer.js"></script>
-    <script defer src="./src/learning-heatmap-widget.js"></script>
-    <script type="module" crossorigin src="./assets/app-bundle.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-src="./src/animation-upgrade.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-src="./src/readiness-scoring-config.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-src="./src/readiness-engine.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-src="./src/placement-engine.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-src="./src/xp-engine.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-src="./src/saas-widget-enhancer.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-src="./src/learning-heatmap-widget.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-module="1" data-src="./assets/app-bundle.js"></script>
     <link rel="stylesheet" href="./styles/typography-upgrade.css" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="./styles/typography-upgrade.css" /></noscript>
     <link rel="stylesheet" href="./styles/animation-upgrade.css" media="print" onload="this.media='all'" />
@@ -228,7 +232,43 @@
     </style>
   </head>
   <body>
-    <div id="root">
+    <section id="cloud-gate" aria-labelledby="cloud-title">
+      <div class="cloud-card">
+        <div class="cloud-brand"><img src="./assets/arise-logo.svg" alt="" /><span>Arise</span></div>
+        <div class="cloud-eyebrow">Your private CSE workspace</div>
+        <h1 id="cloud-title">Your progress.<br />Every device.</h1>
+        <p id="cloud-message" role="status" aria-live="polite">Connecting securely and checking your saved session…</p>
+        <button id="cloud-google" class="cloud-button" type="button" disabled>
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285f4" d="M43.6 24.5c0-1.5-.1-2.9-.4-4.3H24v8.1h11a9.4 9.4 0 0 1-4.1 6.2v5.2h6.7c3.9-3.6 6-8.9 6-15.2Z"/><path fill="#34a853" d="M24 44c5.4 0 10-1.8 13.4-4.9l-6.7-5.2c-1.8 1.2-4.1 1.9-6.7 1.9-5.2 0-9.7-3.5-11.3-8.3H5.8v5.4A20.2 20.2 0 0 0 24 44Z"/><path fill="#fbbc05" d="M12.7 27.5a12 12 0 0 1 0-7.6v-5.4H5.8a20 20 0 0 0 0 18.4Z"/><path fill="#ea4335" d="M24 11.6c3 0 5.7 1 7.8 3l5.8-5.8A19.5 19.5 0 0 0 24 3.6 20.2 20.2 0 0 0 5.8 14.5l6.9 5.4A11.9 11.9 0 0 1 24 11.6Z"/></svg>
+          Continue with Google
+        </button>
+        <div id="cloud-actions"></div>
+        <p class="cloud-footnote">Access is limited to five approved, verified Google accounts. Existing browser progress is never uploaded without an ownership decision.</p>
+        <noscript><p>JavaScript is required for secure sign-in and progress sync. No protected data can be loaded without it.</p></noscript>
+      </div>
+    </section>
+    <aside id="cloud-account" aria-label="Account and cloud sync" hidden>
+      <details>
+        <summary aria-label="Open account and synchronization details"><img id="cloud-avatar" alt="Your Google profile" referrerpolicy="no-referrer" hidden /><span id="cloud-sync-dot" aria-hidden="true"></span><span id="cloud-sync-label" role="status" aria-live="polite">Restoring…</span></summary>
+        <div id="cloud-account-panel">
+          <div id="cloud-account-name"></div><p id="cloud-account-email"></p>
+          <p id="cloud-sync-detail" role="status"></p><p id="cloud-recovery-note"></p>
+          <button class="cloud-button" id="cloud-retry" type="button">Save / Retry / Refresh</button>
+          <button class="cloud-button" id="cloud-export" type="button">Export account backup</button>
+          <button class="cloud-button" id="cloud-legacy-export" type="button">Original local backup</button>
+          <button class="cloud-button" id="cloud-signout" type="button">Sign out</button>
+        </div>
+      </details>
+    </aside>
+    <div id="cloud-conflict" role="dialog" aria-modal="true" aria-labelledby="cloud-conflict-title" hidden>
+      <div class="cloud-card">
+        <h2 id="cloud-conflict-title">Both versions are safe</h2>
+        <p id="cloud-conflict-message">Another device changed the same progress store. Nothing has been overwritten. Download a backup, then choose which version to use. The previous cloud version and a local conflict copy are retained.</p>
+        <div id="cloud-conflict-actions"></div>
+      </div>
+    </div>
+
+    <div id="root" inert aria-hidden="true">
       <main class="arise-landing-shell bg-cyber-black uxa-ssr-landing" aria-hidden="true">
         <header class="arise-landing-nav">
           <div class="arise-landing-nav-inner">
@@ -484,6 +524,7 @@
   }
 </style>
 <script id="ambient-sound-system-script">
+window.AriseBoot.ready.then(function () {
 (function(){
   if(window.__ARISE_AMBIENT_SOUND__) return;
   const SOUNDS=[
@@ -666,6 +707,8 @@
   },{once:true});
   window.__ARISE_AMBIENT_SOUND__={play,pause,stop,state,get audio(){return audio},install};
 })();
+
+});
 </script>
 
   <script id="arise-lazy-widget-loader">
@@ -799,19 +842,19 @@
     /*CHUNKS:START*/
     var CHUNKS = [
       "./assets/chunks/w01.5ab61bc1.js",
-      "./assets/chunks/w02.274af4fc.js",
+      "./assets/chunks/w02.7e5c6b2b.js",
       "./assets/chunks/w03.4e1a4a94.js",
       "./assets/chunks/w04.1c1f49a9.js",
       "./assets/chunks/w05.321133fc.js",
       "./assets/chunks/w06.eac62b59.js",
       "./assets/chunks/w07.a0b3f42f.js",
-      "./assets/chunks/w08.6b7a2777.js",
-      "./assets/chunks/w09.36aeb6ce.js",
+      "./assets/chunks/w08.095915ac.js",
+      "./assets/chunks/w09.6a439667.js",
       "./assets/chunks/w10.4ef95d5e.js",
       "./assets/chunks/w11.20ba303c.js",
       "./assets/chunks/w12.17dbe995.js"
     ];
-    var CHUNK_FILES = {"./assets/chunks/w01.5ab61bc1.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js","./src/features/exam-tracker/exam-tracker.js"],"./assets/chunks/w02.274af4fc.js":["./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js"],"./assets/chunks/w03.4e1a4a94.js":["./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.1c1f49a9.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.321133fc.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.eac62b59.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.a0b3f42f.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js"],"./assets/chunks/w08.6b7a2777.js":["./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js"],"./assets/chunks/w09.36aeb6ce.js":["./src/features/semester-risk/cse-full-syllabus-config.js","./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.4ef95d5e.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.20ba303c.js":["./src/expenses.js"],"./assets/chunks/w12.17dbe995.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js"]};
+    var CHUNK_FILES = {"./assets/chunks/w01.5ab61bc1.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js","./src/features/exam-tracker/exam-tracker.js"],"./assets/chunks/w02.7e5c6b2b.js":["./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js"],"./assets/chunks/w03.4e1a4a94.js":["./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.1c1f49a9.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.321133fc.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.eac62b59.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.a0b3f42f.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js"],"./assets/chunks/w08.095915ac.js":["./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js"],"./assets/chunks/w09.6a439667.js":["./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.4ef95d5e.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.20ba303c.js":["./src/expenses.js"],"./assets/chunks/w12.17dbe995.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js"]};
     /*CHUNKS:END*/
 
     function loadCss() {
@@ -1009,11 +1052,10 @@
       setTimeout(startLazyLoad, 320);
     }
 
-    if (document.readyState === 'complete') {
-      schedule();
-    } else {
-      window.addEventListener('load', schedule);
-    }
+    window.AriseBoot.ready.then(function () {
+      if (document.readyState === 'complete') schedule();
+      else window.addEventListener('load', schedule, { once: true });
+    });
   })();
   </script>
   </body>

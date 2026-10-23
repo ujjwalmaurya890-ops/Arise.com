@@ -1,7 +1,5 @@
 {
-  "name": "dashboard-netlify-functions",
+  "name": "arise-netlify-functions",
   "private": true,
-  "dependencies": {
-    "@netlify/blobs": "^8.1.0"
-  }
+  "description": "Dependencies are installed from the root lockfile; functions are bundled by Netlify esbuild."
 }

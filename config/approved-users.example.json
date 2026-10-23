@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "approvedEmails": [
+    "approved-user-1@example.invalid",
+    "approved-user-2@example.invalid",
+    "approved-user-3@example.invalid",
+    "approved-user-4@example.invalid",
+    "approved-user-5@example.invalid"
+  ]
+}

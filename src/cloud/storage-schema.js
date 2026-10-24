@@ -50,6 +50,7 @@
   "arise-expenses-iou-v1",
   "arise-expenses-loan-categories-v1",
   "arise-expenses-loans-v1",
+  "arise-expenses-month-seen-v1",
   "arise-expenses-monthly-budget-v1",
   "arise-expenses-net-worth-v1",
   "arise-expenses-networth-history-v1",

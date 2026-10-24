@@ -1,6 +1,6 @@
 # Audited sync & migration key mapping
 
-Schema version **1**, **173 explicit local keys**, dynamic widget navigation, and the two actual attachment stores. Generated from audited source references; no database is inferred from a filename alone. Runtime/server allowlist: `src/cloud/storage-schema.js`.
+Schema version **1**, **174 explicit local keys**, dynamic widget navigation, and the two actual attachment stores. Generated from audited source references; no database is inferred from a filename alone. Runtime/server allowlist: `src/cloud/storage-schema.js`.
 
 Each local key maps to `users/{uid}/records/{sha256(key)}` and immutable payload versions, preserving its exact string/JSON structure. Ordered arrays keep their positions; original IDs/dates stay inside the payload. References are not necessarily sole writers: shared widgets also read these stores. Keys retained from the old manifest with no current source reference are legacy compatibility, not invented new features.
 
@@ -51,6 +51,7 @@ Each local key maps to `users/{uid}/records/{sha256(key)}` and immutable payload
 | `arise-expenses-iou-v1` | `src/expenses.js` |
 | `arise-expenses-loan-categories-v1` | `src/expenses.js` |
 | `arise-expenses-loans-v1` | `src/expenses.js` |
+| `arise-expenses-month-seen-v1` | `src/expenses.js`, `src/storage-keys.js` — Last locally-observed calendar month (YYYY-MM); used only to detect a month rollover so the widget can auto-select the new current month. |
 | `arise-expenses-monthly-budget-v1` | `src/expenses.js` |
 | `arise-expenses-net-worth-v1` | `src/expenses.js` |
 | `arise-expenses-networth-history-v1` | `src/expenses.js` |

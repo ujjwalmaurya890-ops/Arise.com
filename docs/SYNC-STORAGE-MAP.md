@@ -140,6 +140,7 @@ Each local key maps to `users/{uid}/records/{sha256(key)}` and immutable payload
 | `devTasksCompletionLog-v1` | `src/learning-mastery-correlation-widget.js`, `src/storage-keys.js` — Dev task completion log used for the study-time-vs-mastery correlation chart. |
 | `dsaDailyGoal` | `src/dsa-daily-goal-widget.js`, `src/storage-keys.js` — DSA Daily Goal: per-day solve target (1-10). |
 | `dsaMasterySnapshots` | `src/dsa-mastery-trend-widget.js` |
+| `dsaMistakeJournal-v1` | `src/dsa-mistake-journal-widget.js`, `src/storage-keys.js` — Dated DSA mistake entries, optional question ID/title snapshot, category, takeaway, and resolved state (schema v1). |
 | `dsaMockOAActive` | `src/dsa-mock-oa-widget.js`, `src/storage-keys.js` — DSA Mock OA: the running or just-finished timed mock session (cleared once saved or abandoned). |
 | `dsaMockOAHistory` | `src/dsa-mock-oa-widget.js`, `src/dsa-proof-pack-widget.js`, `src/storage-keys.js` — DSA Mock OA: last 40 finished mocks with per-problem miss reasons. |
 | `dsaMockOASettings` | `src/dsa-mock-oa-widget.js`, `src/storage-keys.js` — DSA Mock OA: chosen preset and topic scope. |
@@ -147,6 +148,7 @@ Each local key maps to `users/{uid}/records/{sha256(key)}` and immutable payload
 | `dsaProgress` | `src/competitive-programming-widget.js` |
 | `dsaQuestions` | `src/ai-career-mentor-widget.js`, `src/ai-smart-learning-path-widget.js`, `src/battle-plan-widget.js` — DSA question list — React-owned state; many DSA-track bolt-ons read it, none write it. |
 | `dsaRevisionSRS` | `src/dsa-revision-scheduler-widget.js`, `src/placement-engine.js`, `src/storage-keys.js` — DSA companion: SM-2 spaced-repetition schedule for solved questions. |
+| `dsaStudyPlanner-v1` | `src/dsa-study-planner-widget.js`, `src/storage-keys.js` — User-defined recurring DSA sessions, exam date, low-availability display mode, and dated self-reported check-offs (schema v1). |
 | `examLiveTimers-v1` | `assets/app-bundle.js` |
 | `exams` | `src/ai-career-mentor-widget.js`, `src/ai-smart-learning-path-widget.js`, `src/battle-plan-widget.js` |
 | `exw-filter-mode` | `src/expenses.js` |

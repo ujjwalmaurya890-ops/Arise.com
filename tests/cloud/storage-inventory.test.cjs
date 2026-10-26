@@ -9,3 +9,9 @@ test('every statically discoverable native/wrapper storage key is supported or e
   assert.match(result.stdout, /Audited \d+ constant keys/);
   assert.ok(!result.stderr.includes('MISSING:'));
 });
+
+const schema = require('../../src/cloud/storage-schema.js');
+test('new DSA journal and planner stores are included in the cloud/backup allowlist', () => {
+  assert.equal(schema.isLocalKey('dsaMistakeJournal-v1'), true);
+  assert.equal(schema.isLocalKey('dsaStudyPlanner-v1'), true);
+});

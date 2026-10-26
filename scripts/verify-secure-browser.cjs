@@ -61,8 +61,8 @@ const bundle = buildSync({ stdin: { contents: source, resolveDir: process.cwd(),
       await window.AriseAuth.sync.flush();
     });
     assert.match((await f.request()('?action=read&key=tasks')).value, /device-A-task/);
-    console.log('PASS: authenticated production dashboard and all 108 widget scripts load; automatic writes are acknowledged.');
-    const navigation = ['DSA Mastery', 'Dev Mastery', 'Learning', 'Expenses', 'Notes'];
+    console.log('PASS: authenticated production dashboard and all 110 widget scripts load; automatic writes are acknowledged.');
+    const navigation = ['DSA Tracker', 'Development', 'Learning', 'Expenses', 'Notes'];
     const visited = [];
     for (const name of navigation) {
       const button = a.page.getByRole('button', { name, exact: true }).first();
@@ -70,6 +70,22 @@ const bundle = buildSync({ stdin: { contents: source, resolveDir: process.cwd(),
     }
     await a.page.evaluate(() => window.AriseAuth.sync.flush());
     console.log('Visited live feature navigation:', visited.join(', ') || '(labels are decorated; core runtime checked)');
+    const dsaNavigation = a.page.getByRole('button', { name: 'DSA Tracker', exact: true }).first();
+    if (await dsaNavigation.count()) await dsaNavigation.click();
+    await a.page.locator('#dmp-dsa-mastery-card').waitFor({ timeout: 15000 });
+    const mistakeTab = a.page.getByRole('tab', { name: /Mistakes/ });
+    const studyPlanTab = a.page.getByRole('tab', { name: /Study Plan/ });
+    assert.equal(await mistakeTab.count(), 1, 'Mistakes tab is mounted in the DSA Mastery card');
+    assert.equal(await studyPlanTab.count(), 1, 'Study Plan tab is mounted in the DSA Mastery card');
+    await mistakeTab.focus(); await a.page.keyboard.press('ArrowRight');
+    assert.equal(await studyPlanTab.getAttribute('aria-selected'), 'true', 'ArrowRight selects Study Plan from Mistakes in Chromium');
+    await a.page.keyboard.press('Home');
+    assert.equal(await a.page.locator('[data-dmp-tab="overview"]').getAttribute('aria-selected'), 'true', 'Home returns the DSA tablist to Overview in Chromium');
+    await mistakeTab.click();
+    assert.match(await a.page.locator('#dmj-mistake-journal').innerText(), /No mistake entries yet/);
+    await studyPlanTab.click();
+    assert.match(await a.page.locator('#dsp-study-planner').innerText(), /No sessions in this weekly plan yet/);
+    console.log('PASS: real Chromium renders both new DSA sections and supports keyboard tab navigation.');
     const unsupported = await a.page.evaluate(() => [...window.AriseAuth.sync.unsupportedKeys]);
     assert.deepEqual(unsupported, [], 'Add discovered live storage keys to the audited schema: ' + unsupported.join(', '));
     await a.page.evaluate(async () => {

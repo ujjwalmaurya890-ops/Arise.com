@@ -61,6 +61,8 @@
 "./src/dsa-mock-oa-widget.js",
 "./src/dsa-pattern-playbook-widget.js",
 "./src/dsa-proof-pack-widget.js",
+"./src/dsa-mistake-journal-widget.js",
+"./src/dsa-study-planner-widget.js",
 "./src/aptitude-practice-widget.js",
 "./src/dev-placement-engine-widget.js",
 "./src/placement-command-center-widget.js",

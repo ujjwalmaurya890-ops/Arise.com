@@ -204,6 +204,11 @@ function mockThrowingStorage(window, errorFactory) {
   const dsaQ = registry.find('dsaQuestions');
   assert(dsaQ && dsaQ.owner.indexOf('app-bundle') !== -1, 'dsaQuestions correctly attributed to app-bundle.js');
 
+  const mistakeJournal = registry.find('dsaMistakeJournal-v1');
+  assert(mistakeJournal && mistakeJournal.schemaVersion === 1, 'DSA mistake journal is registered as version 1');
+  const studyPlanner = registry.find('dsaStudyPlanner-v1');
+  assert(studyPlanner && studyPlanner.schemaVersion === 1, 'DSA study planner is registered as version 1');
+
   const keys = registry.all.map(e => e.key);
   const dupes = keys.filter((k, i) => keys.indexOf(k) !== i);
   assert(dupes.length === 0, 'manifest has no duplicate key entries: ' + dupes.join(','));

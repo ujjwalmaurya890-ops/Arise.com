@@ -14,6 +14,8 @@ const samples = {
   'arise-daily-learning-tasks-v1': { tasks: [{ id: 'daily-1', status: 'done', order: 4 }] },
   studySessions: [{ id: 's-3', date: '2024-04-03', minutes: 45 }, { id: 's-1', date: '2023-02-01', minutes: 30 }],
   dsaQuestions: [{ id: 'q1', solved: true, dateSolved: '2020-06-01' }], devTasks: [{ id: 'dev1', completed: true }],
+  'dsaMistakeJournal-v1': { schemaVersion: 1, entries: [{ id: 'mistake-1', occurredOn: '2026-10-26', questionId: 'q1', questionTitle: 'Two Sum', category: 'approach', whatHappened: 'Missed the hash map invariant.', takeaway: 'State the invariant before coding.', resolved: false }] },
+  'dsaStudyPlanner-v1': { schemaVersion: 1, examDate: '', lowAvailability: false, sessions: [{ id: 'session-1', weekday: 1, startTime: '18:00', minutes: 45, focus: 'solve', topic: 'Arrays' }], completed: {} },
   'arise-cp-tracker-v1': { history: [{ id: 'contest-7', at: 1600000000000, rank: 20 }] },
   'arise-aptitude-log-v1': { sessions: [{ id: 'a1', at: 1700000000000, correct: 10 }], settings: { targetAcc: 80 } },
   arise_placement_tracker_v1: { applications: [{ id: 'p1', status: 'offer' }] },

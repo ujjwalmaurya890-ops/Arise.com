@@ -20,7 +20,7 @@ const ORDER = ['src/mutation-bus.js', 'src/widget-shared-utils.js', 'src/readine
   'src/dsa-mastery-premium-widget.js', 'src/dsa-topic-breakdown-widget.js', 'src/dsa-pace-projection-widget.js', 'src/dsa-streak-widget.js', 'src/dsa-weekly-sparkline-widget.js',
   'src/dsa-mastery-trend-widget.js', 'src/dsa-difficulty-radar-widget.js', 'src/dsa-sheet-coverage-widget.js', 'src/dsa-solve-speed-widget.js', 'src/dsa-milestone-badges-widget.js',
   'src/dsa-revision-scheduler-widget.js', 'src/dsa-problem-insights-widget.js', 'src/dsa-tier3-readiness-widget.js', 'src/dsa-placement-engine-widget.js',
-  'src/dsa-daily-goal-widget.js', 'src/dsa-mock-oa-widget.js', 'src/dsa-pattern-playbook-widget.js', 'src/dsa-proof-pack-widget.js', 'src/aptitude-practice-widget.js'];
+  'src/dsa-daily-goal-widget.js', 'src/dsa-mock-oa-widget.js', 'src/dsa-pattern-playbook-widget.js', 'src/dsa-proof-pack-widget.js', 'src/dsa-mistake-journal-widget.js', 'src/dsa-study-planner-widget.js', 'src/aptitude-practice-widget.js'];
 
 function questions(n) {
   const topics = ['Arrays', 'Strings', 'Hashing', 'Trees', 'Graphs', 'DP', 'Greedy', 'Binary Search'], out = [];
@@ -52,13 +52,13 @@ const store = (w, k) => JSON.parse(w.localStorage.getItem(k));
 
 (async function main() {
   console.log('\n── 1. regression: syntax + mounts ──');
-  ['src/dsa-mastery-premium-widget.js', 'src/dsa-sheet-coverage-widget.js', 'src/dsa-problem-insights-widget.js', 'src/dsa-daily-goal-widget.js', 'src/dsa-mock-oa-widget.js', 'src/dsa-pattern-playbook-widget.js', 'src/dsa-proof-pack-widget.js', 'src/mutation-bus.js', 'src/widget-shared-utils.js']
+  ['src/dsa-mastery-premium-widget.js', 'src/dsa-sheet-coverage-widget.js', 'src/dsa-problem-insights-widget.js', 'src/dsa-daily-goal-widget.js', 'src/dsa-mock-oa-widget.js', 'src/dsa-pattern-playbook-widget.js', 'src/dsa-proof-pack-widget.js', 'src/dsa-mistake-journal-widget.js', 'src/dsa-study-planner-widget.js', 'src/mutation-bus.js', 'src/widget-shared-utils.js']
     .forEach((f) => { let good = true; try { new Function(fs.readFileSync(path.join(path.resolve(__dirname, ".."), f), 'utf8')); } catch (e) { good = false; } ok(good, f + ' parses'); });
 
   let { w, d, errors } = page();
   await sleep(900);
   ok(!!$(d, 'dmp-dsa-mastery-card'), 'premium card renders');
-  ['dst-streak', 'drs-revision-queue', 'dtb-topic-breakdown', 'ddr-difficulty-radar', 'dmt-sheet-coverage', 'dss-solve-speed', 'dpp-pace-projection', 'dt3-tier3-readiness', 'dpi-problem-insights', 'dws-weekly-sparkline', 'dpe-dsa-placement', 'dgl-daily-goal', 'dmo-mock-oa', 'dpb-playbook', 'dsp-proof-pack', 'apt-practice']
+  ['dst-streak', 'drs-revision-queue', 'dtb-topic-breakdown', 'ddr-difficulty-radar', 'dmt-sheet-coverage', 'dss-solve-speed', 'dpp-pace-projection', 'dt3-tier3-readiness', 'dpi-problem-insights', 'dws-weekly-sparkline', 'dpe-dsa-placement', 'dgl-daily-goal', 'dmo-mock-oa', 'dpb-playbook', 'dsp-proof-pack', 'dmj-mistake-journal', 'dsp-study-planner', 'apt-practice']
     .forEach((id) => { const e = $(d, id); ok(e && e.innerHTML.length > 20, 'mount ' + id + ' is populated'); });
   ok(errors.length === 0, 'no uncaught errors while booting (' + errors.slice(0, 1).join('') + ')');
 
@@ -82,11 +82,145 @@ const store = (w, k) => JSON.parse(w.localStorage.getItem(k));
   d.body.appendChild(d.createElement('span')); await sleep(700);
   ok(!!$(d, 'dmp-dsa-mastery-card') && $(d, 'dpb-playbook').innerHTML.length > 20, 'card + child mounts come back if the app wipes them');
 
+  console.log('\n── 3a. mastery trend storage stability ──');
+  ({ w, d } = page()); await sleep(900);
+  const trendBefore = JSON.parse(w.localStorage.getItem('dsaMasterySnapshots') || '[]');
+  ok(trendBefore.length > 0, 'current-week mastery snapshot is initialized');
+  let trendWrites = 0;
+  const nativeSetItem = w.localStorage.setItem.bind(w.localStorage);
+  w.localStorage.setItem = function (key, value) { if (key === 'dsaMasterySnapshots') trendWrites++; return nativeSetItem(key, value); };
+  d.body.appendChild(d.createElement('div')); await sleep(700);
+  ok(trendWrites === 0 && JSON.stringify(JSON.parse(w.localStorage.getItem('dsaMasterySnapshots'))) === JSON.stringify(trendBefore), 'unchanged mastery data is not rewritten on a DOM refresh');
+
   console.log('\n── 4. new tabs ──');
   const tabBtn = (k) => d.querySelector('[data-dmp-tab="' + k + '"]'), panel = (k) => d.querySelector('[data-dmp-tab-panel="' + k + '"]');
   ok(!!tabBtn('mock') && !!tabBtn('playbook') && !!tabBtn('proof') && !!tabBtn('aptitude'), 'Mock OA / Playbook / Aptitude / Proof Pack tab buttons exist');
   click(w, tabBtn('mock'));
   ok(!panel('mock').hasAttribute('hidden') && panel('overview').hasAttribute('hidden'), 'clicking Mock OA shows its panel and hides Overview');
+  ok(!!tabBtn('mistakes') && !!tabBtn('study-plan') && !!panel('mistakes') && !!panel('study-plan'), 'Mistakes and Study Plan tabs/panels exist');
+  const allTabs = Array.from(d.querySelectorAll('.dmp-tabs [role="tab"]'));
+  ok(allTabs.length === 9 && allTabs.every((button) => button.getAttribute('aria-controls') && d.getElementById(button.getAttribute('aria-controls'))), 'all nine tabs have ARIA panel associations');
+  tabBtn('mock').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+  ok(d.activeElement === tabBtn('playbook') && !panel('playbook').hasAttribute('hidden'), 'ArrowRight moves focus and selection to the next tab');
+  tabBtn('playbook').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
+  ok(d.activeElement === tabBtn('study-plan') && tabBtn('study-plan').getAttribute('tabindex') === '0', 'End selects the last tab and updates roving tabindex');
+  tabBtn('study-plan').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
+  ok(d.activeElement === tabBtn('overview') && !panel('overview').hasAttribute('hidden'), 'Home returns to the first tab');
+
+  console.log('\n── 4a. Solve Speed data-field compatibility ──');
+  const timedQuestions = questions(30).map((q) => Object.assign({}, q, { solved: true, dateSolved: today(), timeTakenMin: null }));
+  timedQuestions[0].timeTakenMin = 20; timedQuestions[1].timeTakenMin = 40;
+  ({ w, d, errors } = page({ questions: timedQuestions })); await sleep(700);
+  ok(/Averaging 30 min\/problem/.test($(d, 'dss-solve-speed').textContent), 'Solve Speed reads timeTakenMin from the DSA question bank');
+  ok(errors.length === 0, 'Solve Speed data-field regression causes no uncaught errors');
+
+  console.log('\n── 4b. Mistake Journal ──');
+  ({ w, d, errors } = page()); await sleep(700);
+  click(w, d.querySelector('[data-dmp-tab="mistakes"]'));
+  click(w, d.querySelector('[data-mj-new]'));
+  let mistakeForm = d.querySelector('[data-mj-form]');
+  mistakeForm.querySelector('[data-mj-date]').value = today();
+  mistakeForm.querySelector('[data-mj-category]').value = 'approach';
+  mistakeForm.querySelector('[data-mj-question]').value = 'q1';
+  mistakeForm.querySelector('[data-mj-what]').value = 'I updated the answer before removing the old value from the window.';
+  mistakeForm.querySelector('[data-mj-takeaway]').value = 'Write the window invariant before coding.';
+  mistakeForm.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+  let journal = store(w, 'dsaMistakeJournal-v1');
+  ok(journal.schemaVersion === 1 && journal.entries.length === 1, 'a mistake is persisted to its own versioned key');
+  ok(journal.entries[0].questionId === 'q1' && journal.entries[0].questionTitle === 'Problem 1', 'linked problem ID and title snapshot are stored');
+  click(w, d.querySelector('[data-mj-new]'));
+  mistakeForm = d.querySelector('[data-mj-form]');
+  mistakeForm.querySelector('[data-mj-date]').value = daysAgo(1);
+  mistakeForm.querySelector('[data-mj-category]').value = 'approach';
+  mistakeForm.querySelector('[data-mj-question]').value = 'q1';
+  mistakeForm.querySelector('[data-mj-what]').value = 'I repeated the same sliding-window invariant mistake.';
+  mistakeForm.querySelector('[data-mj-takeaway]').value = 'State the invariant first.';
+  mistakeForm.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+  ok(/Logged 2 times for this problem and category/.test($(d, 'dmj-mistake-journal').textContent), 'repeat count is derived only for the same linked problem and category');
+  journal = store(w, 'dsaMistakeJournal-v1');
+  click(w, d.querySelector('[data-mj-resolve="' + journal.entries[0].id + '"]'));
+  ok(store(w, 'dsaMistakeJournal-v1').entries.some((entry) => entry.resolved), 'journal status can be marked resolved');
+  journal = store(w, 'dsaMistakeJournal-v1');
+  const editTarget = journal.entries[0];
+  click(w, d.querySelector('[data-mj-edit="' + editTarget.id + '"]'));
+  mistakeForm = d.querySelector('[data-mj-form]');
+  mistakeForm.querySelector('[data-mj-what]').value = 'Edited after reviewing the trace.';
+  mistakeForm.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+  ok(store(w, 'dsaMistakeJournal-v1').entries.length === 2 && $(d, 'dmj-mistake-journal').textContent.includes('Edited after reviewing the trace.'), 'editing updates the existing entry instead of duplicating it');
+  const statusFilter = d.querySelector('[data-mj-status]');
+  statusFilter.value = 'open'; statusFilter.dispatchEvent(new w.Event('change', { bubbles: true }));
+  ok(d.querySelectorAll('#dmj-mistake-journal .dmj-entry').length === 1, 'status filter limits the visible journal entries');
+  statusFilter.value = 'all'; statusFilter.dispatchEvent(new w.Event('change', { bubbles: true }));
+  journal = store(w, 'dsaMistakeJournal-v1');
+  const deleteTarget = journal.entries.find((entry) => entry.resolved);
+  w.confirm = () => true;
+  click(w, d.querySelector('[data-mj-delete="' + deleteTarget.id + '"]'));
+  ok(store(w, 'dsaMistakeJournal-v1').entries.length === 1, 'confirmed deletion removes only the selected journal entry');
+  ok(!store(w, 'dsaQuestions')[1].notes, 'journal saves do not overwrite existing question notes');
+  ok(errors.length === 0, 'Mistake Journal interactions cause no uncaught errors');
+
+  console.log('\n── 4c. DSA Study Planner ──');
+  ({ w, d, errors } = page()); await sleep(700);
+  click(w, d.querySelector('[data-dmp-tab="study-plan"]'));
+  ok(/No sessions in this weekly plan yet/.test($(d, 'dsp-study-planner').textContent), 'empty planner asks for user-defined sessions instead of inventing a schedule');
+  const plannerApi = w.__ARISE_DSA_STUDY_PLANNER_API__;
+  ok(plannerApi.effectiveMinutes({ minutes: 60 }, true) === 15 && plannerApi.examDays('2026-01-10', '2026-01-07') === 3, 'low-availability and exam countdown calculations are deterministic');
+  click(w, d.querySelector('[data-plan-new]'));
+  let sessionForm = d.querySelector('[data-plan-session-form]');
+  sessionForm.querySelector('[data-plan-day]').value = '1';
+  sessionForm.querySelector('[data-plan-time]').value = '18:15';
+  sessionForm.querySelector('[data-plan-minutes]').value = '60';
+  sessionForm.querySelector('[data-plan-focus]').value = 'pattern';
+  sessionForm.querySelector('[data-plan-topic]').value = '<b>Arrays</b>';
+  sessionForm.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+  let plan = store(w, 'dsaStudyPlanner-v1');
+  ok(plan.schemaVersion === 1 && plan.sessions.length === 1 && plan.sessions[0].minutes === 60, 'weekly session time block is persisted');
+  ok($(d, 'dsp-study-planner').textContent.includes('<b>Arrays</b>') && !d.querySelector('#dsp-study-planner b'), 'topic text is escaped rather than injected as HTML');
+  const settingsForm = d.querySelector('[data-plan-settings]');
+  settingsForm.querySelector('[data-plan-exam]').value = '2099-01-01';
+  settingsForm.querySelector('[data-plan-low]').checked = true;
+  settingsForm.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+  plan = store(w, 'dsaStudyPlanner-v1');
+  ok(plan.lowAvailability && plan.examDate === '2099-01-01', 'exam date and short-session mode persist without changing the base duration');
+  ok(/15-min low-availability block/.test($(d, 'dsp-study-planner').textContent) && /Exam date:/.test($(d, 'dsp-study-planner').textContent), 'planner shows the shortened block and an in-app exam countdown');
+  const doneButton = d.querySelector('[data-plan-done]');
+  click(w, doneButton);
+  plan = store(w, 'dsaStudyPlanner-v1');
+  ok(Object.keys(plan.completed).length === 1 && /1 \/ 1 sessions checked off/.test($(d, 'dsp-study-planner').textContent), 'session check-off is stored by calendar date and labeled self-reported');
+  const plannedId = plan.sessions[0].id;
+  click(w, d.querySelector('[data-plan-edit="' + plannedId + '"]'));
+  sessionForm = d.querySelector('[data-plan-session-form]');
+  sessionForm.querySelector('[data-plan-minutes]').value = '75';
+  sessionForm.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+  plan = store(w, 'dsaStudyPlanner-v1');
+  ok(plan.sessions.length === 1 && plan.sessions[0].id === plannedId && plan.sessions[0].minutes === 75, 'editing a weekly block preserves its ID and replaces its duration');
+  w.confirm = () => true;
+  click(w, d.querySelector('[data-plan-delete]'));
+  plan = store(w, 'dsaStudyPlanner-v1');
+  ok(plan.sessions.length === 0 && Object.keys(plan.completed).length === 1, 'removing a recurring session keeps its past check-off record');
+  ok(errors.length === 0, 'DSA Study Planner interactions cause no uncaught errors');
+
+  console.log('\n── 4d. Journal link survives question deletion ──');
+  const bankWithLink = questions(30);
+  const deletedLinkEntry = { schemaVersion: 1, entries: [{ id: 'saved-miss', createdAt: Date.now(), updatedAt: Date.now(), occurredOn: today(), questionId: 'q1', questionTitle: 'Problem 1', category: 'edge-case', whatHappened: 'Forgot the empty input case.', takeaway: 'Test n=0.', resolved: false }] };
+  ({ w, d, errors } = page({ questions: bankWithLink, seed: { 'dsaMistakeJournal-v1': deletedLinkEntry } })); await sleep(700);
+  ok($(d, 'dmj-mistake-journal').textContent.includes('Problem 1'), 'linked question title is shown while the problem exists');
+  w.localStorage.setItem('dsaQuestions', JSON.stringify(bankWithLink.filter((q) => q.id !== 'q1')));
+  d.body.appendChild(d.createElement('span'));
+  await sleep(500);
+  ok($(d, 'dmj-mistake-journal').textContent.includes('Problem 1 · no longer in bank') && store(w, 'dsaMistakeJournal-v1').entries[0].questionTitle === 'Problem 1', 'deleting a bank problem leaves its journal snapshot intact');
+  ok(errors.length === 0, 'question deletion refresh causes no uncaught errors');
+  await sleep(1500); // Allow existing analytics/ring refresh animations to settle after the external bank update.
+  let newTabMutations = 0;
+  const newTabObserver = new w.MutationObserver((records) => { newTabMutations += records.length; });
+  newTabObserver.observe($(d, 'dmp-dsa-mastery-card'), { childList: true, subtree: true });
+  await sleep(800); newTabObserver.disconnect();
+  ok(newTabMutations === 0, 'new DSA tab renderers settle without a mutation loop after external changes');
+
+  // Restore the original daily-goal fixture after the isolated new-widget pages above.
+  const dailyGoalQuestions = questions(30);
+  for (let i = 0; i < 6; i++) { dailyGoalQuestions[i].solved = true; dailyGoalQuestions[i].dateSolved = today(); }
+  ({ w, d, errors } = page({ questions: dailyGoalQuestions })); await sleep(700);
 
   console.log('\n── 5. Daily Goal ──');
   ok(/2\/day/.test($(d, 'dgl-daily-goal').textContent), 'default target is 2/day');

@@ -1759,3 +1759,37 @@ client, so they don't belong in a client precache), and `service-worker.js`
 itself — all correctly excluded. No changes needed here this round, but
 worth re-running this diff any time widgets are added, since nothing
 currently catches a missed entry automatically.
+
+## ✅ DSA Mastery: Mistake Journal + weekly Study Plan
+
+The existing DSA Mastery card keeps its original seven tabs and adds two
+sections at the end: **Mistakes** and **Study Plan**.
+
+- `src/dsa-mistake-journal-widget.js` stores dated, categorized entries with
+  a description, optional corrective takeaway, optional linked bank problem,
+  and open/resolved state. A linked problem's title snapshot remains visible
+  if the bank item is later removed. Repeat counts are computed only for the
+  same linked problem ID and category. Search and status/category filters are
+  included. The journal does not rewrite `dsaQuestions.notes` or
+  `dsaProblemInsights`.
+- `src/dsa-study-planner-widget.js` stores a user-defined recurring weekly
+  schedule (day, start time, duration, focus and optional topic), a selected
+  exam date, and per-date self-reported session check-offs. Low-availability
+  mode displays a 15-minute version of each block without changing the saved
+  duration. The exam date is an in-app countdown/reminder only; it does not
+  request notification permission or send browser notifications. The planner
+  does not create or mutate global daily-learning tasks or claim actual study
+  time.
+- The existing DSA tablist now has panel associations, roving focus, and
+  Arrow/Home/End keyboard navigation while retaining its button-based layout.
+- `src/dsa-solve-speed-widget.js` now reads the main bank's `timeTakenMin`
+  field as well as its prior supported aliases.
+- New storage keys `dsaMistakeJournal-v1` and `dsaStudyPlanner-v1` are
+  registered in `src/storage-keys.js`, the cloud/backup allowlist, and this
+  storage map. New keys are independent version-1 stores; existing DSA data
+  is not migrated or rewritten.
+
+Focused DSA tests: `node scripts/_run-test.cjs tests/test-dsa-tier3-toolkit.js`.
+Storage inventory: `npm run audit:storage`. Full suite: `npm test`.
+Production build: `npm run build`. Real Chromium smoke suite (requires the
+built app and the local test server at port 8123): `npm run test:browser`.

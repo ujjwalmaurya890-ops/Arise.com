@@ -129,6 +129,15 @@ function selectMonth(ctx, monthId) {
   fire(ctx, sel, 'change');
 }
 
+// Tests 17 runs an asynchronous CSV import; finish() only exits once every
+// pending async block has reported. Synchronous suites finish immediately.
+var pendingAsync = 0;
+function finish() {
+  if (pendingAsync > 0) return;
+  console.log('\n' + pass + ' passed, ' + fail + ' failed');
+  process.exit(fail ? 1 : 0);
+}
+
 const OCT_TX = [
   { id: 'oct-1', type: 'expense', title: 'October groceries', amount: 1200, category: 'Food', date: '2026-10-05', paymentMethod: 'upi', note: 'keep me' },
   { id: 'oct-2', type: 'income', title: 'October stipend', amount: 5000, category: 'Income', incomeSource: 'stipend', date: '2026-10-01', paymentMethod: 'upi' },
@@ -546,5 +555,308 @@ const OCT_TX = [
   assert(el.innerHTML.indexOf('November 2026') !== -1, 'the widget still renders the current month');
 })();
 
-console.log('\n' + pass + ' passed, ' + fail + ' failed');
-process.exit(fail ? 1 : 0);
+
+// ---------------------------------------------------------------------
+// 13. The month is re-validated on EVERY render that follows changed data
+//     (storage-watch refresh), not only on mount/focus/visibility/timer.
+// ---------------------------------------------------------------------
+(function testRolloverOnDataChangeRender() {
+  const ctx = boot('2026-10-31', {
+    seed: OCT_TX,
+    beforeScripts: function (w) {
+      w.__ARISE_STORAGE_WATCH_BUS__ = {
+        watch: function (key, cb) { w.__exwWatch = { key: key, cb: cb }; }
+      };
+    }
+  });
+  assert(ctx.window.__exwWatch && ctx.window.__exwWatch.key === 'arise-expenses-v1',
+    'the widget subscribes to the transaction store for live data changes');
+  assert(selectedMonth(ctx.el) === '2026-10', 'starts on 2026-10');
+
+  const before = JSON.stringify(stored(ctx.window));
+  ctx.clock.set('2026-11-01');
+  ctx.window.__exwWatch.cb();          // data-change render only - no focus/pageshow event
+
+  assert(selectedMonth(ctx.el) === '2026-11', 'a data-change render AFTER midnight selects the new month, got ' + selectedMonth(ctx.el));
+  assert(monthSummary(ctx.el).indexOf('November 2026') !== -1, 'the render is labelled November 2026');
+  assert(monthSummary(ctx.el).indexOf('Income\u20b90') !== -1 && monthSummary(ctx.el).indexOf('Expense\u20b90') !== -1,
+    'the new month starts at zero on a data-change render: ' + monthSummary(ctx.el));
+  assert(JSON.stringify(stored(ctx.window)) === before, 'no historical record is touched by this render');
+})();
+
+// ---------------------------------------------------------------------
+// 14. Budget configuration is global, but its USAGE is computed from the
+//     selected month's expenses - overall monthly budget, per-category
+//     budgets, and the Income-vs-Expense monthly budget strip.
+// ---------------------------------------------------------------------
+const BUDGET_TX = [
+  { id: 'b-oct-food', type: 'expense', title: 'October food', amount: 1000, category: 'Food', date: '2026-10-05', paymentMethod: 'upi' },
+  { id: 'b-nov-food', type: 'expense', title: 'November food', amount: 400, category: 'Food', date: '2026-11-03', paymentMethod: 'upi' },
+  { id: 'b-nov-rent', type: 'expense', title: 'November rent', amount: 150, category: 'Rent', date: '2026-11-04', paymentMethod: 'netbanking' }
+];
+(function testBudgetUsageFollowsSelectedMonth() {
+  const ctx = boot('2026-11-15', {
+    seed: BUDGET_TX,
+    storage: {
+      'arise-expenses-budgets-v1': JSON.stringify({ Food: 1500 }),
+      'arise-expenses-monthly-budget-v1': JSON.stringify(5000)
+    }
+  });
+  const budgetCard = function () {
+    const node = ctx.el.querySelector('.exw-mb-section');
+    return node ? node.textContent.replace(/\s+/g, ' ') : '';
+  };
+  assert(budgetCard().indexOf('Total Spent\u20b9550') !== -1 && budgetCard().indexOf('Remaining\u20b94,450') !== -1,
+    'the overall monthly budget card uses the selected month (November) expenses: ' + budgetCard());
+
+  tab(ctx, 'budgets');
+  const catBudgets = function () {
+    const node = ctx.el.querySelector('.exw-budgets');
+    return node ? node.textContent.replace(/\s+/g, ' ') : '';
+  };
+  assert(catBudgets().indexOf('November food') === -1 && catBudgets().indexOf('\u20b9400 / \u20b91,500') !== -1,
+    'per-category budget usage is November spend (400) against the saved 1,500 limit: ' + catBudgets());
+  assert(catBudgets().indexOf('(Nov 26)') !== -1, 'the budget block is labelled with the selected month');
+
+  tab(ctx, 'weeklymonthly');
+  const strip = function () {
+    const node = ctx.el.querySelector('.exw-ie-budget-strip');
+    return node ? node.textContent.replace(/\s+/g, ' ') : '';
+  };
+  assert(strip().indexOf('November 2026 Budget') !== -1 && strip().indexOf('\u20b9550 / \u20b95,000') !== -1,
+    'the monthly budget strip shows November usage against the same monthly cap: ' + strip());
+
+  selectMonth(ctx, '2026-10');
+  assert(strip().indexOf('October 2026 Budget') !== -1 && strip().indexOf('\u20b91,000 / \u20b95,000') !== -1,
+    'switching to October recomputes the same budget against October spend: ' + strip());
+
+  tab(ctx, 'budgets');
+  assert(catBudgets().indexOf('\u20b91,000 / \u20b91,500') !== -1,
+    'per-category usage switches to October too: ' + catBudgets());
+  tab(ctx, 'overview');
+  assert(budgetCard().indexOf('Total Spent\u20b91,000') !== -1 && budgetCard().indexOf('Remaining\u20b94,000') !== -1,
+    'the overall monthly budget card follows the historical month: ' + budgetCard());
+
+  assert(ctx.window.localStorage.getItem('arise-expenses-monthly-budget-v1') === JSON.stringify(5000) &&
+    ctx.window.localStorage.getItem('arise-expenses-budgets-v1') === JSON.stringify({ Food: 1500 }),
+    'the saved budget configuration itself is never rewritten by month navigation');
+})();
+
+// ---------------------------------------------------------------------
+// 15. Every current-month chart/breakdown is month-scoped, and month
+//     navigation updates the totals and the charts together.
+// ---------------------------------------------------------------------
+const CHART_TX = [
+  { id: 'c-oct-food', type: 'expense', title: 'October food', amount: 1000, category: 'Food', date: '2026-10-05', paymentMethod: 'upi' },
+  { id: 'c-oct-pay', type: 'income', title: 'October stipend', amount: 5000, category: 'Income', incomeSource: 'stipend', date: '2026-10-01', paymentMethod: 'upi' },
+  { id: 'c-nov-food', type: 'expense', title: 'November food', amount: 400, category: 'Food', date: '2026-11-03', paymentMethod: 'upi' },
+  { id: 'c-nov-rent', type: 'expense', title: 'November rent', amount: 150, category: 'Rent', date: '2026-11-04', paymentMethod: 'netbanking' },
+  { id: 'c-nov-pay', type: 'income', title: 'November stipend', amount: 2000, category: 'Income', incomeSource: 'stipend', date: '2026-11-01', paymentMethod: 'upi' }
+];
+function chartTotal(el, needle) {
+  const charts = Array.prototype.slice.call(el.querySelectorAll('.exw-chart'));
+  for (let i = 0; i < charts.length; i++) {
+    const title = charts[i].querySelector('.exw-block-title');
+    if (title && title.textContent.indexOf(needle) !== -1) {
+      const total = charts[i].querySelector('.exw-donut-total');
+      return total ? total.textContent : '(no donut)';
+    }
+  }
+  return '(chart not found)';
+}
+(function testChartsAreMonthScoped() {
+  const ctx = boot('2026-11-15', { seed: CHART_TX });
+  assert(chartTotal(ctx.el, 'Spending by Category') === '\u20b9550', 'November category chart totals only November spend, got ' + chartTotal(ctx.el, 'Spending by Category'));
+  assert(chartTotal(ctx.el, 'Payment Method Breakdown') === '\u20b9550', 'November payment breakdown totals only November spend, got ' + chartTotal(ctx.el, 'Payment Method Breakdown'));
+  assert(chartTotal(ctx.el, 'Income Sources') === '\u20b92,000', 'November income chart totals only November income, got ' + chartTotal(ctx.el, 'Income Sources'));
+
+  fire(ctx, ctx.el.querySelector('[data-action="month-prev"]'), 'click');
+  assert(selectedMonth(ctx.el) === '2026-10', 'prev moves to October');
+  assert(chartTotal(ctx.el, 'Spending by Category') === '\u20b91,000', 'October category chart shows October spend, got ' + chartTotal(ctx.el, 'Spending by Category'));
+  assert(chartTotal(ctx.el, 'Income Sources') === '\u20b95,000', 'October income chart shows October income, got ' + chartTotal(ctx.el, 'Income Sources'));
+  assert(monthSummary(ctx.el).indexOf('Income\u20b95,000') !== -1 && monthSummary(ctx.el).indexOf('Expense\u20b91,000') !== -1 &&
+    monthSummary(ctx.el).indexOf('Net Balance\u20b94,000') !== -1, 'October summary totals are restored: ' + monthSummary(ctx.el));
+
+  fire(ctx, ctx.el.querySelector('[data-action="month-next"]'), 'click');
+  assert(selectedMonth(ctx.el) === '2026-11', 'next returns to November');
+  assert(chartTotal(ctx.el, 'Spending by Category') === '\u20b9550', 'November chart is restored');
+  assert(ctx.el.querySelector('[data-action="month-next"]').disabled === true, 'next is disabled on the current month');
+  fire(ctx, ctx.el.querySelector('[data-action="month-prev"]'), 'click');
+  fire(ctx, ctx.el.querySelector('[data-action="month-current"]'), 'click');
+  assert(selectedMonth(ctx.el) === '2026-11', '"This month" returns to the current month');
+})();
+
+// ---------------------------------------------------------------------
+// 16. A recurring template generates exactly one entry per month across a
+//     live rollover; focus/remount never duplicates it.
+// ---------------------------------------------------------------------
+(function testRecurringAcrossRollover() {
+  const template = [{
+    id: 'rec-live', title: 'Hostel rent', amount: 4000, type: 'expense', category: 'Rent',
+    dayOfMonth: 1, active: true, createdAt: '2026-07-01T00:00:00.000Z', lastGeneratedPeriod: '2026-09'
+  }];
+  const ctx = boot('2026-10-31', {
+    seed: OCT_TX,
+    storage: { 'arise-expenses-recurring-v1': JSON.stringify(template) }
+  });
+  const generated = function () {
+    return stored(ctx.window).filter(function (t) { return t.recurringId === 'rec-live'; });
+  };
+  assert(generated().length === 1 && generated()[0].date === '2026-10-01',
+    'the pending October occurrence is generated once on mount, got ' + JSON.stringify(generated()));
+
+  ctx.clock.set('2026-11-01');
+  ctx.window.dispatchEvent(new ctx.window.Event('focus'));
+  assert(generated().length === 1, 'a focus-driven rollover does not generate anything by itself (startup generation only)');
+
+  ctx.window.__mountExpenses(ctx.el);
+  ctx.window.__mountExpenses(ctx.el);
+  ctx.window.dispatchEvent(new ctx.window.Event('focus'));
+  ctx.window.__mountExpenses(ctx.el);
+
+  const rowsAfter = generated();
+  assert(rowsAfter.length === 2, 'exactly one November occurrence is generated across repeated mounts, got ' + rowsAfter.length);
+  assert(rowsAfter.map(function (t) { return t.date; }).sort().join('|') === '2026-10-01|2026-11-01',
+    'the recurring entries are dated in their own months: ' + rowsAfter.map(function (t) { return t.date; }).join('|'));
+  assert(stored(ctx.window).filter(function (t) { return t.id.indexOf('oct-') === 0; }).length === 3,
+    'the three seeded October records are untouched');
+  const tmpl = JSON.parse(ctx.window.localStorage.getItem('arise-expenses-recurring-v1'))[0];
+  assert(tmpl.lastGeneratedPeriod === '2026-11', 'the template watermark advances to November, got ' + tmpl.lastGeneratedPeriod);
+})();
+
+// ---------------------------------------------------------------------
+// 17. Backup / export / import contracts: export never mutates data, CSV
+//     import keeps history and files rows under their real months, and the
+//     account backup schema still includes the transaction store.
+// ---------------------------------------------------------------------
+(function testExportImportAndBackupContract() {
+  const schema = require('../src/cloud/storage-schema.js');
+  const required = [
+    'arise-expenses-v1', 'arise-expenses-budgets-v1', 'arise-expenses-monthly-budget-v1',
+    'arise-expenses-recurring-v1', 'arise-expenses-month-seen-v1', 'arise-expenses-goals-v1',
+    'arise-expenses-loans-v1', 'arise-expenses-investments-v1', 'arise-expenses-networth-history-v1',
+    'arise-expenses-iou-v1', 'arise-expenses-weekly-budget-v1'
+  ];
+  const missing = required.filter(function (k) { return !schema.isLocalKey(k); });
+  assert(missing.length === 0, 'the account backup/sync allowlist still covers every expense store; missing: ' + missing.join(', '));
+
+  const ctx = boot('2026-11-15', { seed: OCT_TX });
+  ctx.window.alert = function () {};
+  tab(ctx, 'transactions');
+  const snapshot = function () {
+    const out = {};
+    for (let i = 0; i < ctx.window.localStorage.length; i++) {
+      const k = ctx.window.localStorage.key(i);
+      out[k] = ctx.window.localStorage.getItem(k);
+    }
+    return JSON.stringify(out, Object.keys(out).sort());
+  };
+  const before = snapshot();
+  assert(ctx.el.querySelector('[data-action="export-json"]') && ctx.el.querySelector('[data-action="export-csv"]'),
+    'the JSON and CSV export controls still exist');
+  fire(ctx, ctx.el.querySelector('[data-action="export-json"]'), 'click');
+  fire(ctx, ctx.el.querySelector('[data-action="export-csv"]'), 'click');
+  assert(snapshot() === before, 'exporting does not modify any stored record');
+
+  const input = ctx.el.querySelector('[data-role="import-csv"]');
+  assert(input && input.type === 'file', 'the CSV import control still exists');
+  const csv = 'id,title,amount,type,category,date,paymentMethod\n' +
+    'csv-oct,Imported October,250,expense,Food,2026-10-20,upi\n' +
+    'csv-nov,Imported November,125,expense,Food,2026-11-02,upi\n';
+  const file = new ctx.window.File([csv], 'import.csv', { type: 'text/csv' });
+  Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  pendingAsync++;
+  fire(ctx, input, 'change');
+
+  let tries = 0;
+  const timer = setInterval(function () {
+    const list = stored(ctx.window);
+    if (list.length <= OCT_TX.length && tries < 150) { tries++; return; }
+    clearInterval(timer);
+    const imported = list.filter(function (t) { return String(t.id).indexOf('csv-') === 0; });
+    assert(imported.length === 2, 'CSV import added both rows, got ' + imported.length);
+    assert(imported.every(function (t) { return t.date === (t.id === 'csv-oct' ? '2026-10-20' : '2026-11-02'); }),
+      'imported rows keep their real dates (no re-dating into the current month)');
+    assert(OCT_TX.every(function (seed) {
+      const found = list.filter(function (t) { return t.id === seed.id; })[0];
+      return found && JSON.stringify(found) === JSON.stringify(seed);
+    }), 'every previously stored record survives the import byte-for-byte');
+    tab(ctx, 'overview');
+    assert(monthSummary(ctx.el).indexOf('Expense\u20b9125') !== -1 && monthSummary(ctx.el).indexOf('Income\u20b90') !== -1,
+      'November totals include only the November import (125), not the October rows: ' + monthSummary(ctx.el));
+    tab(ctx, 'transactions');
+
+    // Re-importing the same file must not duplicate rows (id-based de-dupe).
+    const input2 = ctx.el.querySelector('[data-role="import-csv"]');
+    Object.defineProperty(input2, 'files', { value: [file], configurable: true });
+    fire(ctx, input2, 'change');
+    setTimeout(function () {
+      assert(stored(ctx.window).length === OCT_TX.length + 2, 're-importing the same CSV does not duplicate records, got ' + stored(ctx.window).length);
+      assert(stored(ctx.window).filter(function (t) { return t.id.indexOf('oct-') === 0; }).length === 3,
+        'the original history is still intact after re-import');
+      pendingAsync--;
+      finish();
+    }, 400);
+  }, 20);
+})();
+
+// ---------------------------------------------------------------------
+// 18. Closing and reopening the browser: a fresh DOM hydrated from the same
+//     localStorage lands on the current month, keeps history accessible and
+//     does not re-date or duplicate anything.
+// ---------------------------------------------------------------------
+function dumpStorage(window) {
+  const out = {};
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    out[key] = window.localStorage.getItem(key);
+  }
+  return out;
+}
+function bootFromStorage(iso, entries) {
+  const dom = freshDom();
+  const window = dom.window;
+  const clock = freezeClock(window, iso);
+  Object.keys(entries).forEach(function (key) {
+    if (entries[key] === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, entries[key]);
+  });
+  loadScript(window, 'src/widget-nav.js');
+  loadScript(window, 'src/expenses.js');
+  const el = window.document.getElementById('app');
+  window.__mountExpenses(el);
+  return { dom: dom, window: window, el: el, clock: clock };
+}
+(function testColdRestartAfterRollover() {
+  const first = boot('2026-10-31', { seed: OCT_TX });
+  first.clock.set('2026-11-01');
+  first.window.dispatchEvent(new first.window.Event('focus'));
+  assert(selectedMonth(first.el) === '2026-11', 'the open page moved to November before the restart');
+  const saved = dumpStorage(first.window);
+  first.window.__unmountExpenses(first.el);
+
+  // Fresh window, same storage - the equivalent of closing the browser and
+  // reopening the site weeks later.
+  const second = bootFromStorage('2026-12-05', saved);
+  assert(selectedMonth(second.el) === '2026-12', 'reopening in December lands on 2026-12, got ' + selectedMonth(second.el));
+  assert(monthSummary(second.el).indexOf('December 2026') !== -1 &&
+    monthSummary(second.el).indexOf('Income\u20b90') !== -1 &&
+    monthSummary(second.el).indexOf('Expense\u20b90') !== -1,
+    'December starts from zero after the restart: ' + monthSummary(second.el));
+  tab(second, 'transactions');
+  assert(rows(second.el).length === 0, 'December has no transactions after the restart');
+
+  selectMonth(second, '2026-10');
+  assert(rows(second.el).length === 3, 'the three October records are still there after closing/reopening');
+  tab(second, 'overview');
+  assert(monthSummary(second.el).indexOf('Income\u20b95,000') !== -1 && monthSummary(second.el).indexOf('Expense\u20b92,000') !== -1,
+    'October historical totals are intact after the restart: ' + monthSummary(second.el));
+  const after = stored(second.window);
+  assert(after.length === OCT_TX.length, 'no transaction was duplicated by the restart, got ' + after.length);
+  assert(OCT_TX.every(function (seed) {
+    const found = after.filter(function (t) { return t.id === seed.id; })[0];
+    return found && JSON.stringify(found) === JSON.stringify(seed);
+  }), 'every October record is unchanged after the restart');
+})();
+
+finish();

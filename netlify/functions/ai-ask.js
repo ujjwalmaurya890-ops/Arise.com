@@ -11,10 +11,31 @@ const ALLOWED_MODELS = ["claude-haiku-4-5-20251001", "claude-sonnet-5"];
 const DEFAULT_MODEL = ALLOWED_MODELS[0];
 const MAX_TOKENS_CAP = 800; // hard ceiling regardless of what the client asks for
 const MAX_CHARS = 6000; // guards against runaway prompts / cost
+// Bound every upstream call. The three coding-platform proxies use the same
+// pattern (8 s there; LLM responses are slower, so 20 s here, still inside the
+// platform function limit). Without this a hung Anthropic connection kept the
+// function alive until the platform killed it, with no useful client response.
+const FETCH_TIMEOUT_MS = 20000;
 
 const { authorize } = require('../../server/access.cjs');
 const { getServices } = require('../../server/firebase.cjs');
 const { fail } = require('../../server/http.cjs');
+
+// AI responses are user-specific and must never be stored in a shared cache.
+// These mirror the headers server/http.cjs puts on every authenticated API
+// response (the local respond() helper previously omitted all of them).
+function respond(statusCode, bodyObj) {
+  return {
+    statusCode,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, private',
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'no-referrer'
+    },
+    body: JSON.stringify(bodyObj)
+  };
+}
 
 exports.handler = async function (event) {
   try { await authorize(event, getServices()); } catch (error) { return fail(error); }
@@ -46,6 +67,8 @@ exports.handler = async function (event) {
     return respond(400, { error: "Request too large." });
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
   try {
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -59,7 +82,8 @@ exports.handler = async function (event) {
         max_tokens: maxTokens,
         system: system,
         messages: [{ role: "user", content: prompt }]
-      })
+      }),
+      signal: controller.signal
     });
 
     const data = await anthropicRes.json().catch(function () { return {}; });
@@ -77,14 +101,11 @@ exports.handler = async function (event) {
 
     return respond(200, { text: block.text.trim(), model: model });
   } catch (err) {
+    if (err && err.name === "AbortError") {
+      return respond(504, { error: "The AI service took too long to respond. Please try again." });
+    }
     return respond(502, { error: "Failed to reach Anthropic: " + err.message });
+  } finally {
+    clearTimeout(timer);
   }
 };
-
-function respond(statusCode, bodyObj) {
-  return {
-    statusCode: statusCode,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(bodyObj)
-  };
-}

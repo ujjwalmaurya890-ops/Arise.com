@@ -134,6 +134,13 @@ async function main() {
   check("All 20 sidebar navigation items render crisp inline SVG icons and clean emoji-free labels",
     navButtons.length === 20 && navSvgs.length >= 20 && !anyEmojiLabel);
 
+  // WCAG 2.2 AA 1.4.3: the "OS" badge text on the light themes previously measured 4.31:1
+  // (Clean White) / 4.48:1 (Apple Glass Light) against its 13% primary wash. Guard the
+  // light-mode-only override that swaps in the theme's darker --primary-hover token.
+  check("styles/saas-upgrade.css keeps the light-theme .arise-sb-brand-badge contrast override",
+    saasCss.includes("html[data-theme-mode=light] .arise-sb-brand-badge{color:var(--primary-hover, var(--primary))}")
+    && saasCss.includes(".arise-sb-brand-badge{font-family:var(--font-mono, monospace)"));
+
   // Verify shared singleton fetchInterviewSheets helper & Page Widget Quick-Jump Bar on Dashboard
   check("widget-shared-utils exposes singleton fetchInterviewSheets() deduplicator",
     !!(window.__ARISE_WIDGET_UTILS__ && typeof window.__ARISE_WIDGET_UTILS__.fetchInterviewSheets === "function"));

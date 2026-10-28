@@ -36,6 +36,26 @@ const DEV = [{ title: 'A', difficulty: 'Beginner', completed: true, priority: 'H
   ok(!!card && !!el && el.previousElementSibling === card, 'planner is inserted right after the Career Readiness card');
   ok(errors.length === 0, 'no uncaught errors (' + errors.slice(0, 1).join('') + ')');
   const api = w.__ARISE_CAREER_READINESS_API__, P = w.__ARISE_READINESS_PLANNER_API__;
+
+  console.log('\n── Reserved dashboard slots ──');
+  {
+    const slotPage = page({ dsaQuestions: bank(12, 60), devTasks: DEV, streak: 3 }, PLAN_FILES,
+      '<div class="glass-card"><h3>Developer Readiness</h3></div>' +
+      '<div id="arise-career-readiness-slot" class="arise-readiness-widget-reserve" aria-hidden="true"></div>' +
+      '<div id="arise-readiness-planner-slot" class="arise-readiness-widget-reserve" aria-hidden="true"></div>' +
+      '<div id="quick-actions"></div>');
+    await sleep(900);
+    const devCard = slotPage.d.querySelector('.glass-card');
+    const careerCard = slotPage.d.getElementById('lpa50-readiness-card');
+    const planner = slotPage.d.getElementById('rpp-planner');
+    ok(!!careerCard && !!planner && !slotPage.d.getElementById('arise-career-readiness-slot') && !slotPage.d.getElementById('arise-readiness-planner-slot'), 'both lazy cards replace their reserved slots');
+    ok(careerCard.previousElementSibling === devCard && planner.previousElementSibling === careerCard && planner.nextElementSibling.id === 'quick-actions', 'slot replacement preserves the original card order and fallback adjacency');
+    ok(slotPage.errors.length === 0, 'reserved-slot mount has no uncaught errors (' + slotPage.errors.slice(0, 1).join('') + ')');
+  }
+  const appBundle = fs.readFileSync(path.join(path.resolve(__dirname, '..'), 'assets/app-bundle.js'), 'utf8');
+  const indexHtml = fs.readFileSync(path.join(path.resolve(__dirname, '..'), 'index.html'), 'utf8');
+  ok(appBundle.includes('id:"arise-career-readiness-slot"') && appBundle.includes('id:"arise-readiness-planner-slot"'), 'compiled dashboard renders both readiness slots');
+  ok(indexHtml.includes('#root #arise-career-readiness-slot') && indexHtml.includes('#root #rpp-planner { min-height: 485px; }') && indexHtml.includes('#root #rpp-planner { min-height: 469px; }') && indexHtml.includes('#root #rpp-planner { min-height: 448px; }'), 'critical CSS reserves measured responsive space for wide-desktop readiness cards');
   const base = P.inputs(), plan = P.plan(api, base, Date.now());
   ok(plan.cur.total === api.calculateCareerReadiness(base).total, 'planner "current" equals the card\'s own score (' + plan.cur.total + '%)');
   ok(plan.target === api.LEVELS[plan.cur.level.index].max + 1, 'target = first point of the next level (' + plan.target + '%)');

@@ -98,7 +98,7 @@ Changed in this work (smallest safe edits):
 
 ```powershell
 npm ci
-npm test                              # build:chunks + all 45 JS suites + cloud suite
+npm test                              # build:chunks + tests/test-* regressions + cloud suite
 node scripts/_run-test.cjs tests/test-expenses-monthly-reset.js
 node scripts/_run-test.cjs tests/test-expenses-premium-scenario.js tests/test-expenses-weekly-sunday-reset.js
 ```

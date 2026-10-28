@@ -15,6 +15,7 @@
   "arise-attendance-ai-insight-v1",
   "arise-attendance-tracker-v1",
   "arise-career-readiness-history-v1",
+  "arise-career-intelligence-v1",
   "arise-cert-goals-v1",
   "arise-certificates-collapsed-categories-v1",
   "arise-cgpa",

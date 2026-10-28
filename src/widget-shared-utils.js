@@ -224,16 +224,48 @@
     }
   }
 
+  function escapeText(str) {
+    return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function prefersReducedMotion() {
+    if (document.documentElement && document.documentElement.classList.contains("perf-lite")) return true;
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  function smoothScroll(el, opts) {
+    if (!el || typeof el.scrollIntoView !== "function") return;
+    var options = Object.assign({ block: "center" }, opts || {});
+    options.behavior = prefersReducedMotion() ? "auto" : (options.behavior || "smooth");
+    try {
+      el.scrollIntoView(options);
+    } catch (_) {
+      try { el.scrollIntoView(); } catch (__e) {}
+    }
+  }
+
+  function setHTMLIfChanged(el, sig, html) {
+    if (!el) return false;
+    var key = String(sig == null ? html : sig);
+    if (el.__uxaLastSig === key && el.childNodes.length > 0) return false;
+    el.__uxaLastSig = key;
+    el.innerHTML = html;
+    return true;
+  }
+
   function loadingHTML(label, opts) {
     opts = opts || {};
     var sz = opts.size || "md";
     var szCls = sz === "sm" ? " uxa-spinner-sm" : sz === "lg" ? " uxa-spinner-lg" : "";
     var extra = opts.className ? " " + opts.className : "";
     var inline = opts.inline ? " uxa-loading-state-inline" : "";
+    var safeLabel = escapeText(label).replace(/&lt;(\/?b)&gt;/g, "<$1>");
     return (
-      '<div class="uxa-loading-state' + inline + extra + '" role="status" aria-live="polite">' +
+      '<div class="uxa-loading-state' + inline + extra + '" role="status" aria-live="polite" aria-busy="true">' +
       '<span class="uxa-spinner' + szCls + '" aria-hidden="true"></span>' +
-      '<span class="uxa-loading-label">' + label + "</span></div>"
+      '<span class="uxa-loading-label">' + safeLabel + "</span></div>"
     );
   }
 
@@ -271,18 +303,27 @@
     if (isLoading) {
       if (btn.getAttribute("data-uxa-original-html") == null) {
         btn.setAttribute("data-uxa-original-html", btn.innerHTML);
+        btn.setAttribute("data-uxa-original-minw", btn.style.minWidth || "");
+        var w = btn.offsetWidth;
+        if (w > 0) btn.style.minWidth = w + "px";
       }
       btn.disabled = true;
+      btn.setAttribute("aria-busy", "true");
+      btn.setAttribute("aria-disabled", "true");
       btn.classList.add("uxa-btn-loading");
       var label = opts.label != null ? opts.label : btn.textContent.trim();
-      btn.innerHTML = '<span class="uxa-spinner uxa-spinner-sm" aria-hidden="true"></span><span>' + label + "</span>";
+      btn.innerHTML = '<span class="uxa-spinner uxa-spinner-sm" aria-hidden="true"></span><span>' + escapeText(label) + "</span>";
     } else {
       btn.disabled = !!opts.disabled;
+      btn.removeAttribute("aria-busy");
+      btn.removeAttribute("aria-disabled");
       btn.classList.remove("uxa-btn-loading");
       var orig = btn.getAttribute("data-uxa-original-html");
       if (orig != null) {
         btn.innerHTML = orig;
+        btn.style.minWidth = btn.getAttribute("data-uxa-original-minw") || "";
         btn.removeAttribute("data-uxa-original-html");
+        btn.removeAttribute("data-uxa-original-minw");
       }
     }
   }
@@ -296,9 +337,10 @@
       if (cur) return;
       var bar = document.createElement("div");
       bar.className = cls;
-      bar.setAttribute("role", "progressbar");
+      bar.setAttribute("role", "status");
+      bar.setAttribute("aria-live", "polite");
       bar.setAttribute("aria-label", opts.label || "Working");
-      bar.innerHTML = '<div class="uxa-progress-fill-indeterminate"></div>';
+      bar.innerHTML = '<span class="uxa-sr-only">' + escapeText(opts.label || "Working") + '</span><div class="uxa-progress-fill-indeterminate" aria-hidden="true"></div>';
       if (opts.after && opts.after.parentNode === host) {
         opts.after.insertAdjacentElement("afterend", bar);
       } else {
@@ -312,13 +354,20 @@
   var cachedSheetsPromise = null;
   var cachedFetchRef = null;
 
-  function fetchInterviewSheets() {
+  function fetchInterviewSheets(opts) {
+    opts = opts || {};
     if (typeof fetch !== "function") return Promise.resolve(null);
+    if (opts.force) cachedSheetsPromise = null;
     if (!cachedSheetsPromise || cachedFetchRef !== fetch) {
       cachedFetchRef = fetch;
       cachedSheetsPromise = Promise.resolve()
         .then(function () {
-          return fetch("./assets/interview_sheets_data.json", { cache: "force-cache" });
+          var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+          var timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 12000) : 0;
+          var reqOpts = ctrl ? { cache: "force-cache", signal: ctrl.signal } : { cache: "force-cache" };
+          return Promise.resolve(fetch("./assets/interview_sheets_data.json", reqOpts)).finally(function () {
+            if (timer) clearTimeout(timer);
+          });
         })
         .then(function (res) {
           return res && res.ok ? res.json() : null;
@@ -344,6 +393,9 @@
     startOfDay: startOfDay,
     highestCrossed: highestCrossed,
     bootUpdater: bootUpdater,
+    prefersReducedMotion: prefersReducedMotion,
+    smoothScroll: smoothScroll,
+    setHTMLIfChanged: setHTMLIfChanged,
     loadingHTML: loadingHTML,
     skeletonCardsHTML: skeletonCardsHTML,
     skeletonProfileHTML: skeletonProfileHTML,
@@ -351,4 +403,5 @@
     setIndeterminateBar: setIndeterminateBar,
     fetchInterviewSheets: fetchInterviewSheets
   };
+  window.__ariseShared = window.__ARISE_WIDGET_UTILS__;
 })();

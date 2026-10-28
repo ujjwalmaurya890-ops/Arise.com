@@ -19,8 +19,12 @@ export function createController(adapter, { storage = window.AriseStorage, schem
   const gate = (title, message, busy = false) => {
     document.documentElement.removeAttribute('data-cloud-auth');
     element('root').inert = true; element('root').setAttribute('aria-hidden', 'true');
-    element('cloud-gate').hidden = false; element('cloud-account').hidden = true;
-    element('cloud-title').textContent = title; element('cloud-message').textContent = message;
+    const gateEl = element('cloud-gate');
+    gateEl.hidden = false; gateEl.dataset.busy = busy ? 'true' : 'false'; gateEl.setAttribute('aria-busy', busy ? 'true' : 'false');
+    element('cloud-account').hidden = true;
+    element('cloud-title').textContent = title;
+    const msgEl = element('cloud-message');
+    msgEl.textContent = message; msgEl.setAttribute('aria-busy', busy ? 'true' : 'false');
     element('cloud-google').disabled = busy; element('cloud-google').hidden = busy;
     element('cloud-actions').replaceChildren();
   };
@@ -249,16 +253,23 @@ export function createController(adapter, { storage = window.AriseStorage, schem
     const report = await engine.importSnapshot(snapshot, { migrationId: restoreId, replace: true, kind: 'restore' });
     ensure(); reload(); return report;
   }
+  const withButtonPending = (button, fn) => async () => {
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    try { await fn(); }
+    finally { button.disabled = false; button.removeAttribute('aria-busy'); }
+  };
   element('cloud-google').addEventListener('click', login);
   element('cloud-signout').addEventListener('click', logout);
-  element('cloud-retry').addEventListener('click', () => sync?.blocked && sync.conflict ? showConflict() : sync?.lastStatus.status === 'remote' ? reload() : sync?.flush());
-  element('cloud-export').addEventListener('click', async () => { try { await downloadBackup(await storage.snapshot(false)); } catch { status({ status: 'failed', message: 'Backup export failed. Browser data is retained. Do not clear this browser.' }); } });
-  element('cloud-legacy-export').addEventListener('click', async () => {
+  element('cloud-retry').addEventListener('click', withButtonPending(element('cloud-retry'), () => sync?.blocked && sync.conflict ? showConflict() : sync?.lastStatus.status === 'remote' ? reload() : sync?.flush()));
+  element('cloud-export').addEventListener('click', withButtonPending(element('cloud-export'), async () => { try { await downloadBackup(await storage.snapshot(false)); } catch { status({ status: 'failed', message: 'Backup export failed. Browser data is retained. Do not clear this browser.' }); } }));
+  element('cloud-legacy-export').addEventListener('click', withButtonPending(element('cloud-legacy-export'), async () => {
     const assignment = await storage.load('legacy:assignment:v1');
     const backup = await storage.load('legacy:backup:v1');
     if (backup && (!assignment?.uid || assignment.uid === storage.uid)) await downloadBackup(assignment?.uid ? { ...backup, meta: { ...backup.meta, ownerUid: assignment.uid } } : backup, 'arise-original-local');
     else element('cloud-recovery-note').textContent = 'No unassigned recovery backup is available to this account.';
-  });
+  }));
   window.addEventListener('online', () => { sync?.flush().then(() => sync?.poll()); });
   window.addEventListener('offline', () => sync?.status('offline'));
   document.addEventListener('visibilitychange', () => { if (!sync?.active) return; if (document.hidden) sync.flush(); else sync.poll(); });

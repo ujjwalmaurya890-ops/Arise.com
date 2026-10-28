@@ -1,1 +1,518 @@
-(function(){if(!window.__ARISE_TIMER_UPGRADE__){window.__ARISE_TIMER_UPGRADE__=!0;var B="focusSessionsV2",G="studySessions",j="arise-timer-upgrade-style",l="arise-timer-upgrade-panel",H=["DSA","Project","College","Notes","Interview Prep","Other"],C=null,T=W(G).length,U=new WeakMap;(function(){if(!window.__ARISE_TIMER_UPGRADE_LS_PATCHED__){window.__ARISE_TIMER_UPGRADE_LS_PATCHED__=!0;try{var t=window.localStorage.setItem.bind(window.localStorage);window.localStorage.setItem=function(n,a){var r=t(n,a);try{n===G&&(function(u){var o;try{o=JSON.parse(u)}catch{return}if(!Array.isArray(o)||o.length<=T)return void(T=Array.isArray(o)?o.length:T);T=o.length;var d=o[o.length-1];if(!(!d||typeof d!="object")){var m=Number(d.minutes)||0;if(!(m<=0)){try{window.dispatchEvent(new CustomEvent("studySessions:updated"))}catch{}var g={id:K(),task:C&&C.task||"Untitled session",category:C&&C.category||"Other",minutes:m,date:typeof d.date=="string"?d.date:F(),startedAt:C&&C.startedAt||null,endedAt:Date.now(),completedNote:"",rating:null,distractions:0};C=null,(function(e){var i=document.getElementById("arise-tu-overlay");i&&i.remove();var s=document.createElement("div");s.id="arise-tu-overlay";var c=document.createElement("div");c.className="arise-tu-card";var x=document.createElement("h3");x.textContent="Session complete – "+P(e.minutes);var p=document.createElement("p");p.className="arise-tu-sub",p.textContent=e.task+" · "+e.category;var f=document.createElement("label");f.className="arise-tu-label",f.textContent="What did I complete?";var w=document.createElement("textarea");w.placeholder="e.g. Solved 3 array problems, reviewed notes...";var v=document.createElement("label");v.className="arise-tu-label",v.textContent="Focus quality (1-5)";var k=document.createElement("div");k.className="arise-tu-stars";for(var b=0,N=[],h=1;h<=5;h++)(function(I){var R=document.createElement("button");R.type="button",R.className="arise-tu-star",R.textContent="★",R.setAttribute("aria-label",I+" star"+(I>1?"s":"")),R.addEventListener("click",function(){b=I,N.forEach(function(Y,Z){Y.classList.toggle("active",Z<b)})}),N.push(R),k.appendChild(R)})(h);var y=document.createElement("label");y.className="arise-tu-label",y.textContent="Distraction count";var S=document.createElement("div");S.className="arise-tu-stepper";var A=0,_=document.createElement("button");_.type="button",_.textContent="−";var E=document.createElement("span");E.textContent="0";var L=document.createElement("button");L.type="button",L.textContent="+",_.addEventListener("click",function(){A=Math.max(0,A-1),E.textContent=String(A)}),L.addEventListener("click",function(){A+=1,E.textContent=String(A)}),S.appendChild(_),S.appendChild(E),S.appendChild(L);var z=document.createElement("div");z.className="arise-tu-actions";var D=document.createElement("button");D.type="button",D.className="arise-tu-skip",D.textContent="Skip details";var M=document.createElement("button");function $(I){Q({id:e.id,task:e.task,category:e.category,minutes:e.minutes,date:e.date,startedAt:e.startedAt,endedAt:e.endedAt,completedNote:I?w.value.trim():"",rating:I&&b>0?b:null,distractions:I?A:0}),s.remove()}M.type="button",M.className="arise-tu-save",M.textContent="Save session",D.addEventListener("click",function(){$(!1)}),M.addEventListener("click",function(){$(!0)}),z.appendChild(D),z.appendChild(M),c.appendChild(x),c.appendChild(p),c.appendChild(f),c.appendChild(w),c.appendChild(v),c.appendChild(k),c.appendChild(y),c.appendChild(S),c.appendChild(z),s.appendChild(c),document.body.appendChild(s)})(g)}}})(a)}catch{}return r}}catch{}}})(),document.addEventListener("click",function(t){var n=t.target&&t.target.closest?t.target.closest("button"):null;if(n&&(n.textContent||"").trim()==="Start"){for(var a=n.parentElement,r=null,u=0;a&&u<8;u++,a=a.parentElement)if(a.querySelector&&a.querySelector(":scope > ."+l)&&U.has(a)){r=U.get(a);break}r&&(C={task:(r.taskInput.value||"").trim()||"Untitled session",category:r.categorySelect.value||"Other",startedAt:Date.now()})}},!0);var J=null;document.addEventListener("DOMContentLoaded",O),window.addEventListener("load",O),setTimeout(O,500),setTimeout(O,1500),(function(){var t=function(){document.hidden||(clearTimeout(J),J=setTimeout(O,80))};window.__ARISE_MUTATION_BUS__?window.__ARISE_MUTATION_BUS__.subscribe(t):new MutationObserver(t).observe(document.documentElement,{childList:!0,subtree:!0})})(),window.__mountFocusTimerUpgrade=function(){O()},window.__unmountFocusTimerUpgrade=function(){document.querySelectorAll("."+l).forEach(function(n){n.remove()});var t=document.getElementById("arise-tu-overlay");t&&t.remove()}}function W(t){try{var n=window.localStorage.getItem(t);if(!n)return[];var a=JSON.parse(n);return Array.isArray(a)?a:[]}catch{return[]}}function K(){try{if(window.crypto&&window.crypto.randomUUID)return window.crypto.randomUUID()}catch{}return"fs_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8)}function F(){try{return new Date().toISOString().split("T")[0]}catch{return""}}function q(){return W(B)}function Q(t){var n=q();n.push(t),n.length>2e3&&(n=n.slice(n.length-2e3)),(function(a,r){try{return window.localStorage.setItem(a,JSON.stringify(Array.isArray(r)?r:[])),!0}catch{return!1}})(B,n),document.querySelectorAll("."+l+" .arise-tu-stats").forEach(function(a){V(a)})}function X(){var t=q();if(!t.length)return{todayMinutes:0,weekMinutes:0,bestCategory:"—",avgRating:"—"};for(var n=F(),a=(function(w){try{var v=new Date;return v.setDate(v.getDate()-w),v.toISOString().split("T")[0]}catch{return""}})(6),r=0,u=0,o={},d=0,m=0,g=0;g<t.length;g++){var e=t[g];if(e&&typeof e=="object"){var i=Number(e.minutes)||0,s=typeof e.date=="string"?e.date:"",c=typeof e.category=="string"&&e.category?e.category:"Other";s===n&&(r+=i),s&&s>=a&&s<=n&&(u+=i),o[c]=(o[c]||0)+i,typeof e.rating=="number"&&e.rating>0&&(d+=e.rating,m++)}}var x="—",p=0;for(var f in o)o.hasOwnProperty(f)&&o[f]>p&&(p=o[f],x=f);return{todayMinutes:r,weekMinutes:u,bestCategory:x,avgRating:m>0?(d/m).toFixed(1):"—"}}function P(t){return(t=Number(t)||0)<60?t+"m":Math.floor(t/60)+"h "+t%60+"m"}function V(t){var n=X();t.innerHTML="<span>Today: <b>"+P(n.todayMinutes)+"</b></span><span>This week: <b>"+P(n.weekMinutes)+"</b></span><span>Best category: <b>"+n.bestCategory+"</b></span><span>Avg rating: <b>"+n.avgRating+(n.avgRating!=="—"?" / 5":"")+"</b></span>"}function O(){(function(){if(!document.getElementById(j)){var a="."+l+"{width:100%;max-width:26rem;margin-top:.75rem;display:flex;flex-direction:column;gap:.6rem;}."+l+" .arise-tu-row{display:flex;gap:.5rem;flex-wrap:wrap;}."+l+" input[type=text],."+l+" select{flex:1 1 8rem;min-width:8rem;background:var(--surface-muted,#141420);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:.6rem;padding:.45rem .6rem;font-size:.75rem;color:#e5e7eb;}."+l+" input[type=text]:focus,."+l+" select:focus{outline:none;border-color:var(--info);}."+l+" .arise-tu-again{padding:.45rem .8rem;border-radius:.6rem;font-size:.72rem;font-weight:500;background:color-mix(in srgb, var(--secondary) 15%, transparent);color:var(--secondary);border:1px solid color-mix(in srgb, var(--secondary) 30%, transparent);cursor:pointer;white-space:nowrap;}."+l+" .arise-tu-again:hover{background:color-mix(in srgb, var(--secondary) 25%, transparent);}."+l+" .arise-tu-again:disabled{opacity:.4;cursor:not-allowed;}."+l+" .arise-tu-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;font-size:.68rem;color:var(--text-tertiary,#9ca3af);}."+l+" .arise-tu-stats b{color:var(--text-primary,#e5e7eb);font-weight:600;}#arise-tu-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(5,5,10,.72);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);padding:1rem;}#arise-tu-overlay .arise-tu-card{width:100%;max-width:26rem;background:var(--surface,#12121c);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:1rem;padding:1.25rem;display:flex;flex-direction:column;gap:.85rem;box-shadow:0 10px 40px rgba(0,0,0,.5);}#arise-tu-overlay h3{font-size:.95rem;font-weight:600;color:#e5e7eb;margin:0;}#arise-tu-overlay p.arise-tu-sub{font-size:.72rem;color:#9ca3af;margin:0;}#arise-tu-overlay textarea{width:100%;min-height:4.5rem;resize:vertical;background:var(--surface-muted,#141420);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:.6rem;padding:.5rem .6rem;font-size:.78rem;color:#e5e7eb;box-sizing:border-box;}#arise-tu-overlay .arise-tu-stars{display:flex;gap:.3rem;}#arise-tu-overlay .arise-tu-star{font-size:1.4rem;line-height:1;cursor:pointer;color:#3a3a4a;background:none;border:none;padding:0;}#arise-tu-overlay .arise-tu-star.active{color:var(--warning);}#arise-tu-overlay .arise-tu-stepper{display:flex;align-items:center;gap:.6rem;}#arise-tu-overlay .arise-tu-stepper button{width:1.9rem;height:1.9rem;border-radius:.5rem;border:1px solid var(--cyber-border,rgba(255,255,255,.15));background:var(--surface-muted,#141420);color:var(--text-primary,#e5e7eb);cursor:pointer;font-size:1rem;}#arise-tu-overlay .arise-tu-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.25rem;}#arise-tu-overlay .arise-tu-save{padding:.5rem 1rem;border-radius:.6rem;background:linear-gradient(90deg,var(--info),var(--secondary));color:var(--primary-contrast,#fff);font-weight:600;font-size:.78rem;border:none;cursor:pointer;}#arise-tu-overlay .arise-tu-skip{padding:.5rem .9rem;border-radius:.6rem;background:transparent;color:#9ca3af;font-size:.78rem;border:1px solid var(--cyber-border,rgba(255,255,255,.15));cursor:pointer;}label.arise-tu-label{font-size:.68rem;color:var(--text-tertiary,#9ca3af);display:block;margin-bottom:.25rem;}",r=document.createElement("style");r.id=j,r.textContent=a,document.head.appendChild(r)}})();var t=(function(){var a=document.querySelector(".focus-mode");if(a&&a.querySelector(".timer-ring-container"))return a;if(!document.querySelector(".timer-ring-container"))return null;for(var r=Array.prototype.slice.call(document.querySelectorAll("div")),u=0;u<r.length;u++){var o=r[u],d=o.className||"",m=window.getComputedStyle(o),g=m.position==="fixed"||/(^|\s)fixed(\s|$)/.test(d),e=(parseInt(m.zIndex,10)||0)>=9e3||typeof d=="string"&&d.indexOf("z-[9999]")!==-1,i=o.offsetWidth>=.75*window.innerWidth&&o.offsetHeight>=.75*window.innerHeight,s=o.textContent&&o.textContent.indexOf("Ready")!==-1&&o.querySelector("button");if(g&&e&&i&&s)return o}return null})(),n=t||document;Array.prototype.slice.call(n.querySelectorAll("button")).filter(function(a){var r=a.textContent||"";return/Timer/.test(r)&&r.indexOf("⏱")!==-1&&a.getClientRects().length}).forEach(function(a){var r=(function(e){for(var i=e.parentElement,s=0;i&&s<6;s++,i=i.parentElement)if(i.querySelector(".timer-ring-container"))return i;return null})(a);if(r&&(!t||t.contains(r))){var u=r.querySelectorAll(":scope > ."+l);if(u.length)Array.prototype.slice.call(u,1).forEach(function(e){e.remove()});else{var o=(function(e){var i=document.createElement("div");i.className=l;var s=document.createElement("div");s.className="arise-tu-row";var c=document.createElement("div");c.style.flex="1 1 10rem";var x=document.createElement("label");x.className="arise-tu-label",x.textContent="Linked task";var p=document.createElement("input");p.type="text",p.placeholder="What are you working on?",p.setAttribute("aria-label","Linked task for this focus session"),c.appendChild(x),c.appendChild(p);var f=document.createElement("div"),w=document.createElement("label");w.className="arise-tu-label",w.textContent="Category";var v=document.createElement("select");v.setAttribute("aria-label","Session category"),H.forEach(function(h){var y=document.createElement("option");y.value=h,y.textContent=h,v.appendChild(y)}),f.appendChild(w),f.appendChild(v),s.appendChild(c),s.appendChild(f);var k=document.createElement("div");k.className="arise-tu-row";var b=document.createElement("button");b.type="button",b.className="arise-tu-again",b.textContent="↻ Start same task again",k.appendChild(b);var N=document.createElement("div");return N.className="arise-tu-stats",i.appendChild(s),i.appendChild(k),i.appendChild(N),b.addEventListener("click",function(){var h=q();if(h.length){var y=h[h.length-1];p.value=y.task||"",v.value=H.indexOf(y.category)!==-1?y.category:"Other";var S=(function(A){for(var _=A.querySelectorAll("button"),E=0;E<_.length;E++)if((_[E].textContent||"").trim()==="Start")return _[E];return null})(e);S&&S.click()}}),U.set(e,{taskInput:p,categorySelect:v,statsEl:N}),V(N),i})(r),d=Array.prototype.slice.call(r.children).find(function(e){return e.textContent&&e.textContent.indexOf("Start")!==-1&&e.textContent.indexOf("Reset")!==-1}),m=r.querySelector(":scope > .ambient-sound-controls"),g=m&&d?d.compareDocumentPosition(m)&4?m:d:m||d;g&&g.nextSibling?r.insertBefore(o,g.nextSibling):r.appendChild(o)}}})}})();
+(function () {
+  if (window.__ARISE_TIMER_UPGRADE__) return;
+  window.__ARISE_TIMER_UPGRADE__ = true;
+
+  var FOCUS_KEY = "focusSessionsV2";
+  var STUDY_KEY = "studySessions";
+  var STYLE_ID = "arise-timer-upgrade-style";
+  var PANEL_CLS = "arise-timer-upgrade-panel";
+  var CATEGORIES = ["DSA", "Project", "College", "Notes", "Interview Prep", "Other"];
+  var activeSession = null;
+  var lastStudyLen = readList(STUDY_KEY).length;
+  var panelMap = new WeakMap();
+
+  function readList(key) {
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function makeId() {
+    try {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    } catch {}
+    return "fs_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  function todayIso() {
+    try {
+      return new Date().toISOString().split("T")[0];
+    } catch {
+      return "";
+    }
+  }
+
+  function formatDuration(mins) {
+    mins = Number(mins) || 0;
+    return mins < 60 ? mins + "m" : Math.floor(mins / 60) + "h " + (mins % 60) + "m";
+  }
+
+  function saveFocusRecord(rec) {
+    var list = readList(FOCUS_KEY);
+    list.push(rec);
+    if (list.length > 2000) list = list.slice(list.length - 2000);
+    try {
+      window.localStorage.setItem(FOCUS_KEY, JSON.stringify(list));
+    } catch {}
+    document.querySelectorAll("." + PANEL_CLS + " .arise-tu-stats").forEach(function (el) {
+      renderStats(el);
+    });
+  }
+
+  function computeStats() {
+    var list = readList(FOCUS_KEY);
+    if (!list.length) {
+      return { todayMinutes: 0, weekMinutes: 0, bestCategory: "—", avgRating: "—" };
+    }
+    var today = todayIso();
+    var weekAgo = "";
+    try {
+      var d = new Date();
+      d.setDate(d.getDate() - 6);
+      weekAgo = d.toISOString().split("T")[0];
+    } catch {}
+
+    var todayMin = 0;
+    var weekMin = 0;
+    var byCat = {};
+    var ratingSum = 0;
+    var ratingCount = 0;
+
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+      if (!item || typeof item !== "object") continue;
+      var m = Number(item.minutes) || 0;
+      var dt = typeof item.date === "string" ? item.date : "";
+      var cat = typeof item.category === "string" && item.category ? item.category : "Other";
+      if (dt === today) todayMin += m;
+      if (dt && dt >= weekAgo && dt <= today) weekMin += m;
+      byCat[cat] = (byCat[cat] || 0) + m;
+      if (typeof item.rating === "number" && item.rating > 0) {
+        ratingSum += item.rating;
+        ratingCount++;
+      }
+    }
+
+    var bestCat = "—";
+    var bestVal = 0;
+    for (var k in byCat) {
+      if (Object.prototype.hasOwnProperty.call(byCat, k) && byCat[k] > bestVal) {
+        bestVal = byCat[k];
+        bestCat = k;
+      }
+    }
+
+    return {
+      todayMinutes: todayMin,
+      weekMinutes: weekMin,
+      bestCategory: bestCat,
+      avgRating: ratingCount > 0 ? (ratingSum / ratingCount).toFixed(1) : "—"
+    };
+  }
+
+  function renderStats(el) {
+    var s = computeStats();
+    var html =
+      "<span>Today: <b>" + formatDuration(s.todayMinutes) + "</b></span>" +
+      "<span>This week: <b>" + formatDuration(s.weekMinutes) + "</b></span>" +
+      "<span>Best category: <b>" + s.bestCategory + "</b></span>" +
+      "<span>Avg rating: <b>" + s.avgRating + (s.avgRating !== "—" ? " / 5" : "") + "</b></span>";
+    if (el.__tuHtml !== html) {
+      el.__tuHtml = html;
+      el.innerHTML = html;
+    }
+  }
+
+  function showCompletionModal(entry) {
+    var prev = document.getElementById("arise-tu-overlay");
+    if (prev) prev.remove();
+
+    var overlay = document.createElement("div");
+    overlay.id = "arise-tu-overlay";
+    var card = document.createElement("div");
+    card.className = "arise-tu-card";
+
+    var title = document.createElement("h3");
+    title.textContent = "Session complete – " + formatDuration(entry.minutes);
+    var sub = document.createElement("p");
+    sub.className = "arise-tu-sub";
+    sub.textContent = entry.task + " · " + entry.category;
+
+    var noteLabel = document.createElement("label");
+    noteLabel.className = "arise-tu-label";
+    noteLabel.textContent = "What did I complete?";
+    var textarea = document.createElement("textarea");
+    textarea.placeholder = "e.g. Solved 3 array problems, reviewed notes...";
+
+    var ratingLabel = document.createElement("label");
+    ratingLabel.className = "arise-tu-label";
+    ratingLabel.textContent = "Focus quality (1-5)";
+    var starsWrap = document.createElement("div");
+    starsWrap.className = "arise-tu-stars";
+    var selectedStars = 0;
+    var starBtns = [];
+    for (var s = 1; s <= 5; s++) {
+      (function (val) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "arise-tu-star";
+        btn.textContent = "★";
+        btn.setAttribute("aria-label", val + " star" + (val > 1 ? "s" : ""));
+        btn.addEventListener("click", function () {
+          selectedStars = val;
+          starBtns.forEach(function (b, idx) {
+            b.classList.toggle("active", idx < selectedStars);
+          });
+        });
+        starBtns.push(btn);
+        starsWrap.appendChild(btn);
+      })(s);
+    }
+
+    var distLabel = document.createElement("label");
+    distLabel.className = "arise-tu-label";
+    distLabel.textContent = "Distraction count";
+    var stepper = document.createElement("div");
+    stepper.className = "arise-tu-stepper";
+    var distractions = 0;
+    var minusBtn = document.createElement("button");
+    minusBtn.type = "button";
+    minusBtn.textContent = "−";
+    var distVal = document.createElement("span");
+    distVal.textContent = "0";
+    var plusBtn = document.createElement("button");
+    plusBtn.type = "button";
+    plusBtn.textContent = "+";
+    minusBtn.addEventListener("click", function () {
+      distractions = Math.max(0, distractions - 1);
+      distVal.textContent = String(distractions);
+    });
+    plusBtn.addEventListener("click", function () {
+      distractions += 1;
+      distVal.textContent = String(distractions);
+    });
+    stepper.appendChild(minusBtn);
+    stepper.appendChild(distVal);
+    stepper.appendChild(plusBtn);
+
+    var actions = document.createElement("div");
+    actions.className = "arise-tu-actions";
+    var skipBtn = document.createElement("button");
+    skipBtn.type = "button";
+    skipBtn.className = "arise-tu-skip";
+    skipBtn.textContent = "Skip details";
+    var saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "arise-tu-save";
+    saveBtn.textContent = "Save session";
+
+    function finish(withDetails) {
+      saveFocusRecord({
+        id: entry.id,
+        task: entry.task,
+        category: entry.category,
+        minutes: entry.minutes,
+        date: entry.date,
+        startedAt: entry.startedAt,
+        endedAt: entry.endedAt,
+        completedNote: withDetails ? textarea.value.trim() : "",
+        rating: withDetails && selectedStars > 0 ? selectedStars : null,
+        distractions: withDetails ? distractions : 0
+      });
+      overlay.remove();
+    }
+
+    skipBtn.addEventListener("click", function () { finish(false); });
+    saveBtn.addEventListener("click", function () { finish(true); });
+
+    actions.appendChild(skipBtn);
+    actions.appendChild(saveBtn);
+    card.appendChild(title);
+    card.appendChild(sub);
+    card.appendChild(noteLabel);
+    card.appendChild(textarea);
+    card.appendChild(ratingLabel);
+    card.appendChild(starsWrap);
+    card.appendChild(distLabel);
+    card.appendChild(stepper);
+    card.appendChild(actions);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+
+  if (!window.__ARISE_TIMER_UPGRADE_LS_PATCHED__) {
+    window.__ARISE_TIMER_UPGRADE_LS_PATCHED__ = true;
+    try {
+      var origSetItem = window.localStorage.setItem.bind(window.localStorage);
+      window.localStorage.setItem = function (key, value) {
+        var res = origSetItem(key, value);
+        try {
+          if (key === STUDY_KEY) {
+            var arr;
+            try { arr = JSON.parse(value); } catch { arr = null; }
+            if (!Array.isArray(arr) || arr.length <= lastStudyLen) {
+              lastStudyLen = Array.isArray(arr) ? arr.length : lastStudyLen;
+              return res;
+            }
+            lastStudyLen = arr.length;
+            var latest = arr[arr.length - 1];
+            if (latest && typeof latest === "object") {
+              var mins = Number(latest.minutes) || 0;
+              if (mins > 0) {
+                try { window.dispatchEvent(new CustomEvent("studySessions:updated")); } catch {}
+                var rec = {
+                  id: makeId(),
+                  task: (activeSession && activeSession.task) || "Untitled session",
+                  category: (activeSession && activeSession.category) || "Other",
+                  minutes: mins,
+                  date: typeof latest.date === "string" ? latest.date : todayIso(),
+                  startedAt: (activeSession && activeSession.startedAt) || null,
+                  endedAt: Date.now(),
+                  completedNote: "",
+                  rating: null,
+                  distractions: 0
+                };
+                activeSession = null;
+                showCompletionModal(rec);
+              }
+            }
+          }
+        } catch {}
+        return res;
+      };
+    } catch {}
+  }
+
+  document.addEventListener(
+    "click",
+    function (ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+      if (btn && (btn.textContent || "").trim() === "Start") {
+        for (var node = btn.parentElement, depth = 0; node && depth < 8; depth++, node = node.parentElement) {
+          if (node.querySelector && node.querySelector(":scope > ." + PANEL_CLS) && panelMap.has(node)) {
+            var refs = panelMap.get(node);
+            activeSession = {
+              task: (refs.taskInput.value || "").trim() || "Untitled session",
+              category: refs.categorySelect.value || "Other",
+              startedAt: Date.now()
+            };
+            break;
+          }
+        }
+      }
+    },
+    true
+  );
+
+  function ensureStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+    var css =
+      "." + PANEL_CLS + "{width:100%;max-width:26rem;margin-top:.75rem;display:flex;flex-direction:column;gap:.6rem;}" +
+      "." + PANEL_CLS + " .arise-tu-row{display:flex;gap:.5rem;flex-wrap:wrap;}" +
+      "." + PANEL_CLS + " input[type=text],." + PANEL_CLS + " select{flex:1 1 8rem;min-width:8rem;background:var(--surface-muted,#141420);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:.6rem;padding:.45rem .6rem;font-size:.75rem;color:var(--text-primary,#e5e7eb);}" +
+      "." + PANEL_CLS + " input[type=text]:focus,." + PANEL_CLS + " select:focus{outline:none;border-color:var(--info);}" +
+      "." + PANEL_CLS + " .arise-tu-again{padding:.45rem .8rem;border-radius:.6rem;font-size:.72rem;font-weight:500;background:color-mix(in srgb, var(--secondary) 15%, transparent);color:var(--secondary);border:1px solid color-mix(in srgb, var(--secondary) 30%, transparent);cursor:pointer;white-space:nowrap;}" +
+      "." + PANEL_CLS + " .arise-tu-again:hover{background:color-mix(in srgb, var(--secondary) 25%, transparent);}" +
+      "." + PANEL_CLS + " .arise-tu-again:disabled{opacity:.4;cursor:not-allowed;}" +
+      "." + PANEL_CLS + " .arise-tu-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;font-size:.68rem;color:var(--text-tertiary,#9ca3af);}" +
+      "." + PANEL_CLS + " .arise-tu-stats b{color:var(--text-primary,#e5e7eb);font-weight:600;}" +
+      "#arise-tu-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(5,5,10,.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);padding:1rem;}" +
+      "#arise-tu-overlay .arise-tu-card{width:100%;max-width:26rem;background:var(--surface,#12121c);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:1rem;padding:1.25rem;display:flex;flex-direction:column;gap:.85rem;box-shadow:0 10px 40px rgba(0,0,0,.5);}" +
+      "#arise-tu-overlay h3{font-size:.95rem;font-weight:600;color:var(--text-primary,#e5e7eb);margin:0;}" +
+      "#arise-tu-overlay p.arise-tu-sub{font-size:.72rem;color:var(--text-secondary,#9ca3af);margin:0;}" +
+      "#arise-tu-overlay textarea{width:100%;min-height:4.5rem;resize:vertical;background:var(--surface-muted,#141420);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:.6rem;padding:.5rem .6rem;font-size:.78rem;color:var(--text-primary,#e5e7eb);box-sizing:border-box;}" +
+      "#arise-tu-overlay .arise-tu-stars{display:flex;gap:.3rem;}" +
+      "#arise-tu-overlay .arise-tu-star{font-size:1.4rem;line-height:1;cursor:pointer;color:#3a3a4a;background:none;border:none;padding:0;}" +
+      "#arise-tu-overlay .arise-tu-star.active{color:var(--warning);}" +
+      "#arise-tu-overlay .arise-tu-stepper{display:flex;align-items:center;gap:.6rem;}" +
+      "#arise-tu-overlay .arise-tu-stepper button{width:1.9rem;height:1.9rem;border-radius:.5rem;border:1px solid var(--cyber-border,rgba(255,255,255,.15));background:var(--surface-muted,#141420);color:var(--text-primary,#e5e7eb);cursor:pointer;font-size:1rem;}" +
+      "#arise-tu-overlay .arise-tu-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.25rem;}" +
+      "#arise-tu-overlay .arise-tu-save{padding:.5rem 1rem;border-radius:.6rem;background:linear-gradient(90deg,var(--info),var(--secondary));color:var(--primary-contrast,#fff);font-weight:600;font-size:.78rem;border:none;cursor:pointer;}" +
+      "#arise-tu-overlay .arise-tu-skip{padding:.5rem .9rem;border-radius:.6rem;background:transparent;color:var(--text-secondary,#9ca3af);font-size:.78rem;border:1px solid var(--cyber-border,rgba(255,255,255,.15));cursor:pointer;}" +
+      "label.arise-tu-label{font-size:.68rem;color:var(--text-tertiary,#9ca3af);display:block;margin-bottom:.25rem;}";
+    var style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  function buildPanel(host) {
+    var root = document.createElement("div");
+    root.className = PANEL_CLS;
+
+    var row1 = document.createElement("div");
+    row1.className = "arise-tu-row";
+
+    var taskCol = document.createElement("div");
+    taskCol.style.flex = "1 1 10rem";
+    var taskLbl = document.createElement("label");
+    taskLbl.className = "arise-tu-label";
+    taskLbl.textContent = "Linked task";
+    var taskInput = document.createElement("input");
+    taskInput.type = "text";
+    taskInput.placeholder = "What are you working on?";
+    taskInput.setAttribute("aria-label", "Linked task for this focus session");
+    taskCol.appendChild(taskLbl);
+    taskCol.appendChild(taskInput);
+
+    var catCol = document.createElement("div");
+    var catLbl = document.createElement("label");
+    catLbl.className = "arise-tu-label";
+    catLbl.textContent = "Category";
+    var catSelect = document.createElement("select");
+    catSelect.setAttribute("aria-label", "Session category");
+    CATEGORIES.forEach(function (c) {
+      var opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      catSelect.appendChild(opt);
+    });
+    catCol.appendChild(catLbl);
+    catCol.appendChild(catSelect);
+
+    row1.appendChild(taskCol);
+    row1.appendChild(catCol);
+
+    var row2 = document.createElement("div");
+    row2.className = "arise-tu-row";
+    var againBtn = document.createElement("button");
+    againBtn.type = "button";
+    againBtn.className = "arise-tu-again";
+    againBtn.textContent = "↻ Start same task again";
+    row2.appendChild(againBtn);
+
+    var statsEl = document.createElement("div");
+    statsEl.className = "arise-tu-stats";
+
+    root.appendChild(row1);
+    root.appendChild(row2);
+    root.appendChild(statsEl);
+
+    againBtn.addEventListener("click", function () {
+      var list = readList(FOCUS_KEY);
+      if (list.length) {
+        var prev = list[list.length - 1];
+        taskInput.value = prev.task || "";
+        catSelect.value = CATEGORIES.indexOf(prev.category) !== -1 ? prev.category : "Other";
+        var btns = host.querySelectorAll("button");
+        for (var i = 0; i < btns.length; i++) {
+          if ((btns[i].textContent || "").trim() === "Start") {
+            btns[i].click();
+            break;
+          }
+        }
+      }
+    });
+
+    panelMap.set(host, { taskInput: taskInput, categorySelect: catSelect, statsEl: statsEl });
+    renderStats(statsEl);
+    return root;
+  }
+
+  // Fast O(rings) lookup starting directly from .timer-ring-container instead of scanning all <div>s with getComputedStyle
+  function findActiveFocusOverlay(rings) {
+    var explicit = document.querySelector(".focus-mode");
+    if (explicit && explicit.querySelector(".timer-ring-container")) return explicit;
+    for (var i = 0; i < rings.length; i++) {
+      var ov = rings[i].closest ? rings[i].closest(".fixed") : null;
+      if (ov && typeof ov.className === "string" && ov.className.indexOf("z-[9999]") !== -1) {
+        return ov;
+      }
+    }
+    return null;
+  }
+
+  function install() {
+    var rings = document.querySelectorAll(".timer-ring-container");
+    if (!rings.length) return;
+    ensureStyles();
+
+    var overlay = findActiveFocusOverlay(rings);
+    for (var i = 0; i < rings.length; i++) {
+      var ring = rings[i];
+      if (overlay && !overlay.contains(ring)) continue;
+      var host = ring.parentElement;
+      if (!host) continue;
+
+      // Verify this timer host actually has the Timer mode button (and isn't a decorative ring)
+      var existing = host.querySelectorAll(":scope > ." + PANEL_CLS);
+      if (existing.length) {
+        for (var x = 1; x < existing.length; x++) existing[x].remove();
+        continue;
+      }
+
+      var hasTimerTab = false;
+      for (var up = host, d = 0; up && d < 4; d++, up = up.parentElement) {
+        var btns = up.querySelectorAll("button");
+        for (var b = 0; b < btns.length; b++) {
+          var txt = btns[b].textContent || "";
+          if (txt.indexOf("⏱") !== -1 && /Timer/.test(txt)) {
+            hasTimerTab = true;
+            break;
+          }
+        }
+        if (hasTimerTab) break;
+      }
+      if (!hasTimerTab) continue;
+
+      var bus = window.__ARISE_MUTATION_BUS__;
+      var mountPanel = function () {
+        var panel = buildPanel(host);
+        var controlsRow = Array.prototype.slice.call(host.children).find(function (ch) {
+          var t = ch.textContent || "";
+          return t.indexOf("Start") !== -1 && t.indexOf("Reset") !== -1;
+        });
+        var ambRow = host.querySelector(":scope > .ambient-sound-controls");
+        var anchor =
+          ambRow && controlsRow
+            ? controlsRow.compareDocumentPosition(ambRow) & 4
+              ? ambRow
+              : controlsRow
+            : ambRow || controlsRow;
+        if (anchor && anchor.nextSibling) host.insertBefore(panel, anchor.nextSibling);
+        else host.appendChild(panel);
+      };
+      if (bus && typeof bus.mute === "function") bus.mute(mountPanel);
+      else mountPanel();
+    }
+  }
+
+  var timerId = null;
+  function onMutations(records) {
+    if (document.hidden) return;
+    if (Array.isArray(records) && records.length) {
+      var relevant = false;
+      for (var i = 0; i < records.length && !relevant; i++) {
+        var added = records[i].addedNodes;
+        if (!added || !added.length) continue;
+        for (var j = 0; j < added.length; j++) {
+          var n = added[j];
+          if (
+            n &&
+            n.nodeType === 1 &&
+            ((n.classList && (n.classList.contains("timer-ring-container") || n.classList.contains("focus-mode"))) ||
+              (n.querySelector && n.querySelector(".timer-ring-container")))
+          ) {
+            relevant = true;
+            break;
+          }
+        }
+      }
+      if (!relevant) return;
+    }
+    clearTimeout(timerId);
+    timerId = setTimeout(install, 60);
+  }
+
+  document.addEventListener("DOMContentLoaded", install);
+  window.addEventListener("load", install);
+  setTimeout(install, 500);
+
+  if (window.__ARISE_MUTATION_BUS__) {
+    window.__ARISE_MUTATION_BUS__.subscribe(onMutations);
+  } else {
+    new MutationObserver(onMutations).observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  window.__mountFocusTimerUpgrade = function () { install(); };
+  window.__unmountFocusTimerUpgrade = function () {
+    document.querySelectorAll("." + PANEL_CLS).forEach(function (el) { el.remove(); });
+    var ov = document.getElementById("arise-tu-overlay");
+    if (ov) ov.remove();
+  };
+})();

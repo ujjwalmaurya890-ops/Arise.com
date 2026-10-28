@@ -43,7 +43,7 @@
         background: var(--surface-hover, rgba(30, 30, 60, 0.6));
         border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
         text-align: center;
-        transition: all 0.3s ease;
+        transition: border-color var(--motion-fast, 130ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)), background-color var(--motion-fast, 130ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
       }
 
       .lh-stat:hover {
@@ -104,14 +104,8 @@
         height: 13px;
         border-radius: 3px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: transform var(--motion-micro, 110ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
         border: 1px solid rgba(255, 255, 255, 0.1);
-        animation: lh-cell-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-      }
-
-      @keyframes lh-cell-pop {
-        from { transform: scale(0); opacity: 0; }
-        to { transform: scale(1); opacity: 1; }
       }
 
       .lh-cell-pad {

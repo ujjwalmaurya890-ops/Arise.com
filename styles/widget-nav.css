@@ -28,10 +28,10 @@
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background  .18s ease,
-    border-color .18s ease,
-    color       .18s ease,
-    box-shadow  .18s ease;
+    background-color var(--motion-fast, 130ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+    border-color     var(--motion-fast, 130ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+    color            var(--motion-fast, 130ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+    transform        var(--motion-fast, 130ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
 
   /* Roving tabindex: pills that aren't active are removed from tab order
      but remain reachable by arrow keys — handled in JS */
@@ -233,7 +233,12 @@
   .wnav.lp-tabs .wnav-pill { flex: 0 0 auto; }
 }
 
-/* ── Reduced-motion: drop all transitions ─────────────────────────── */
+/* ── Reduced-motion: drop spatial motion, keep instant state feedback ── */
 @media (prefers-reduced-motion: reduce) {
-  .wnav-pill { transition: none; }
+  .wnav-pill {
+    transition:
+      background-color 90ms linear,
+      border-color 90ms linear,
+      color 90ms linear;
+  }
 }

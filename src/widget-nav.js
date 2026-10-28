@@ -1,1 +1,483 @@
-(function(){"use strict";if(window.AriseWidgetNav)return;function h(l){return String(l??"").replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}function x(l,c,d){if(!l)return d;try{var b=localStorage.getItem(l);if(b&&c.some(function(u){return u.id===b}))return b}catch{}return d}function I(l,c){if(l)try{localStorage.setItem(l,c)}catch{}}var L=0;function E(){return"awnav-"+ ++L+"-"+Math.random().toString(36).slice(2,6)}var o=null;function C(l){l&&(o||(o=document.createElement("div"),o.setAttribute("role","status"),o.setAttribute("aria-live","polite"),o.className="wnav-sr-only",document.body.appendChild(o)),o.textContent=l.label+" tab selected")}function q(l){l=l||{};var c=l.sections||[],d=l.storageKey||null,b=l.defaultSection||c[0]&&c[0].id,u=x(d,c,b),m={},p=E();function A(e){return p+"-tab-"+e}function k(e){return p+"-panel-"+e}function B(){return c.length?'<div class="wnav'+(l.sticky?" wnav--sticky":"")+'" data-wnav-root role="tablist" aria-orientation="horizontal" id="'+p+'" aria-label="'+h(l.label||"Navigation")+'">'+c.map(function(e){var t=e.id===u;return'<button type="button" class="wnav-pill'+(t?" wnav-pill-active":"")+'" data-wnav-id="'+h(e.id)+'" id="'+A(e.id)+'" role="tab" aria-selected="'+t+'" aria-controls="'+k(e.id)+'" tabindex="'+(t?"0":"-1")+'">'+(e.icon?'<span class="wnav-icon" aria-hidden="true">'+e.icon+"</span>":"")+"<span>"+h(e.label)+"</span></button>"}).join("")+"</div>":""}function M(e,t){var n=e===u,i=typeof t=="function";i&&(m[e]=t);var r=i?n?t():"":t;return'<div class="wnav-panel" data-wnav-panel="'+h(e)+'" id="'+k(e)+'" role="tabpanel" aria-labelledby="'+A(e)+'"'+(n?"":" hidden")+">"+r+"</div>"}function S(e){e&&(e.querySelectorAll("[data-wnav-root] [data-wnav-id]").forEach(function(t){var n=t.getAttribute("data-wnav-id")===u;t.classList.toggle("wnav-pill-active",n),t.setAttribute("aria-selected",String(n)),t.setAttribute("tabindex",n?"0":"-1")}),e.querySelectorAll("[data-wnav-panel]").forEach(function(t){var n=t.getAttribute("data-wnav-panel")===u;n?t.removeAttribute("hidden"):t.setAttribute("hidden","")}))}function T(e){if(e){var t=m[u];if(t){var n=e.querySelector('[data-wnav-panel="'+u+'"]');n&&!n.hasChildNodes()&&!n.textContent&&(n.innerHTML=t())}}}function _(e){if(e){var t=e.querySelector('[data-wnav-id="'+u+'"]'),n=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;t&&typeof t.scrollIntoView=="function"&&t.scrollIntoView({behavior:n?"auto":"smooth",block:"nearest",inline:"center"})}}function w(e,t,n){c.some(function(i){return i.id===e})&&e!==u&&(u=e,I(d,e),S(t),T(t),_(t),(!n||!n.silent)&&C(c.find(function(i){return i.id===e})))}function N(e,t){var n=c.findIndex(function(r){return r.id===u});if(!(n<0)){var i=(n+e+c.length)%c.length;w(c[i].id,t)}}function W(e,t){var n=e.target.closest("[data-wnav-root]");if(!(!n||!t.contains(n))){var i=Array.from(n.querySelectorAll("[data-wnav-id]")),r=i.indexOf(e.target);if(!(r<0)){var a=-1;if((e.key==="ArrowRight"||e.key==="ArrowDown")&&(a=(r+1)%i.length),(e.key==="ArrowLeft"||e.key==="ArrowUp")&&(a=(r-1+i.length)%i.length),e.key==="Home"&&(a=0),e.key==="End"&&(a=i.length-1),a>=0){e.preventDefault();var s=i[a].getAttribute("data-wnav-id");w(s,t);var v=t.querySelector('[data-wnav-id="'+s+'"]');v&&v.focus();return}if(e.key===" "||e.key==="Enter"){e.preventDefault();var g=e.target.getAttribute("data-wnav-id");g&&w(g,t)}}}}function H(e,t){if(e){t=t||{},S(e),T(e),_(e);var n=e.querySelector("[data-wnav-root]");n&&(n.addEventListener("click",function(i){var r=i.target.closest("[data-wnav-id]");if(!(!r||!n.contains(r))){var a=r.getAttribute("data-wnav-id");a&&a!==u&&(w(a,e),typeof t.onChange=="function"&&t.onChange(a))}}),n.addEventListener("keydown",function(i){W(i,e)}),K(n),F(n),z(e,c.length>1?function(i){N(i,e)}:null),l.sticky||D(n))}}var y=null,f=null;function V(){if(y)return y;var e=document.createElement("button");return e.type="button",e.className="wnav-back-to-tabs",e.textContent="↑ Tabs",e.hidden=!0,e.addEventListener("click",function(){f&&typeof f.scrollIntoView=="function"&&f.scrollIntoView({behavior:"smooth",block:"start"}),e.hidden=!0}),document.body.appendChild(e),y=e,e}function D(e){if(!(!e||e.__wnavBackToTabsInit)&&(e.__wnavBackToTabsInit=!0,typeof IntersectionObserver=="function")){var t=V(),n=new IntersectionObserver(function(i){var r=i[0];r&&(r.isIntersecting?f===e&&(t.hidden=!0,f=null):r.boundingClientRect.top<0&&(f=e,t.hidden=!1))},{threshold:0});n.observe(e)}}function F(e){if(!e||e.__wnavChevronsInit||(e.__wnavChevronsInit=!0,!window.matchMedia||!window.matchMedia("(any-pointer: fine)").matches))return;var t=document.createElement("button");t.type="button",t.className="wnav-chevron wnav-chevron-prev",t.setAttribute("aria-label","Scroll tabs left"),t.setAttribute("tabindex","-1"),t.innerHTML="‹";var n=document.createElement("button");n.type="button",n.className="wnav-chevron wnav-chevron-next",n.setAttribute("aria-label","Scroll tabs right"),n.setAttribute("tabindex","-1"),n.innerHTML="›";function i(s){e.scrollBy({left:s,behavior:"smooth"})}t.addEventListener("click",function(){i(-140)}),n.addEventListener("click",function(){i(140)});function r(){var s=e.scrollWidth-e.clientWidth>4;t.hidden=!s,n.hidden=!s}e.addEventListener("scroll",r,{passive:!0}),window.addEventListener("resize",r,{passive:!0}),(typeof requestAnimationFrame=="function"?requestAnimationFrame:setTimeout)(r,0);var a=e.parentNode;a&&(getComputedStyle(a).position==="static"&&(a.style.position="relative"),a.classList.add("wnav-chevron-wrap"),a.insertBefore(t,e),a.insertBefore(n,e.nextSibling))}function z(e,t){if(!(!e||!t||e.__wnavSwipeInit)){e.__wnavSwipeInit=!0;var n=0,i=0,r=!1;e.addEventListener("touchstart",function(a){if(!a.touches||a.touches.length!==1){r=!1;return}var s=a.target.closest("[data-wnav-panel]");if(!s){r=!1;return}if(a.target.closest('input, textarea, select, [data-wnav-id], .att-cal-grid, .att-heat-grid, [class*="scroll"], [style*="overflow"]')){r=!1;return}n=a.touches[0].clientX,i=a.touches[0].clientY,r=!0},{passive:!0}),e.addEventListener("touchend",function(a){if(r){r=!1;var s=a.changedTouches&&a.changedTouches[0];if(s){var v=s.clientX-n,g=s.clientY-i;Math.abs(v)<56||Math.abs(v)<Math.abs(g)*1.6||t(v<0?1:-1)}}},{passive:!0})}}function K(e){if(!e)return;function t(){var n=e.scrollLeft,i=e.scrollWidth-e.clientWidth;e.classList.toggle("wnav--scroll-start",n>4),e.classList.toggle("wnav--scroll-end",n<i-4)}e.addEventListener("scroll",t,{passive:!0}),(typeof requestAnimationFrame=="function"?requestAnimationFrame:setTimeout)(t,0)}return{navHtml:B,panelWrap:M,wire:H,setActive:w,getActive:function(){return u},sections:c}}window.AriseWidgetNav={create:q}})();
+(function () {
+  "use strict";
+  if (window.AriseWidgetNav) return;
+
+  function esc(val) {
+    return String(val ?? "").replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+
+  function readSaved(key, sections, fallback) {
+    if (!key) return fallback;
+    try {
+      var val = localStorage.getItem(key);
+      if (val && sections.some(function (s) { return s.id === val; })) return val;
+    } catch {}
+    return fallback;
+  }
+
+  function writeSaved(key, val) {
+    if (key) {
+      try {
+        localStorage.setItem(key, val);
+      } catch {}
+    }
+  }
+
+  function prefersReducedMotion() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch {
+      return false;
+    }
+  }
+
+  var seq = 0;
+  function nextId() {
+    return "awnav-" + ++seq + "-" + Math.random().toString(36).slice(2, 6);
+  }
+
+  var liveEl = null;
+  function announce(sec) {
+    if (!sec) return;
+    if (!liveEl) {
+      liveEl = document.createElement("div");
+      liveEl.setAttribute("role", "status");
+      liveEl.setAttribute("aria-live", "polite");
+      liveEl.className = "wnav-sr-only";
+      document.body.appendChild(liveEl);
+    }
+    liveEl.textContent = sec.label + " tab selected";
+  }
+
+  // Single shared resize registry that automatically prunes disconnected tablists
+  var resizeEntries = [];
+  var resizeBound = false;
+  var resizeRaf = 0;
+
+  function registerResize(rail, fn) {
+    resizeEntries.push({ rail: rail, fn: fn });
+    if (resizeBound) return;
+    resizeBound = true;
+    window.addEventListener(
+      "resize",
+      function () {
+        if (resizeRaf) return;
+        var sched = typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout;
+        resizeRaf = sched(function () {
+          resizeRaf = 0;
+          for (var i = resizeEntries.length - 1; i >= 0; i--) {
+            var entry = resizeEntries[i];
+            if (!entry.rail || (entry.rail.isConnected === false)) {
+              resizeEntries.splice(i, 1);
+              continue;
+            }
+            entry.fn();
+          }
+        }, 0);
+      },
+      { passive: true }
+    );
+  }
+
+  // Shared "Back to tabs" button + tracked IntersectionObservers so detached rails are unobserved
+  var backBtn = null;
+  var activeScrolledRail = null;
+
+  function ensureBackBtn() {
+    if (backBtn) return backBtn;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "wnav-back-to-tabs";
+    btn.textContent = "↑ Tabs";
+    btn.hidden = true;
+    btn.addEventListener("click", function () {
+      if (activeScrolledRail && typeof activeScrolledRail.scrollIntoView === "function") {
+        activeScrolledRail.scrollIntoView({
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+          block: "start"
+        });
+      }
+      btn.hidden = true;
+    });
+    document.body.appendChild(btn);
+    backBtn = btn;
+    return btn;
+  }
+
+  function observeBackToTabs(rail) {
+    if (!rail || rail.__wnavBackToTabsInit) return;
+    rail.__wnavBackToTabsInit = true;
+    if (typeof IntersectionObserver !== "function") return;
+    var btn = ensureBackBtn();
+    var io = new IntersectionObserver(
+      function (entries) {
+        if (rail.isConnected === false) {
+          if (activeScrolledRail === rail) {
+            btn.hidden = true;
+            activeScrolledRail = null;
+          }
+          io.disconnect();
+          return;
+        }
+        var first = entries[0];
+        if (!first) return;
+        if (first.isIntersecting) {
+          if (activeScrolledRail === rail) {
+            btn.hidden = true;
+            activeScrolledRail = null;
+          }
+        } else if (first.boundingClientRect.top < 0) {
+          activeScrolledRail = rail;
+          btn.hidden = false;
+        }
+      },
+      { threshold: 0 }
+    );
+    rail.__wnavIO = io;
+    io.observe(rail);
+  }
+
+  function wireScrollStateAndChevrons(rail) {
+    if (!rail || rail.__wnavScrollInit) return;
+    rail.__wnavScrollInit = true;
+
+    var prevBtn = null;
+    var nextBtn = null;
+    var finePointer = false;
+    try {
+      finePointer = !!(window.matchMedia && window.matchMedia("(any-pointer: fine)").matches);
+    } catch {}
+
+    if (finePointer) {
+      prevBtn = document.createElement("button");
+      prevBtn.type = "button";
+      prevBtn.className = "wnav-chevron wnav-chevron-prev";
+      prevBtn.setAttribute("aria-label", "Scroll tabs left");
+      prevBtn.setAttribute("tabindex", "-1");
+      prevBtn.innerHTML = "‹";
+
+      nextBtn = document.createElement("button");
+      nextBtn.type = "button";
+      nextBtn.className = "wnav-chevron wnav-chevron-next";
+      nextBtn.setAttribute("aria-label", "Scroll tabs right");
+      nextBtn.setAttribute("tabindex", "-1");
+      nextBtn.innerHTML = "›";
+
+      var scrollByStep = function (delta) {
+        rail.scrollBy({ left: delta, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      };
+      prevBtn.addEventListener("click", function () { scrollByStep(-140); });
+      nextBtn.addEventListener("click", function () { scrollByStep(140); });
+
+      var parent = rail.parentNode;
+      if (parent) {
+        if (getComputedStyle(parent).position === "static") parent.style.position = "relative";
+        parent.classList.add("wnav-chevron-wrap");
+        parent.insertBefore(prevBtn, rail);
+        parent.insertBefore(nextBtn, rail.nextSibling);
+      }
+    }
+
+    var rafId = 0;
+    function syncScrollIndicators() {
+      rafId = 0;
+      if (rail.isConnected === false) return;
+      var sl = rail.scrollLeft;
+      var maxScroll = rail.scrollWidth - rail.clientWidth;
+      var hasStart = sl > 4;
+      var hasEnd = sl < maxScroll - 4;
+      if (rail.classList.contains("wnav--scroll-start") !== hasStart) {
+        rail.classList.toggle("wnav--scroll-start", hasStart);
+      }
+      if (rail.classList.contains("wnav--scroll-end") !== hasEnd) {
+        rail.classList.toggle("wnav--scroll-end", hasEnd);
+      }
+      if (prevBtn && nextBtn) {
+        var overflow = maxScroll > 4;
+        if (prevBtn.hidden !== !overflow) prevBtn.hidden = !overflow;
+        if (nextBtn.hidden !== !overflow) nextBtn.hidden = !overflow;
+      }
+    }
+
+    function scheduleSync() {
+      if (rafId) return;
+      var sched = typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout;
+      rafId = sched(syncScrollIndicators, 0);
+    }
+
+    rail.addEventListener("scroll", scheduleSync, { passive: true });
+    if (prevBtn && nextBtn) registerResize(rail, scheduleSync);
+    scheduleSync();
+  }
+
+  function wireSwipe(host, stepFn) {
+    if (!host || !stepFn || host.__wnavSwipeInit) return;
+    host.__wnavSwipeInit = true;
+    var startX = 0;
+    var startY = 0;
+    var tracking = false;
+    host.addEventListener(
+      "touchstart",
+      function (ev) {
+        if (!ev.touches || ev.touches.length !== 1) {
+          tracking = false;
+          return;
+        }
+        var panel = ev.target.closest("[data-wnav-panel]");
+        if (!panel) {
+          tracking = false;
+          return;
+        }
+        if (
+          ev.target.closest(
+            'input, textarea, select, [data-wnav-id], .att-cal-grid, .att-heat-grid, [class*="scroll"], [style*="overflow"]'
+          )
+        ) {
+          tracking = false;
+          return;
+        }
+        startX = ev.touches[0].clientX;
+        startY = ev.touches[0].clientY;
+        tracking = true;
+      },
+      { passive: true }
+    );
+    host.addEventListener(
+      "touchend",
+      function (ev) {
+        if (!tracking) return;
+        tracking = false;
+        var touch = ev.changedTouches && ev.changedTouches[0];
+        if (!touch) return;
+        var dx = touch.clientX - startX;
+        var dy = touch.clientY - startY;
+        if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+        stepFn(dx < 0 ? 1 : -1);
+      },
+      { passive: true }
+    );
+  }
+
+  function create(opts) {
+    opts = opts || {};
+    var sections = opts.sections || [];
+    var storageKey = opts.storageKey || null;
+    var defaultSection = opts.defaultSection || (sections[0] && sections[0].id);
+    var activeId = readSaved(storageKey, sections, defaultSection);
+    var factories = {};
+    var navUid = nextId();
+    var lastWiredActiveId = null;
+
+    function tabDomId(id) {
+      return navUid + "-tab-" + id;
+    }
+    function panelDomId(id) {
+      return navUid + "-panel-" + id;
+    }
+
+    function navHtml() {
+      if (!sections.length) return "";
+      return (
+        '<div class="wnav' +
+        (opts.sticky ? " wnav--sticky" : "") +
+        '" data-wnav-root role="tablist" aria-orientation="horizontal" id="' +
+        navUid +
+        '" aria-label="' +
+        esc(opts.label || "Navigation") +
+        '">' +
+        sections
+          .map(function (sec) {
+            var isAct = sec.id === activeId;
+            return (
+              '<button type="button" class="wnav-pill' +
+              (isAct ? " wnav-pill-active" : "") +
+              '" data-wnav-id="' +
+              esc(sec.id) +
+              '" id="' +
+              tabDomId(sec.id) +
+              '" role="tab" aria-selected="' +
+              isAct +
+              '" aria-controls="' +
+              panelDomId(sec.id) +
+              '" tabindex="' +
+              (isAct ? "0" : "-1") +
+              '">' +
+              (sec.icon ? '<span class="wnav-icon" aria-hidden="true">' + sec.icon + "</span>" : "") +
+              "<span>" +
+              esc(sec.label) +
+              "</span></button>"
+            );
+          })
+          .join("") +
+        "</div>"
+      );
+    }
+
+    function panelWrap(id, content) {
+      var isAct = id === activeId;
+      var isFn = typeof content === "function";
+      if (isFn) factories[id] = content;
+      var inner = isFn ? (isAct ? content() : "") : content;
+      var rehyd = isAct && lastWiredActiveId === activeId ? ' data-wnav-rehydrated="1"' : "";
+      return (
+        '<div class="wnav-panel" data-wnav-panel="' +
+        esc(id) +
+        '" id="' +
+        panelDomId(id) +
+        '" role="tabpanel" aria-labelledby="' +
+        tabDomId(id) +
+        '"' +
+        rehyd +
+        (isAct ? "" : " hidden") +
+        ">" +
+        inner +
+        "</div>"
+      );
+    }
+
+    function syncAria(host, isUserTabSwitch) {
+      if (!host) return;
+      host.querySelectorAll("[data-wnav-root] [data-wnav-id]").forEach(function (btn) {
+        var isAct = btn.getAttribute("data-wnav-id") === activeId;
+        if (btn.classList.contains("wnav-pill-active") !== isAct) {
+          btn.classList.toggle("wnav-pill-active", isAct);
+        }
+        var selStr = String(isAct);
+        if (btn.getAttribute("aria-selected") !== selStr) btn.setAttribute("aria-selected", selStr);
+        var tabIdx = isAct ? "0" : "-1";
+        if (btn.getAttribute("tabindex") !== tabIdx) btn.setAttribute("tabindex", tabIdx);
+      });
+      host.querySelectorAll("[data-wnav-panel]").forEach(function (panel) {
+        var isAct = panel.getAttribute("data-wnav-panel") === activeId;
+        if (isAct) {
+          if (isUserTabSwitch) panel.removeAttribute("data-wnav-rehydrated");
+          if (panel.hasAttribute("hidden")) panel.removeAttribute("hidden");
+        } else if (!panel.hasAttribute("hidden")) {
+          panel.setAttribute("hidden", "");
+        }
+      });
+    }
+
+    function hydrateActive(host) {
+      if (!host) return;
+      var fn = factories[activeId];
+      if (!fn) return;
+      var panel = host.querySelector('[data-wnav-panel="' + activeId + '"]');
+      if (panel && !panel.hasChildNodes() && !panel.textContent) {
+        panel.innerHTML = fn();
+      }
+    }
+
+    function scrollActivePillIntoView(host, allowSmooth) {
+      if (!host) return;
+      var pill = host.querySelector('[data-wnav-id="' + activeId + '"]');
+      if (!pill || typeof pill.scrollIntoView !== "function") return;
+      // Only smooth-scroll on explicit tab changes; initial/re-render wire uses auto to avoid forced scroll jitter
+      var behavior = allowSmooth && !prefersReducedMotion() ? "smooth" : "auto";
+      var parentRail = pill.closest("[data-wnav-root]");
+      if (parentRail && parentRail.scrollWidth <= parentRail.clientWidth + 4) return;
+      pill.scrollIntoView({ behavior: behavior, block: "nearest", inline: "center" });
+    }
+
+    function setActive(id, host, setOpts) {
+      if (!sections.some(function (s) { return s.id === id; }) || id === activeId) return;
+      activeId = id;
+      lastWiredActiveId = id;
+      writeSaved(storageKey, id);
+      syncAria(host, true);
+      hydrateActive(host);
+      scrollActivePillIntoView(host, true);
+      if (!setOpts || !setOpts.silent) {
+        announce(sections.find(function (s) { return s.id === id; }));
+      }
+    }
+
+    function stepTab(dir, host) {
+      var idx = sections.findIndex(function (s) { return s.id === activeId; });
+      if (idx < 0) return;
+      var nextIdx = (idx + dir + sections.length) % sections.length;
+      setActive(sections[nextIdx].id, host);
+    }
+
+    function handleKeydown(ev, host) {
+      var rail = ev.target.closest("[data-wnav-root]");
+      if (!rail || !host.contains(rail)) return;
+      var pills = Array.from(rail.querySelectorAll("[data-wnav-id]"));
+      var idx = pills.indexOf(ev.target);
+      if (idx < 0) return;
+      var nextIdx = -1;
+      if (ev.key === "ArrowRight" || ev.key === "ArrowDown") nextIdx = (idx + 1) % pills.length;
+      if (ev.key === "ArrowLeft" || ev.key === "ArrowUp") nextIdx = (idx - 1 + pills.length) % pills.length;
+      if (ev.key === "Home") nextIdx = 0;
+      if (ev.key === "End") nextIdx = pills.length - 1;
+      if (nextIdx >= 0) {
+        ev.preventDefault();
+        var nextTabId = pills[nextIdx].getAttribute("data-wnav-id");
+        setActive(nextTabId, host);
+        var nextPill = host.querySelector('[data-wnav-id="' + nextTabId + '"]');
+        if (nextPill) nextPill.focus();
+        return;
+      }
+      if (ev.key === " " || ev.key === "Enter") {
+        ev.preventDefault();
+        var curId = ev.target.getAttribute("data-wnav-id");
+        if (curId) setActive(curId, host);
+      }
+    }
+
+    function wire(host, wireOpts) {
+      if (!host) return;
+      wireOpts = wireOpts || {};
+      var isRewireSameTab = lastWiredActiveId === activeId;
+      if (isRewireSameTab) {
+        var curPanel = host.querySelector('[data-wnav-panel="' + activeId + '"]');
+        if (curPanel) curPanel.setAttribute("data-wnav-rehydrated", "1");
+      }
+      lastWiredActiveId = activeId;
+      // Disconnect any previous IntersectionObserver owned by this host before wiring a newly rendered rail
+      if (host.__wnavActiveRail && host.__wnavActiveRail.__wnavIO) {
+        var oldRail = host.__wnavActiveRail;
+        var newRailCheck = host.querySelector("[data-wnav-root]");
+        if (oldRail !== newRailCheck) {
+          try { oldRail.__wnavIO.disconnect(); } catch {}
+        }
+      }
+      syncAria(host, false);
+      hydrateActive(host);
+      scrollActivePillIntoView(host, false);
+      var rail = host.querySelector("[data-wnav-root]");
+      host.__wnavActiveRail = rail || null;
+      if (rail && !rail.__wnavEventsBound) {
+        rail.__wnavEventsBound = true;
+        rail.addEventListener("click", function (ev) {
+          var pill = ev.target.closest("[data-wnav-id]");
+          if (!pill || !rail.contains(pill)) return;
+          var nextTabId = pill.getAttribute("data-wnav-id");
+          if (nextTabId && nextTabId !== activeId) {
+            setActive(nextTabId, host);
+            if (typeof wireOpts.onChange === "function") wireOpts.onChange(nextTabId);
+          }
+        });
+        rail.addEventListener("keydown", function (ev) {
+          handleKeydown(ev, host);
+        });
+        wireScrollStateAndChevrons(rail);
+        wireSwipe(host, sections.length > 1 ? function (dir) { stepTab(dir, host); } : null);
+        if (!opts.sticky) observeBackToTabs(rail);
+      }
+    }
+
+    return {
+      navHtml: navHtml,
+      panelWrap: panelWrap,
+      wire: wire,
+      setActive: setActive,
+      getActive: function () { return activeId; },
+      sections: sections
+    };
+  }
+
+  window.AriseWidgetNav = { create: create };
+})();

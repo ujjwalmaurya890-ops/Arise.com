@@ -624,62 +624,49 @@ window.AriseBoot.ready.then(function () {
   function getFocusOverlay(){
     const focusMode=document.querySelector('.focus-mode');
     if(focusMode && focusMode.querySelector('.timer-ring-container')) return focusMode;
-    // Perf: the fallback used to scan EVERY div in the document (with a
-    // getComputedStyle per candidate) after every debounced mutation batch —
-    // measurable main-thread cost on low-end phones, since React mutations
-    // arrive constantly. Two safe cuts:
-    //   1. The overlay always contains the timer ring, so when no timer UI
-    //      exists at all the whole scan is pointless — bail immediately.
-    //   2. Cheap className checks now run before any getComputedStyle call;
-    //      the real overlay is tailwind class-based ("fixed inset-0 z-[9999]").
-    //      Elements that don't carry a fixed/z hint class can never satisfy
-    //      the original isFixed&&highZ test in this app, so semantics for the
-    //      overlays that actually exist are unchanged.
-    if(!document.querySelector('.timer-ring-container')) return null;
-    const nodes=[...document.querySelectorAll('div')];
-    return nodes.find(el=>{
-      const cls=el.className||'';
-      const clsFixed=/(^|\s)fixed(\s|$)/.test(cls);
-      const clsHighZ=cls.includes('z-[9999]');
-      if(!clsFixed&&!clsHighZ) return false;
-      const cs=getComputedStyle(el);
-      const isFixed=cs.position==='fixed'||clsFixed;
-      const highZ=(parseInt(cs.zIndex,10)||0)>=9000||clsHighZ;
-      if(!isFixed||!highZ) return false;
-      const covers=(el.offsetWidth>=innerWidth*.75 && el.offsetHeight>=innerHeight*.75);
-      const hasTimer=el.textContent&&el.textContent.includes('Ready')&&el.querySelector('button');
-      return covers&&hasTimer;
-    })||null;
+    const rings=document.querySelectorAll('.timer-ring-container');
+    for(let i=0;i<rings.length;i++){
+      const cand=rings[i].closest('div.fixed');
+      if(!cand) continue;
+      const cls=cand.className||'';
+      const highZ=cls.includes('z-[9999]')||(parseInt(getComputedStyle(cand).zIndex,10)||0)>=9000;
+      if(!highZ) continue;
+      if(cand.offsetWidth>=innerWidth*.75 && cand.offsetHeight>=innerHeight*.75) return cand;
+    }
+    return null;
   }
   function setFocusState(activeRoot){
-    document.documentElement.classList.toggle('arise-focus-active',!!activeRoot);
-    document.body.classList.toggle('arise-focus-active',!!activeRoot);
+    const want=!!activeRoot;
+    if(document.documentElement.classList.contains('arise-focus-active')!==want){
+      document.documentElement.classList.toggle('arise-focus-active',want);
+    }
+    if(document.body && document.body.classList.contains('arise-focus-active')!==want){
+      document.body.classList.toggle('arise-focus-active',want);
+    }
     document.querySelectorAll('.arise-active-focus-root').forEach(el=>{if(el!==activeRoot)el.classList.remove('arise-active-focus-root')});
-    if(activeRoot) activeRoot.classList.add('arise-active-focus-root');
+    if(activeRoot && !activeRoot.classList.contains('arise-active-focus-root')) activeRoot.classList.add('arise-active-focus-root');
   }
-  function install(){
-    // Perf: every part of this function is only meaningful when a timer UI
-    // exists on the page. When it doesn't (the common case — most tabs have
-    // no timer), skip the focus-overlay resolution and the whole button scan
-    // and just run the cheap stray-panel cleanup below.
-    const hasTimerUI=!!document.querySelector('.timer-ring-container');
+  function installCore(){
+    const rings=document.querySelectorAll('.timer-ring-container');
+    const hasTimerUI=rings.length>0;
     const activeRoot=hasTimerUI?getFocusOverlay():null; setFocusState(activeRoot);
     const scope=activeRoot||document;
     if(activeRoot&&activeRoot.classList&&activeRoot.classList.contains('focus-mode')){
       const shell=activeRoot.querySelector('.ambient-focus-shell')||activeRoot.querySelector('.relative.z-10');
-      if(shell) shell.classList.add('ambient-focus-shell');
+      if(shell && !shell.classList.contains('ambient-focus-shell')) shell.classList.add('ambient-focus-shell');
       const grid=activeRoot.querySelector('.ambient-focus-grid')||activeRoot.querySelector('.grid');
-      if(grid) grid.classList.add('ambient-focus-grid');
-      const left=activeRoot.querySelector('.ambient-focus-left')||activeRoot.querySelector('.lg\:col-span-2');
-      if(left) left.classList.add('ambient-focus-left');
+      if(grid && !grid.classList.contains('ambient-focus-grid')) grid.classList.add('ambient-focus-grid');
+      const left=activeRoot.querySelector('.ambient-focus-left')||activeRoot.querySelector('.lg\\:col-span-2');
+      if(left && !left.classList.contains('ambient-focus-left')) left.classList.add('ambient-focus-left');
     }
     document.querySelectorAll('.ambient-sound-controls').forEach(panel=>{
       if(activeRoot && !activeRoot.contains(panel)) panel.remove();
       if(!activeRoot && panel.closest('.focus-mode')) panel.remove();
     });
     if(!hasTimerUI) return;
-    const tabs=[...scope.querySelectorAll('button')].filter(b=>/Timer/.test((b.textContent||'')) && (b.textContent||'').includes('⏱') && b.getClientRects().length);
+    const tabs=[...scope.querySelectorAll('button')].filter(b=>/Timer/.test((b.textContent||'')) && (b.textContent||'').includes('⏱') && !b.closest('[hidden]'));
     tabs.forEach(tab=>{
+      if(!tab.getClientRects().length) return;
       const root=timerRootFromTab(tab);
       if(!root || (activeRoot&&!activeRoot.contains(root))) return;
       const nested=[...root.querySelectorAll('.ambient-sound-controls')].filter(panel=>panel.parentElement!==root);
@@ -687,15 +674,34 @@ window.AriseBoot.ready.then(function () {
       const existing=[...root.querySelectorAll(':scope > .ambient-sound-controls')];
       if(existing.length){existing.slice(1).forEach(panel=>panel.remove()); return;}
       const panel=document.createElement('div'); panel.className='ambient-sound-controls'; panel.dataset.ambientSound='true'; renderInto(panel);
-      // Anchor right after the timer ring itself — reliable regardless of
-      // whether the control button currently reads "Start" or "Pause".
       const ring=root.querySelector(':scope > .timer-ring-container');
       if(ring&&ring.nextSibling) root.insertBefore(panel,ring.nextSibling);
       else if(ring) root.appendChild(panel);
       else root.appendChild(panel);
     });
   }
-  const debounced=()=>{if(document.hidden)return;clearTimeout(debounced.t);debounced.t=setTimeout(install,80)};
+  function install(){
+    const bus=window.__ARISE_MUTATION_BUS__;
+    if(bus && bus.mute) bus.mute(installCore);
+    else installCore();
+  }
+  const debounced=(records)=>{
+    if(document.hidden)return;
+    if(Array.isArray(records)&&records.length){
+      let relevant=false;
+      for(let i=0;i<records.length&&!relevant;i++){
+        const rec=records[i];
+        if(rec.addedNodes&&rec.addedNodes.length){
+          for(let j=0;j<rec.addedNodes.length;j++){if(rec.addedNodes[j]&&rec.addedNodes[j].nodeType===1){relevant=true;break;}}
+        }
+        if(!relevant&&rec.removedNodes&&rec.removedNodes.length){
+          for(let k=0;k<rec.removedNodes.length;k++){if(rec.removedNodes[k]&&rec.removedNodes[k].nodeType===1){relevant=true;break;}}
+        }
+      }
+      if(!relevant) return;
+    }
+    clearTimeout(debounced.t);debounced.t=setTimeout(install,120);
+  };
   document.addEventListener('DOMContentLoaded',install); window.addEventListener('load',install); setTimeout(install,500); setTimeout(install,1500);
   // Mutations that arrived while the tab was hidden were skipped above; run
   // install once on visibility regain so the panel is never left un-anchored.
@@ -843,20 +849,20 @@ window.AriseBoot.ready.then(function () {
     ];
     /*CHUNKS:START*/
     var CHUNKS = [
-      "./assets/chunks/w01.a38318c7.js",
-      "./assets/chunks/w02.7e5c6b2b.js",
-      "./assets/chunks/w03.4e1a4a94.js",
+      "./assets/chunks/w01.16217cc5.js",
+      "./assets/chunks/w02.3f66e6b5.js",
+      "./assets/chunks/w03.d869323c.js",
       "./assets/chunks/w04.1c1f49a9.js",
-      "./assets/chunks/w05.321133fc.js",
+      "./assets/chunks/w05.44b0b442.js",
       "./assets/chunks/w06.f5698d0d.js",
       "./assets/chunks/w07.bf8451ce.js",
       "./assets/chunks/w08.8ebcbbce.js",
-      "./assets/chunks/w09.f4bab318.js",
+      "./assets/chunks/w09.5b1adcad.js",
       "./assets/chunks/w10.ae450ab5.js",
       "./assets/chunks/w11.2cb8aa1e.js",
       "./assets/chunks/w12.17dbe995.js"
     ];
-    var CHUNK_FILES = {"./assets/chunks/w01.a38318c7.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js","./src/features/exam-tracker/exam-tracker.js"],"./assets/chunks/w02.7e5c6b2b.js":["./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js"],"./assets/chunks/w03.4e1a4a94.js":["./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.1c1f49a9.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.321133fc.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.f5698d0d.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.bf8451ce.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js"],"./assets/chunks/w08.8ebcbbce.js":["./src/dsa-mistake-journal-widget.js","./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js"],"./assets/chunks/w09.f4bab318.js":["./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js","./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.ae450ab5.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.2cb8aa1e.js":["./src/expenses.js"],"./assets/chunks/w12.17dbe995.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js"]};
+    var CHUNK_FILES = {"./assets/chunks/w01.16217cc5.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.3f66e6b5.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js"],"./assets/chunks/w03.d869323c.js":["./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.1c1f49a9.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.44b0b442.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.f5698d0d.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.bf8451ce.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js"],"./assets/chunks/w08.8ebcbbce.js":["./src/dsa-mistake-journal-widget.js","./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js"],"./assets/chunks/w09.5b1adcad.js":["./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js","./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.ae450ab5.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.2cb8aa1e.js":["./src/expenses.js"],"./assets/chunks/w12.17dbe995.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js"]};
     /*CHUNKS:END*/
 
     function loadCss() {
@@ -894,8 +900,16 @@ window.AriseBoot.ready.then(function () {
       if (startFn) startFn();
       if (pendingGo) { var g = pendingGo; pendingGo = null; g(); }
     };
+    var expediteQueued = false;
+    function scheduleInteractionExpedite() {
+      if (expediteQueued || expedite || window.__ariseWidgetsReady) return;
+      expediteQueued = true;
+      // Yield 45ms (~2-3 frames) so pointerdown + click + route paint complete
+      // cleanly at 60fps before streaming remaining background widget chunks.
+      setTimeout(function () { window.__ariseExpedite(); }, 45);
+    }
     ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
-      window.addEventListener(ev, function () { window.__ariseExpedite(); }, { once: true, passive: true, capture: true });
+      window.addEventListener(ev, scheduleInteractionExpedite, { once: true, passive: true, capture: true });
     });
 
     function loadScriptsInOrder(list) {
@@ -932,7 +946,6 @@ window.AriseBoot.ready.then(function () {
 
       function yieldThen(fn) {
         var once = false;
-        if (expedite) { fn(); return; }
         function go() {
           if (once) return;
           once = true;
@@ -944,6 +957,12 @@ window.AriseBoot.ready.then(function () {
           fn();
         }
         pendingGo = go;
+        if (expedite) {
+          // Yield a macrotask slice between expedited 2-chunk batches so input &
+          // animation frames are never starved by a single 500ms+ script-compile burst.
+          setTimeout(go, 0);
+          return;
+        }
         if (index === bootCap) {
           // Stage 1 (Landing shell w01 OR full Dashboard core w01..w03) is 100% live & mounted.
           // Defer non-active route chunks (Exams/Attendance/CP/Hackathons/Syllabus/Expenses)
@@ -977,7 +996,8 @@ window.AriseBoot.ready.then(function () {
 
       function nextBatch() {
         if (index >= list.length) { finish(); return; }
-        var size = expedite ? list.length : (index < bootCap ? Math.min(BATCH, bootCap - index) : BATCH);
+        var expStep = (list === CHUNKS) ? 2 : 12;
+        var size = expedite ? Math.min(expStep, list.length - index) : (index < bootCap ? Math.min(BATCH, bootCap - index) : BATCH);
         var batch = list.slice(index, index + size);
         index += size;
         var left = batch.length;

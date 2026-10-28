@@ -84,20 +84,72 @@
         var NAMES = ["__mountAttendanceTracker","__mountBackupCenter","__mountBattlePlan","__mountBurnoutDetector","__mountCGPATracker","__mountCSEPlacementCritical","__mountCareerCommandCenter","__mountCertificates","__mountCompetitiveProgramming","__mountDevMasteryHeatmap","__mountExamTracker","__mountExamTrackerDashboard","__mountExpenses","__mountFocusModeToggle","__mountHabitHeatmap","__mountHackathonTracker","__mountInterviewSheets","__mountLocalFiles","__mountNotesApp","__mountPersonalWiki","__mountPlacementTracker","__mountProjectsWidget","__mountRevisionSystem","__mountSemesterMastery","__mountSkillsTimeline","__mountSmartLearningPath","__mountSocialMedia","__mountWaterReminder"];
         var DEFERRED_MOUNTS = {"__mountAttendanceTracker":1,"__mountBackupCenter":1,"__mountCGPATracker":1,"__mountCSEPlacementCritical":1,"__mountCertificates":1,"__mountCompetitiveProgramming":1,"__mountExamTracker":1,"__mountExpenses":1,"__mountHackathonTracker":1,"__mountLocalFiles":1,"__mountNotesApp":1,"__mountPersonalWiki":1,"__mountPlacementTracker":1,"__mountProjectsWidget":1,"__mountSemesterMastery":1,"__mountSocialMedia":1};
         var queue = window.__ariseMountQueue = [];
+        var failedQueue = window.__ariseFailedMounts = [];
         var flushing = false;
+        function renderMountSkeleton(el, isFullSection) {
+          if (!el || el.nodeType !== 1 || el.children.length) return;
+          var minH = isFullSection ? ' style="min-height:280px"' : "";
+          el.innerHTML =
+            '<div class="arise-mount-skeleton" data-arise-skeleton="1" role="status" aria-live="polite" aria-busy="true"' + minH + ">" +
+              '<span class="uxa-sr-only">Loading widget…</span>' +
+              '<div class="arise-mount-skeleton__head" aria-hidden="true">' +
+                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--title"></div>' +
+                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--badge"></div>' +
+              "</div>" +
+              '<div class="arise-mount-skeleton__stats" aria-hidden="true">' +
+                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--stat"></div>' +
+                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--stat"></div>' +
+                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--stat"></div>' +
+              "</div>" +
+              '<div class="arise-mount-skeleton__bar" style="width:86%" aria-hidden="true"></div>' +
+              '<div class="arise-mount-skeleton__bar" style="width:64%" aria-hidden="true"></div>' +
+            "</div>";
+        }
+        function renderMountFailure(el, item) {
+          if (!el || el.nodeType !== 1) return;
+          el.removeAttribute("aria-busy");
+          el.innerHTML =
+            '<div class="uxa-error-state" data-arise-mount-error="1" role="alert">' +
+              '<div class="uxa-state-title">Widget could not be loaded</div>' +
+              '<div class="uxa-state-desc">A network or script error prevented this module from loading. Your saved data is safe.</div>' +
+              '<button type="button" class="uxa-retry-btn" data-arise-mount-retry="1">Retry loading module</button>' +
+            "</div>";
+          var btn = el.querySelector("[data-arise-mount-retry]");
+          if (btn) {
+            btn.addEventListener("click", function () {
+              el.innerHTML = "";
+              renderMountSkeleton(el, !!DEFERRED_MOUNTS[item.name]);
+              var already = false;
+              for (var k = 0; k < queue.length; k++) {
+                if (queue[k].name === item.name && queue[k].args[0] === el) { already = true; break; }
+              }
+              if (!already) queue.push(item);
+              if (typeof window.__ariseRetryWidgetScripts === "function") {
+                window.__ariseRetryWidgetScripts();
+              } else if (typeof window.__ariseFlushMounts === "function") {
+                window.__ariseFlushMounts();
+              }
+            });
+          }
+        }
         NAMES.forEach(function (name) {
           if (typeof window[name] === "function") return;
           var stub = function () {
-            if (flushing || window.__ariseWidgetsReady) return;
+            if (flushing) return;
             var el = arguments[0];
-            if (DEFERRED_MOUNTS[name] && typeof window.__ariseExpedite === "function") window.__ariseExpedite();
-            if (el && el.nodeType === 1 && !el.children.length) {
-              el.innerHTML = '<div class="arise-mount-skeleton" data-arise-skeleton="1" aria-busy="true"><div class="arise-skel-bar"></div><div class="arise-skel-grid"><div class="arise-skel-box"></div><div class="arise-skel-box"></div><div class="arise-skel-box"></div></div></div>';
+            var args = Array.prototype.slice.call(arguments);
+            if (window.__ariseWidgetsReady) {
+              if (isStub(window[name])) {
+                renderMountFailure(el, { name: name, args: args });
+              }
+              return;
             }
+            if (DEFERRED_MOUNTS[name] && typeof window.__ariseExpedite === "function") window.__ariseExpedite();
+            renderMountSkeleton(el, !!DEFERRED_MOUNTS[name]);
             for (var i = 0; i < queue.length; i++) {
               if (queue[i].name === name && queue[i].args[0] === el) return;
             }
-            queue.push({ name: name, args: Array.prototype.slice.call(arguments) });
+            queue.push({ name: name, args: args });
           };
           stub.__ariseStub = true;
           window[name] = stub;
@@ -106,7 +158,7 @@
           return !!(fn && (fn.__ariseStub || (fn.__ariseOriginal && fn.__ariseOriginal.__ariseStub)));
         }
         function clearSkeleton(el) {
-          if (el && el.nodeType === 1 && el.firstElementChild && el.firstElementChild.hasAttribute("data-arise-skeleton") && el.children.length === 1) {
+          if (el && el.nodeType === 1 && el.firstElementChild && (el.firstElementChild.hasAttribute("data-arise-skeleton") || el.firstElementChild.hasAttribute("data-arise-mount-error")) && el.children.length === 1) {
             el.innerHTML = "";
           }
         }
@@ -128,6 +180,7 @@
                 fn.apply(window, item.args);
               } catch (err) {
                 console.error("[mount-replay] " + item.name + " threw:", err);
+                renderMountFailure(item.args[0], item);
               }
             }
           } finally {
@@ -146,9 +199,15 @@
                 if (typeof fn === "function" && !isStub(fn)) {
                   clearSkeleton(el);
                   fn.apply(window, item.args);
+                } else if (window.__ariseWidgetsSettled) {
+                  failedQueue.push(item);
+                  renderMountFailure(el, item);
+                } else {
+                  queue.push(item);
                 }
               } catch (err) {
                 console.error("[mount-replay] " + item.name + " threw:", err);
+                renderMountFailure(item.args[0], item);
               }
             });
           } finally {
@@ -245,10 +304,9 @@
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/saas-widget-enhancer.js"></script>
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/learning-heatmap-widget.js"></script>
     <script type="application/x-arise-protected" data-arise-protected data-module="1" data-src="./assets/app-bundle.js"></script>
+    <link rel="stylesheet" href="./styles/animation-upgrade.css" />
     <link rel="stylesheet" href="./styles/typography-upgrade.css" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="./styles/typography-upgrade.css" /></noscript>
-    <link rel="stylesheet" href="./styles/animation-upgrade.css" media="print" onload="this.media='all'" />
-    <noscript><link rel="stylesheet" href="./styles/animation-upgrade.css" /></noscript>
     <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker.css" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker.css" /></noscript>
     <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-dday.css" media="print" onload="this.media='all'" />
@@ -267,7 +325,7 @@
     </style>
   </head>
   <body>
-    <section id="cloud-gate" aria-labelledby="cloud-title">
+    <section id="cloud-gate" aria-labelledby="cloud-title" data-busy="true" aria-busy="true">
       <div class="cloud-card">
         <div class="cloud-brand"><img src="./assets/arise-logo.svg" alt="" /><span>Arise</span></div>
         <div class="cloud-eyebrow">Your private CSE workspace</div>
@@ -884,20 +942,20 @@ window.AriseBoot.ready.then(function () {
     ];
     /*CHUNKS:START*/
     var CHUNKS = [
-      "./assets/chunks/w01.16217cc5.js",
-      "./assets/chunks/w02.debdf92b.js",
-      "./assets/chunks/w03.d869323c.js",
-      "./assets/chunks/w04.1c1f49a9.js",
-      "./assets/chunks/w05.44b0b442.js",
-      "./assets/chunks/w06.f5698d0d.js",
-      "./assets/chunks/w07.bf8451ce.js",
-      "./assets/chunks/w08.8ebcbbce.js",
-      "./assets/chunks/w09.5b1adcad.js",
-      "./assets/chunks/w10.ae450ab5.js",
-      "./assets/chunks/w11.2cb8aa1e.js",
-      "./assets/chunks/w12.17dbe995.js"
+      "./assets/chunks/w01.adde60a3.js",
+      "./assets/chunks/w02.7469255a.js",
+      "./assets/chunks/w03.053c11d4.js",
+      "./assets/chunks/w04.9fd29bb2.js",
+      "./assets/chunks/w05.5f9bbf13.js",
+      "./assets/chunks/w06.8e594165.js",
+      "./assets/chunks/w07.6aea4ed7.js",
+      "./assets/chunks/w08.46e7825c.js",
+      "./assets/chunks/w09.9d70b3c6.js",
+      "./assets/chunks/w10.7d84e241.js",
+      "./assets/chunks/w11.67fafa76.js",
+      "./assets/chunks/w12.99b8bbc5.js"
     ];
-    var CHUNK_FILES = {"./assets/chunks/w01.16217cc5.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.debdf92b.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js"],"./assets/chunks/w03.d869323c.js":["./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.1c1f49a9.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.44b0b442.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.f5698d0d.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.bf8451ce.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js"],"./assets/chunks/w08.8ebcbbce.js":["./src/dsa-mistake-journal-widget.js","./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js"],"./assets/chunks/w09.5b1adcad.js":["./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js","./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.ae450ab5.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.2cb8aa1e.js":["./src/expenses.js"],"./assets/chunks/w12.17dbe995.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js"]};
+    var CHUNK_FILES = {"./assets/chunks/w01.adde60a3.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.7469255a.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js"],"./assets/chunks/w03.053c11d4.js":["./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.9fd29bb2.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.5f9bbf13.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.8e594165.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.6aea4ed7.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js","./src/dsa-mistake-journal-widget.js"],"./assets/chunks/w08.46e7825c.js":["./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js"],"./assets/chunks/w09.9d70b3c6.js":["./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js","./src/features/semester-risk/cse-syllabus-unified-widget.js"],"./assets/chunks/w10.7d84e241.js":["./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.67fafa76.js":["./src/expenses.js"],"./assets/chunks/w12.99b8bbc5.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js"]};
     /*CHUNKS:END*/
 
     function loadCss() {
@@ -970,6 +1028,7 @@ window.AriseBoot.ready.then(function () {
       function finish() {
         if (finished) return;
         finished = true;
+        window.__ariseWidgetsSettled = true;
         try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
         window.__ariseWidgetsReady = true;
         window.__ariseWidgetsReadyAt = Math.round(performance.now());
@@ -1101,6 +1160,32 @@ window.AriseBoot.ready.then(function () {
       } catch (e) {}
       loadScriptsInOrder(useChunks ? CHUNKS : SCRIPTS);
     }
+
+    window.__ariseRetryWidgetScripts = function () {
+      var retryList = failedWidgetScripts.splice(0, failedWidgetScripts.length);
+      if (!retryList.length) {
+        try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
+        return;
+      }
+      var remaining = retryList.length;
+      retryList.forEach(function (src) {
+        var s = document.createElement('script');
+        s.src = src + (src.indexOf('?') === -1 ? '?retry=' : '&retry=') + Date.now();
+        s.async = false;
+        s.onload = function () {
+          if (--remaining === 0) {
+            try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
+          }
+        };
+        s.onerror = function () {
+          failedWidgetScripts.push(src);
+          if (--remaining === 0) {
+            try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
+          }
+        };
+        document.body.appendChild(s);
+      });
+    };
 
     startFn = startLazyLoad;
     function schedule() {

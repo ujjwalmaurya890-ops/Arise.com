@@ -1,267 +1,309 @@
-:root {
-  /* Centralized Arise Motion Token System */
-  --motion-instant: 80ms;
-  --motion-micro: 110ms;
-  --motion-fast: 120ms;
-  --motion-base: 160ms;
-  --motion-medium: 180ms;
-  --motion-overlay: 220ms;
-  --motion-emphasis: 220ms;
-  --motion-section: 240ms;
+/* ==========================================================================
+   Arise Centralized Motion, Loading & Skeleton Design System
+   --------------------------------------------------------------------------
+   - GPU-composited animations only (transform, opacity)
+   - Synchronized with all 41+ dark & light Arise themes via CSS variables
+   - Non-flashing delayed skeletons (120ms threshold)
+   - Unified spinners, determinate/indeterminate progress, empty/error states
+   - Coordinated modal, drawer, menu, and route transitions
+   - Strict prefers-reduced-motion & :focus-visible accessibility compliance
+   ========================================================================== */
 
+:root {
+  /* 1. Duration scale */
+  --motion-instant: 90ms;
+  --motion-fast: 120ms;
+  --motion-micro: 150ms;
+  --motion-normal: 200ms;
+  --motion-panel: 220ms;
+  --motion-section: 260ms;
+  --motion-spinner: 720ms;
+  --motion-skeleton: 1500ms;
+
+  /* 2. Easing curves */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --ease-emphasized-decelerate: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-spring-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-linear: linear;
 
-  --motion-lift-sm: -1px;
-  --motion-lift-md: -2px;
-  --motion-enter-y: 6px;
-  --motion-press-scale: 0.985;
-  --motion-modal-scale: 0.98;
+  /* 3. Loader sizing & spacing */
+  --loader-size-xs: 12px;
+  --loader-size-sm: 14px;
+  --loader-size-md: 18px;
+  --loader-size-lg: 26px;
+  --loader-stroke: 2px;
+  --loader-stroke-lg: 2.5px;
+  --loader-gap: 0.5rem;
 
-  /* Legacy token aliases unified onto one system */
-  --uxa-fast: var(--motion-fast);
-  --uxa-med: var(--motion-base);
-  --uxa-slow: var(--motion-overlay);
-  --uxa-ease: var(--ease-standard);
-  --uxa-ease-spring: var(--ease-emphasized-decelerate);
-  --saas-ease: var(--ease-standard);
-  --transition-fast: var(--motion-fast) var(--ease-standard);
-  --transition-medium: var(--motion-medium) var(--ease-standard);
+  /* 4. Skeleton shapes, radii & flash-prevention threshold */
+  --skeleton-radius-xs: 4px;
+  --skeleton-radius-sm: 6px;
+  --skeleton-radius-md: 10px;
+  --skeleton-radius-lg: 14px;
+  --skeleton-radius-pill: 999px;
+  --skeleton-delay: 120ms;
+  --skeleton-base: color-mix(in srgb, var(--text-primary, #e2e8f0) 7%, var(--surface-muted, rgba(148, 163, 184, 0.08)));
+  --skeleton-highlight: color-mix(in srgb, var(--text-primary, #e2e8f0) 15%, var(--surface, rgba(148, 163, 184, 0.16)));
+
+  /* 5. Motion intensity & overlay tokens */
+  --motion-distance-xs: 2px;
+  --motion-distance-sm: 4px;
+  --motion-distance-md: 8px;
+  --motion-scale-press: 0.985;
+  --motion-scale-modal: 0.975;
+  --overlay-scrim-opacity: 0.62;
+  --overlay-scrim-bg: rgba(2, 6, 23, 0.62);
 }
 
-/* Single-frame theme switching: prevent thousands of simultaneous color/shadow transitions */
-html[data-theme-switching],
-html[data-theme-switching] *,
-html[data-theme-switching] *::before,
-html[data-theme-switching] *::after {
-  transition-duration: 0s !important;
-  animation-duration: 0s !important;
+html[data-theme-mode="light"] {
+  --skeleton-base: color-mix(in srgb, var(--text-primary, #0f172a) 7%, var(--surface-muted, #f1f5f9));
+  --skeleton-highlight: color-mix(in srgb, var(--surface, #ffffff) 82%, var(--text-primary, #0f172a) 4%);
+  --overlay-scrim-bg: rgba(15, 23, 42, 0.44);
 }
 
-/* Desktop sidebar collapse/expand: transition width explicitly instead of transition: all 350ms */
-html[data-theme] #arise-desktop-sidebar,
-#arise-desktop-sidebar {
-  transition: width var(--motion-medium, 180ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) !important;
+/* --------------------------------------------------------------------------
+   Screen-reader utility (guaranteed available before Tailwind/chunks)
+   -------------------------------------------------------------------------- */
+.uxa-sr-only,
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
-@keyframes uxa-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes uxa-rise {
-  from {
-    opacity: 0;
-    transform: translate3d(0, var(--motion-enter-y, 6px), 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes uxa-modal-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 6px, 0) scale(var(--motion-modal-scale, 0.98));
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-@keyframes uxa-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes uxa-shimmer-slide {
-  from { transform: translate3d(-100%, 0, 0); }
-  to { transform: translate3d(100%, 0, 0); }
-}
-
-@keyframes uxa-indeterminate {
-  0% { transform: translate3d(-100%, 0, 0); }
-  100% { transform: translate3d(320%, 0, 0); }
-}
-
-@keyframes uxa-pulse-soft {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
-
-@keyframes uxa-toast-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 8px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-/* Entrance reveal: only apply will-change before reveal completes */
+/* --------------------------------------------------------------------------
+   1. Scroll / Viewport Card Reveal (progressive enhancement: never hides
+      content if JS hasn't observed it yet)
+   -------------------------------------------------------------------------- */
 .uxa-reveal {
   opacity: 0;
-  transform: translate3d(0, var(--motion-enter-y, 6px), 0);
+  transform: translate3d(0, var(--motion-distance-md), 0);
   transition:
-    opacity var(--motion-section) var(--ease-standard),
-    transform var(--motion-section) var(--ease-standard);
-  transition-delay: var(--uxa-delay, 0ms);
-}
-
-.uxa-reveal:not(.uxa-in) {
-  will-change: opacity, transform;
+    opacity var(--motion-section) var(--ease-out-quart),
+    transform var(--motion-section) var(--ease-out-quart);
+  transition-delay: var(--uxa-stagger, 0ms);
 }
 
 .uxa-reveal.uxa-in {
   opacity: 1;
   transform: translate3d(0, 0, 0);
-  will-change: auto;
 }
 
-/* Interactive controls: crisp, immediate feedback without layout shift */
-:where(button, [role="button"], .btn, .wnav-tab, .wnav-jump) {
-  transition:
-    transform var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard),
-    border-color var(--motion-base) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-base) var(--ease-standard),
-    opacity var(--motion-fast) var(--ease-standard);
-}
-
-button:not(:disabled):not(.arise-drawer-close):active,
-[role="button"]:not([aria-disabled="true"]):not(.arise-drawer-close):active,
-.btn:not(:disabled):active {
-  transform: scale(var(--motion-press-scale, 0.985));
-}
-
-:where(button, [role="button"], a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--focus-ring, var(--primary, #38bdf8));
-  outline-offset: 2px;
-}
-
-:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
-  transition:
-    border-color var(--motion-base) var(--ease-standard),
-    box-shadow var(--motion-base) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard);
-}
-
-:where(input[type="checkbox"], input[type="radio"]) {
-  transition:
-    transform var(--motion-fast) var(--ease-standard),
-    accent-color var(--motion-fast) var(--ease-standard);
-}
-
-:where(input[type="checkbox"], input[type="radio"]):active {
-  transform: scale(0.92);
-}
-
-/* Elevated surfaces & widget cards */
-:where(.glass-card, .glass-premium, .exw-card, .att-card, .cgpa-card, .htw-card, .cpw-card, .smw-card, .skt-card, .na-card, .pw-card, .pt-card, .cert-card, .et-card) {
-  transition:
-    transform var(--motion-medium) var(--ease-standard),
-    border-color var(--motion-medium) var(--ease-standard),
-    box-shadow var(--motion-medium) var(--ease-standard),
-    background-color var(--motion-medium) var(--ease-standard);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  :where(.exw-card, .att-card, .cgpa-card, .htw-card, .cpw-card, .smw-card, .skt-card, .na-card, .pw-card, .pt-card, .cert-card, .et-card):hover {
-    border-color: color-mix(in srgb, var(--primary, #38bdf8) 28%, var(--border, rgba(148, 163, 184, 0.2)));
+/* Route / section transition on SPA navigation */
+@keyframes uxa-route-fade {
+  from {
+    opacity: 0.01;
+    transform: translate3d(0, var(--motion-distance-sm), 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
-/* Sub-tab panels: animate only genuine tab switches, never re-renders of the active panel */
-.wnav-panel:not([hidden]):not([data-wnav-rehydrated="1"]) {
-  animation: uxa-rise 150ms var(--ease-standard);
+.uxa-route-enter {
+  animation: uxa-route-fade var(--motion-normal) var(--ease-out-quart) both;
 }
 
-:where(details) > summary {
+/* --------------------------------------------------------------------------
+   2. Tactile Micro-Interactions & Accessible Focus-Visible Rings
+   -------------------------------------------------------------------------- */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+.arise-pwb-chip,
+.arise-bento-card,
+.quick-action,
+.nav-item {
   transition:
-    color var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard);
+    transform var(--motion-micro) var(--ease-out-quart),
+    background-color var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard),
+    opacity var(--motion-micro) var(--ease-standard);
 }
 
-:where(details[open]) > *:not(summary) {
-  animation: uxa-fade-in var(--motion-base) var(--ease-standard);
+button:not(:disabled):not(.arise-drawer-close):active,
+.arise-pwb-chip:active,
+.quick-action:active {
+  transform: scale(var(--motion-scale-press));
 }
 
-/* Modals & dialogs */
-:where(.exw-modal-backdrop, .att-modal-backdrop, .cgpa-modal-backdrop, .htw-modal-backdrop, .cpw-modal-backdrop, .smw-modal-backdrop, .skt-modal-backdrop, .na-modal-backdrop, .pw-modal-backdrop, .pt-modal-backdrop, .cert-modal-backdrop, .et-modal-backdrop, [class*="-modal-overlay"], #arise-tu-overlay) {
-  animation: uxa-fade-in var(--motion-medium) var(--ease-standard);
+.arise-bento-card:hover {
+  transform: translate3d(0, -2px, 0);
 }
 
-:where(.exw-modal, .att-modal, .cgpa-modal, .htw-modal, .cpw-modal, .smw-modal, .skt-modal, .na-modal, .pw-modal, .pt-modal, .cert-modal, .et-modal, [role="dialog"]:not(#arise-mobile-drawer):not(.upp-command-dialog):not(.upp-shortcuts-dialog), #arise-tu-overlay .arise-tu-card) {
-  animation: uxa-modal-in var(--motion-overlay) var(--ease-emphasized-decelerate);
+.arise-bento-card:active {
+  transform: translate3d(0, 0, 0) scale(0.99);
 }
 
-:where([class*="-toast"], [id$="-toast"]:not(#arise-shared-toast)) {
-  animation: uxa-toast-in var(--motion-medium) var(--ease-emphasized-decelerate);
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--primary, #38bdf8);
+  outline-offset: 2px;
 }
 
-/* Spinners & compositor-driven skeletons */
-.uxa-spinner {
+/* --------------------------------------------------------------------------
+   3. Unified Spinners (Inline, Button, Card, Cloud Gate, Certificates, PDF)
+   -------------------------------------------------------------------------- */
+@keyframes uxa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes uxa-reduced-pulse {
+  0%, 100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+.uxa-spinner,
+.cloud-spinner,
+.crt-spinner,
+.crt-ai-cat-spinner,
+.hxp-pdf-spinner {
   display: inline-block;
-  width: 1rem;
-  height: 1rem;
+  width: var(--loader-size-md);
+  height: var(--loader-size-md);
   border-radius: 999px;
-  border: 2px solid color-mix(in srgb, currentColor 24%, transparent);
+  border: var(--loader-stroke) solid color-mix(in srgb, currentColor 24%, transparent);
   border-top-color: currentColor;
-  animation: uxa-spin 0.72s linear infinite;
-  vertical-align: -0.18em;
+  animation: uxa-spin var(--motion-spinner) var(--ease-linear) infinite;
+  vertical-align: -0.2em;
   flex-shrink: 0;
+  pointer-events: none;
 }
 
-.uxa-spinner-sm {
-  width: 0.82rem;
-  height: 0.82rem;
+.uxa-spinner--xs,
+.crt-spinner,
+.crt-ai-cat-spinner {
+  width: var(--loader-size-xs);
+  height: var(--loader-size-xs);
   border-width: 1.75px;
 }
 
-.uxa-spinner-lg {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-width: 2.5px;
+.uxa-spinner--sm,
+.uxa-spinner-sm,
+.hxp-pdf-spinner {
+  width: var(--loader-size-sm);
+  height: var(--loader-size-sm);
+  border-width: 1.85px;
 }
 
-.uxa-loading-state {
-  display: flex;
-  flex-direction: column;
+.uxa-spinner--lg,
+.uxa-spinner-lg {
+  width: var(--loader-size-lg);
+  height: var(--loader-size-lg);
+  border-width: var(--loader-stroke-lg);
+}
+
+/* Pending / Busy Button Control (prevents width shift & duplicate clicks) */
+.uxa-btn-loading,
+button[data-uxa-busy="true"] {
+  position: relative;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem;
-  padding: 1.75rem 1rem;
-  text-align: center;
-  color: var(--text-secondary, #94a3b8);
-  font-size: 0.85rem;
-  animation: uxa-fade-in var(--motion-base) var(--ease-standard);
-}
-
-.uxa-loading-state-inline {
-  display: inline-flex;
-  flex-direction: row;
-  padding: 0.35rem 0.65rem;
   gap: 0.45rem;
-  font-size: 0.78rem;
+  pointer-events: none;
+  cursor: wait !important;
+  opacity: 0.86;
 }
 
-.uxa-loading-label {
-  font-weight: 500;
-  letter-spacing: 0.01em;
+/* --------------------------------------------------------------------------
+   4. Unified Determinate & Indeterminate Progress Bars (GPU-only)
+   -------------------------------------------------------------------------- */
+@keyframes uxa-indeterminate-slide {
+  0% {
+    transform: translate3d(-105%, 0, 0);
+  }
+  100% {
+    transform: translate3d(260%, 0, 0);
+  }
 }
 
-/* GPU-composited skeleton shimmer (zero background-position repaint) */
+.uxa-progress-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: var(--skeleton-radius-pill);
+  background: var(--skeleton-base);
+  overflow: hidden;
+}
+
+.uxa-progress-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary, #38bdf8), var(--secondary, #818cf8));
+  transform-origin: left center;
+  transform: scaleX(var(--uxa-progress, 0));
+  transition: transform var(--motion-section) var(--ease-out-quart);
+}
+
+.uxa-progress-indeterminate {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  border-radius: var(--skeleton-radius-pill);
+  background: var(--skeleton-base);
+  overflow: hidden;
+}
+
+.uxa-progress-indeterminate::after,
+.uxa-progress-fill-indeterminate {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--primary, #38bdf8), var(--secondary, #818cf8), transparent);
+  animation: uxa-indeterminate-slide 1.25s var(--ease-standard) infinite;
+}
+
+/* --------------------------------------------------------------------------
+   5. Unified Theme-Aware Skeleton System (GPU translate3d shimmer + 120ms
+      anti-flash appearance threshold)
+   -------------------------------------------------------------------------- */
+@keyframes uxa-shimmer {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+  }
+  100% {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+@keyframes uxa-skeleton-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .uxa-skeleton {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-md, 10px);
-  background: color-mix(in srgb, var(--surface-muted, rgba(148, 163, 184, 0.1)) 90%, transparent);
+  border-radius: var(--skeleton-radius-sm);
+  background: var(--skeleton-base);
 }
 
 .uxa-skeleton::after {
@@ -271,172 +313,552 @@ button:not(:disabled):not(.arise-drawer-close):active,
   background: linear-gradient(
     90deg,
     transparent 0%,
-    color-mix(in srgb, var(--text-primary, #ffffff) 9%, transparent) 50%,
+    var(--skeleton-highlight) 50%,
     transparent 100%
   );
   transform: translate3d(-100%, 0, 0);
-  animation: uxa-shimmer-slide 1.5s var(--ease-linear) infinite;
+  animation: uxa-shimmer var(--motion-skeleton) var(--ease-standard) infinite;
+}
+
+.uxa-skeleton--delayed {
+  opacity: 0;
+  animation: uxa-skeleton-appear var(--motion-fast) var(--ease-standard) var(--skeleton-delay) forwards;
+}
+
+.uxa-skeleton-line {
+  height: 0.78rem;
+  border-radius: var(--skeleton-radius-xs);
+  margin-bottom: 0.55rem;
+}
+
+.uxa-skeleton-line:last-child {
+  margin-bottom: 0;
+}
+
+.uxa-skeleton-line--title {
+  height: 1.05rem;
+  width: 42%;
+  border-radius: var(--skeleton-radius-sm);
+  margin-bottom: 0.75rem;
+}
+
+.uxa-skeleton-line--short {
+  width: 58%;
+}
+
+.uxa-skeleton-line--med {
+  width: 78%;
 }
 
 .uxa-skeleton-text {
   height: 0.78rem;
-  border-radius: 6px;
+  border-radius: var(--skeleton-radius-xs);
 }
 
 .uxa-skeleton-w-40 { width: 40%; }
 .uxa-skeleton-w-55 { width: 55%; }
+.uxa-skeleton-w-60 { width: 60%; }
 .uxa-skeleton-w-70 { width: 70%; }
 .uxa-skeleton-w-85 { width: 85%; }
-
-.uxa-skeleton-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  padding: 1rem;
-  border-radius: var(--radius-lg, 14px);
-  border: 1px solid var(--border, rgba(148, 163, 184, 0.14));
-  background: var(--surface, rgba(15, 23, 42, 0.5));
-}
-
-.uxa-skeleton-avatar {
-  width: 3.25rem;
-  height: 3.25rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
 
 .uxa-skeleton-profile {
   display: flex;
   align-items: center;
   gap: 0.85rem;
-  padding: 0.75rem 0;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--skeleton-radius-lg);
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.14));
+  background: var(--surface, rgba(15, 23, 42, 0.5));
 }
 
 .uxa-skeleton-profile-info {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
 }
 
-.uxa-progress-track {
-  position: relative;
-  width: 100%;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--primary, #38bdf8) 14%, transparent);
-}
-
-.uxa-progress-fill-indeterminate {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 38%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, transparent, var(--primary, #38bdf8), transparent);
-  animation: uxa-indeterminate 1.2s var(--ease-standard) infinite;
-}
-
-.uxa-btn-loading {
-  position: relative;
-  pointer-events: none;
-  opacity: 0.82;
+.uxa-loading-state-inline {
   display: inline-flex;
+  padding: 0.25rem 0.5rem;
+}
+
+.uxa-skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.uxa-skeleton-pill {
+  height: 1.65rem;
+  width: 5.5rem;
+  border-radius: var(--skeleton-radius-pill);
+}
+
+.uxa-skeleton-card {
+  padding: 1.1rem 1.2rem;
+  border-radius: var(--skeleton-radius-lg);
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.14));
+  background: var(--surface, rgba(15, 23, 42, 0.55));
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.uxa-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 0.65rem;
+}
+
+.uxa-skeleton-stat {
+  height: 4.1rem;
+  border-radius: var(--skeleton-radius-md);
+}
+
+/* Deferred widget mount skeleton (.arise-mount-skeleton in index.html) */
+.arise-mount-skeleton {
+  padding: 1.15rem 1.25rem;
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.14));
+  background: var(--surface, rgba(15, 23, 42, 0.5));
+  min-height: 184px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  box-sizing: border-box;
+  opacity: 0;
+  animation: uxa-skeleton-appear var(--motion-fast) var(--ease-standard) var(--skeleton-delay) forwards;
+}
+
+.arise-mount-skeleton__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.arise-mount-skeleton__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.arise-mount-skeleton__bar {
+  position: relative;
+  overflow: hidden;
+  height: 12px;
+  border-radius: var(--skeleton-radius-sm);
+  background: var(--skeleton-base);
+}
+
+.arise-mount-skeleton__bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--skeleton-highlight) 50%,
+    transparent 100%
+  );
+  transform: translate3d(-100%, 0, 0);
+  animation: uxa-shimmer var(--motion-skeleton) var(--ease-standard) infinite;
+}
+
+.arise-mount-skeleton__bar--title {
+  height: 16px;
+  width: 38%;
+}
+
+.arise-mount-skeleton__bar--badge {
+  height: 22px;
+  width: 76px;
+  border-radius: var(--skeleton-radius-pill);
+}
+
+.arise-mount-skeleton__bar--stat {
+  height: 52px;
+  border-radius: var(--skeleton-radius-md);
+}
+
+@media (max-width: 520px) {
+  .arise-mount-skeleton__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .arise-mount-skeleton__stats > :last-child {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   6. Standardized Loading, Empty, Error & Stale-Refresh States
+   -------------------------------------------------------------------------- */
+.uxa-loading-state {
+  display: flex;
   align-items: center;
   justify-content: center;
+  gap: var(--loader-gap);
+  padding: 1.1rem;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.uxa-empty-state,
+.uxa-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 1rem 1.15rem;
+  border-radius: var(--skeleton-radius-lg);
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.18));
+  background: var(--surface-muted, rgba(15, 23, 42, 0.42));
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.uxa-error-state {
+  border-color: color-mix(in srgb, var(--danger, #ef4444) 38%, var(--border, transparent));
+  background: color-mix(in srgb, var(--danger, #ef4444) 8%, var(--surface, rgba(15, 23, 42, 0.6)));
+  color: var(--text-primary, #f1f5f9);
+}
+
+.uxa-state-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--text-primary, #f1f5f9);
+  display: flex;
+  align-items: center;
   gap: 0.45rem;
 }
 
-.uxa-sync-pill {
+.uxa-error-state .uxa-state-title {
+  color: var(--danger, #ef4444);
+}
+
+.uxa-state-desc {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.79rem;
+}
+
+.uxa-retry-btn {
+  margin-top: 0.2rem;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.22rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--skeleton-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--primary, #38bdf8) 45%, var(--border, transparent));
+  background: color-mix(in srgb, var(--primary, #38bdf8) 12%, var(--surface, transparent));
+  color: var(--text-primary, #f8fafc);
+  font-size: 0.76rem;
   font-weight: 600;
-  background: color-mix(in srgb, var(--primary, #38bdf8) 12%, transparent);
-  color: var(--primary, #38bdf8);
-  animation: uxa-pulse-soft 1.4s ease-in-out infinite;
+  cursor: pointer;
 }
 
-/* Progress bars: smooth, short transitions */
-:where([class*="-progress-fill"], [class*="-bar-fill"], progress) {
+.uxa-retry-btn:hover {
+  background: color-mix(in srgb, var(--primary, #38bdf8) 20%, var(--surface, transparent));
+  border-color: var(--primary, #38bdf8);
+}
+
+.uxa-stale-refreshing {
+  opacity: 0.78;
+  transition: opacity var(--motion-normal) var(--ease-standard);
+}
+
+/* Broken-image clean fallback placeholder */
+img.uxa-img-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-muted, rgba(148, 163, 184, 0.14));
+  border: 1px dashed var(--border, rgba(148, 163, 184, 0.3));
+  color: var(--text-tertiary, #64748b);
+  font-size: 0.72rem;
+  min-height: 48px;
+  border-radius: var(--skeleton-radius-sm);
+}
+
+/* --------------------------------------------------------------------------
+   7. Coordinated Modal, Drawer & Menu Entrance / Exit Transitions
+   -------------------------------------------------------------------------- */
+#upp-command-overlay,
+#upp-shortcuts-overlay {
   transition:
-    transform var(--motion-section) var(--ease-standard),
-    width var(--motion-section) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard);
+    opacity var(--motion-panel) var(--ease-standard),
+    visibility var(--motion-panel) var(--ease-standard);
 }
 
-:where(svg circle[stroke-dasharray]) {
+#upp-command-overlay[data-open="false"],
+#upp-shortcuts-overlay[data-open="false"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  display: flex !important;
+}
+
+#upp-command-overlay[data-open="true"],
+#upp-shortcuts-overlay[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+#upp-command-overlay .upp-command-dialog,
+#upp-shortcuts-overlay .upp-shortcuts-dialog {
   transition:
-    stroke-dashoffset 320ms var(--ease-standard),
-    stroke var(--motion-base) var(--ease-standard);
+    transform var(--motion-panel) var(--ease-out-quart),
+    opacity var(--motion-panel) var(--ease-out-quart);
 }
 
-.uxa-status-live {
-  animation: uxa-fade-in var(--motion-fast) var(--ease-standard);
+#upp-command-overlay[data-open="false"] .upp-command-dialog,
+#upp-shortcuts-overlay[data-open="false"] .upp-shortcuts-dialog {
+  opacity: 0;
+  transform: translate3d(0, -6px, 0) scale(var(--motion-scale-modal));
 }
 
-:where(tbody tr) {
-  transition: background-color var(--motion-fast) var(--ease-standard);
+#upp-command-overlay[data-open="true"] .upp-command-dialog,
+#upp-shortcuts-overlay[data-open="true"] .upp-shortcuts-dialog {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
-/* Accessible reduced-motion: disable movement, zoom, auto-scroll, and decorative loops
-   while preserving fast, clear opacity/color/border state feedback */
-@media (prefers-reduced-motion: reduce) {
-  html[data-theme] #arise-desktop-sidebar,
-  #arise-desktop-sidebar {
-    transition: none !important;
+/* Expenses PDF Modal & Local Files Preview Modal coordinated transitions */
+.exw-pdf-modal,
+.lf-modal {
+  transition:
+    opacity var(--motion-panel) var(--ease-standard),
+    visibility var(--motion-panel) var(--ease-standard);
+}
+
+.exw-pdf-modal[data-open="false"] {
+  display: grid !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.exw-pdf-modal[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.exw-pdf-modal .exw-pdf-dialog,
+.lf-modal .lf-modal-card,
+.crt-modal .crt-dialog {
+  transition:
+    transform var(--motion-panel) var(--ease-out-quart),
+    opacity var(--motion-panel) var(--ease-out-quart);
+}
+
+.exw-pdf-modal[data-open="false"] .exw-pdf-dialog {
+  opacity: 0;
+  transform: translate3d(0, 6px, 0) scale(var(--motion-scale-modal));
+}
+
+.exw-pdf-modal[data-open="true"] .exw-pdf-dialog,
+.lf-modal .lf-modal-card,
+.crt-modal[data-open="true"] .crt-dialog {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  animation: uxa-modal-in var(--motion-panel) var(--ease-out-quart) both;
+}
+
+@keyframes uxa-modal-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(var(--motion-scale-modal));
   }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Coordinated Dropdown Menus (Notes Export / Templates, Popovers) */
+.na-export-menu,
+.na-templates-menu {
+  display: block !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(0, -4px, 0) scale(0.98);
+  transform-origin: top right;
+  transition:
+    opacity var(--motion-fast) var(--ease-out-quart),
+    transform var(--motion-fast) var(--ease-out-quart),
+    visibility var(--motion-fast) var(--ease-out-quart);
+}
+
+.na-export-menu[data-open="true"],
+.na-templates-menu[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.theme-switcher-panel {
+  transform-origin: bottom right;
+}
+
+#cloud-account-panel:not([hidden]) {
+  animation: uxa-panel-pop var(--motion-panel) var(--ease-out-quart) both;
+  transform-origin: bottom right;
+}
+
+@keyframes uxa-panel-pop {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   8. Performance Optimization: Suppress Continuous Decorative Animations &
+      Costly Opaque-Card Backdrop Filters
+   -------------------------------------------------------------------------- */
+/* Large opaque shells do not show content behind them — remove costly blur(18px) */
+.dmp-shell,
+.dvp-shell,
+.pcc-shell,
+.csu-rs {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Static ambient glows instead of perpetual 6s/7s radial-gradient repaints */
+.dmp-glow-a,
+.dmp-glow-b,
+.dvp-glow-a,
+.dvp-glow-b,
+.pcc-glow-a,
+.pcc-glow-b,
+.csu-rs-glow-a,
+.csu-rs-glow-b {
+  animation: none !important;
+  opacity: 0.72;
+}
+
+/* Static eyebrow dots instead of perpetual 2.2s blinking across pages */
+.dmp-eyebrow-dot,
+.dvp-eyebrow-dot,
+.pcc-eyebrow-dot,
+.csu-rs-dot,
+.ccc-badge-dot,
+.rev-dot {
+  animation: none !important;
+}
+
+/* Tame overshooting 1.4s spring transitions on SVG rings & bar fills */
+.dmp-ring circle[data-dmp-progress],
+.dvp-ring circle[data-dvp-progress],
+.pcc-ring circle[data-pcc-progress],
+.csu-rs-ring circle[data-csu-progress] {
+  transition:
+    stroke-dashoffset 0.55s var(--ease-out-quart),
+    stroke 0.3s var(--ease-standard) !important;
+}
+
+.dtb-fill,
+.ddtb-fill,
+.drc-fill,
+.dsc-fill,
+.dvp-cc-seg {
+  transition: width 0.42s var(--ease-out-quart) !important;
+}
+
+/* --------------------------------------------------------------------------
+   9. Accessibility: Strict Reduced-Motion Support (Higher Specificity than
+      html[data-theme] * in styles/theme.css)
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
   :root {
-    --motion-instant: 0ms;
-    --motion-fast: 80ms;
-    --motion-base: 90ms;
-    --motion-medium: 100ms;
-    --motion-overlay: 110ms;
-    --motion-section: 0ms;
-    --motion-lift-sm: 0px;
-    --motion-lift-md: 0px;
-    --motion-enter-y: 0px;
-    --motion-press-scale: 1;
-    --motion-modal-scale: 1;
+    --motion-instant: 0.01ms;
+    --motion-fast: 0.01ms;
+    --motion-micro: 0.01ms;
+    --motion-normal: 0.01ms;
+    --motion-panel: 0.01ms;
+    --motion-section: 0.01ms;
+    --skeleton-delay: 0ms;
   }
 
   html,
-  *,
-  *::before,
-  *::after {
+  html[data-theme],
+  html[data-theme] *,
+  html[data-theme] *::before,
+  html[data-theme] *::after {
     scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 
   .uxa-reveal,
-  .uxa-reveal.uxa-in {
+  .uxa-route-enter {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
-    will-change: auto !important;
-  }
-
-  .wnav-panel:not([hidden]),
-  :where(details[open]) > *:not(summary),
-  .uxa-skeleton::after,
-  .uxa-progress-fill-indeterminate,
-  .animate-float,
-  .animate-glow-pulse,
-  .animate-gradient-shift,
-  .animate-fade-in-up {
     animation: none !important;
   }
 
-  .uxa-spinner,
-  .cloud-spinner {
-    animation: uxa-pulse-soft 1.4s ease-in-out infinite !important;
-    border-color: currentColor !important;
+  html[data-theme] .uxa-skeleton::after,
+  html[data-theme] .arise-mount-skeleton__bar::after,
+  .uxa-skeleton::after,
+  .arise-mount-skeleton__bar::after {
+    animation: none !important;
+    transform: none !important;
+    background: transparent !important;
   }
 
-  :where(svg circle[stroke-dasharray]),
-  :where([class*="-progress-fill"], [class*="-bar-fill"], progress) {
-    transition-duration: 0ms !important;
+  html[data-theme] .arise-mount-skeleton,
+  html[data-theme] .uxa-skeleton--delayed,
+  .arise-mount-skeleton,
+  .uxa-skeleton--delayed {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+
+  /* Essential active loading spinners switch from fast rotation to a calm,
+     non-vestibular opacity pulse so busy states remain unmistakably active */
+  html[data-theme] .uxa-spinner,
+  html[data-theme] .cloud-spinner,
+  html[data-theme] .crt-spinner,
+  html[data-theme] .crt-ai-cat-spinner,
+  html[data-theme] .hxp-pdf-spinner,
+  .uxa-spinner,
+  .cloud-spinner,
+  .crt-spinner,
+  .crt-ai-cat-spinner,
+  .hxp-pdf-spinner {
+    border-color: currentColor !important;
+    animation: uxa-reduced-pulse 1.8s ease-in-out infinite !important;
+    transform: none !important;
+  }
+
+  html[data-theme] .uxa-progress-indeterminate::after,
+  html[data-theme] .uxa-progress-fill-indeterminate,
+  .uxa-progress-indeterminate::after,
+  .uxa-progress-fill-indeterminate {
+    width: 100% !important;
+    transform: none !important;
+    animation: uxa-reduced-pulse 1.8s ease-in-out infinite !important;
+  }
+
+  .arise-bento-card:hover,
+  button:not(:disabled):active,
+  .arise-pwb-chip:active,
+  .quick-action:active {
+    transform: none !important;
   }
 }

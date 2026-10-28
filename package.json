@@ -13,6 +13,7 @@
     "test:rules": "node --test tests/emulator/firestore-rules.test.cjs",
     "configure:access": "node --env-file-if-exists=.env scripts/configure-access.cjs",
     "test:browser": "node scripts/verify-secure-browser.cjs",
+    "test:browser:ux": "node scripts/verify-loading-browser-e2e.cjs",
     "audit:storage": "node scripts/tools/audit-storage.cjs"
   },
   "dependencies": {

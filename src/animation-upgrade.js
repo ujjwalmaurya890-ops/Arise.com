@@ -173,45 +173,69 @@
     }
   }
 
+  /** Content-shaped placeholders used by the lazy mount queue and widgets.
+   * The group has one shimmer; its decorative shapes never become live regions. */
   function renderSkeleton(opts) {
     var o = opts || {};
     var label = o.label || "Loading content…";
+    var variant = ["widget", "dashboard", "chart", "table", "list", "form"].indexOf(o.variant) >= 0
+      ? o.variant : "widget";
     var lines = typeof o.lines === "number" ? Math.max(1, Math.min(8, o.lines)) : 3;
     var stats = typeof o.stats === "number" ? Math.max(0, Math.min(6, o.stats)) : 0;
     var delayed = o.delayed !== false;
     var minHeight = o.minHeight ? ' style="min-height:' + escapeHtml(o.minHeight) + '"' : "";
     var widths = ["88%", "72%", "94%", "62%", "80%", "66%"];
-    var statHtml = "";
-    if (stats > 0) {
+    var shape = function (cls) { return '<span class="uxa-skeleton ' + cls + '"></span>'; };
+    var head = '<div class="uxa-skeleton-heading"><div class="uxa-skeleton-heading-copy">' +
+      shape("uxa-skeleton-title") + shape("uxa-skeleton-subtitle") + '</div>' +
+      shape("uxa-skeleton-action") + '</div>';
+    var tabs = '<div class="uxa-skeleton-tabs">' + shape("uxa-skeleton-tab") +
+      shape("uxa-skeleton-tab") + shape("uxa-skeleton-tab") + '</div>';
+    var metrics = function (count) {
       var cells = [];
-      for (var s = 0; s < stats; s++) {
-        cells.push('<div class="uxa-skeleton uxa-skeleton-stat" aria-hidden="true"></div>');
+      for (var s = 0; s < count; s++) {
+        cells.push('<div class="uxa-skeleton-metric">' + shape("uxa-skeleton-metric-label") +
+          shape("uxa-skeleton-metric-value") + shape("uxa-skeleton-metric-detail") + '</div>');
       }
-      statHtml = '<div class="uxa-skeleton-grid" aria-hidden="true">' + cells.join("") + "</div>";
+      return '<div class="uxa-skeleton-metrics">' + cells.join("") + '</div>';
+    };
+    var rows = function (count, withAvatar) {
+      var items = [];
+      for (var r = 0; r < count; r++) {
+        items.push('<div class="uxa-skeleton-row">' +
+          (withAvatar ? shape("uxa-skeleton-row-avatar") : shape("uxa-skeleton-row-check")) +
+          '<div class="uxa-skeleton-row-copy">' + shape("uxa-skeleton-row-title") +
+          shape("uxa-skeleton-row-meta") + '</div>' + shape("uxa-skeleton-row-end") + '</div>');
+      }
+      return '<div class="uxa-skeleton-rows">' + items.join("") + '</div>';
+    };
+    var chart = '<div class="uxa-skeleton-chart"><div class="uxa-skeleton-chart-bars">' +
+      [42, 68, 53, 82, 61, 92, 70, 78].map(function (height) {
+        return '<span class="uxa-skeleton uxa-skeleton-chart-bar" style="height:' + height + '%"></span>';
+      }).join("") + '</div></div>';
+    var body = "";
+    if (variant === "dashboard") body = tabs + metrics(stats || 4) + chart;
+    else if (variant === "chart") body = chart + (stats ? metrics(stats) : "");
+    else if (variant === "table") body = tabs + metrics(stats || 3) +
+      '<div class="uxa-skeleton-controls">' + shape("uxa-skeleton-input") + shape("uxa-skeleton-filter") +
+      shape("uxa-skeleton-filter") + '</div>' + rows(4, false);
+    else if (variant === "list") body = tabs + '<div class="uxa-skeleton-controls">' +
+      shape("uxa-skeleton-input") + shape("uxa-skeleton-filter") + '</div>' + rows(4, true);
+    else if (variant === "form") body = '<div class="uxa-skeleton-form">' +
+      shape("uxa-skeleton-field") + shape("uxa-skeleton-field") + shape("uxa-skeleton-field") +
+      shape("uxa-skeleton-form-button") + '</div>';
+    else {
+      if (stats) body += metrics(stats);
+      body += '<div class="uxa-skeleton-copy">';
+      for (var i = 0; i < lines; i++) {
+        body += '<span class="uxa-skeleton uxa-skeleton-line" style="width:' + widths[i % widths.length] + '"></span>';
+      }
+      body += '</div>';
     }
-    var lineHtml = [];
-    for (var i = 0; i < lines; i++) {
-      lineHtml.push(
-        '<div class="uxa-skeleton uxa-skeleton-line" style="width:' +
-          widths[i % widths.length] +
-          '" aria-hidden="true"></div>'
-      );
-    }
-    return (
-      '<div class="uxa-skeleton-card' +
-      (delayed ? " uxa-skeleton--delayed" : "") +
-      '" role="status" aria-live="polite" aria-busy="true"' +
-      minHeight +
-      ">" +
-      '<span class="uxa-sr-only">' + escapeHtml(label) + "</span>" +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem" aria-hidden="true">' +
-      '<div class="uxa-skeleton uxa-skeleton-line uxa-skeleton-line--title" style="margin:0"></div>' +
-      '<div class="uxa-skeleton uxa-skeleton-pill"></div>' +
-      "</div>" +
-      statHtml +
-      '<div aria-hidden="true">' + lineHtml.join("") + "</div>" +
-      "</div>"
-    );
+    return '<div class="uxa-skeleton-card uxa-skeleton-layout uxa-skeleton-layout--' + variant +
+      (delayed ? ' uxa-skeleton--delayed' : '') + '" role="status" aria-live="polite" aria-busy="true"' + minHeight + '>' +
+      '<span class="uxa-sr-only">' + escapeHtml(label) + '</span>' +
+      '<div class="uxa-skeleton-group" aria-hidden="true">' + (o.header === false ? "" : head) + body + '</div></div>';
   }
 
   function renderErrorState(opts) {

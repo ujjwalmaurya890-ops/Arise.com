@@ -6,6 +6,7 @@ const errorMessage = error => {
   if (error?.code === 'access-denied' || error?.status === 403) return 'This Google account is not approved for Arise. Ask the owner to approve your verified email address.';
   if (error?.code === 'access-unavailable') return 'Access is temporarily unavailable. Your progress is safe; please contact the workspace owner.';
   if (error?.code === 'configuration-unavailable') return 'Google sign-in is not configured yet. The workspace owner must complete the secure setup checklist.';
+  if (error?.code === 'configuration-timeout') return 'The secure connection timed out. Check your connection and retry; your existing progress is safe.';
   if (['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(error?.code)) return 'Sign-in was cancelled. You can try again when ready.';
   if (error?.code === 'auth/popup-blocked') return 'Allow pop-ups for this site, then try again. If you are in a preview, open it in a full browser tab.';
   if (error?.code === 'auth/unauthorized-domain' || error?.code === 'auth/invalid-api-key' || error?.code === 'auth/operation-not-allowed') return 'Google sign-in needs an owner configuration update. Please contact the workspace owner.';
@@ -33,7 +34,10 @@ export function createController(adapter, { storage = window.AriseStorage, schem
     button.addEventListener('click', handler); parent.appendChild(button); return button;
   };
   const prompt = (title, message, choices, backup) => {
-    gate(title, message, true);
+    // Waiting for a decision is not network activity; do not leave a spinner
+    // or aria-busy on an interactive consent prompt.
+    gate(title, message, false);
+    element('cloud-google').hidden = true; element('cloud-google').disabled = true;
     if (backup) action(element('cloud-actions'), 'Download recovery backup', () => downloadBackup(backup, 'arise-pre-migration').catch(() => { element('cloud-message').textContent = 'Could not export the backup. Browser data is still retained; do not clear it.'; }));
     return new Promise(resolve => {
       for (const choice of choices) action(element('cloud-actions'), choice.label, () => { element('cloud-actions').replaceChildren(); resolve(choice.value); });
@@ -203,9 +207,13 @@ export function createController(adapter, { storage = window.AriseStorage, schem
     }
   }
   async function login() {
-    lastError = null; element('cloud-google').disabled = true; element('cloud-message').textContent = 'Opening Google sign-in…';
+    lastError = null;
+    const button = element('cloud-google');
+    button.disabled = true; button.setAttribute('aria-busy', 'true');
+    element('cloud-message').textContent = 'Opening Google sign-in…';
     try { await adapter.signIn(); }
     catch (error) { lastError = error; gate('Continue with Google', errorMessage(error)); }
+    finally { button.removeAttribute('aria-busy'); }
   }
   async function logout() {
     gate('Signing out', 'Closing your secure session…', true);

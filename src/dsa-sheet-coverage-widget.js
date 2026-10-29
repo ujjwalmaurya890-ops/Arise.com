@@ -12,37 +12,45 @@
     ],
     i = null,
     f = !1,
-    l = !1;
+    l = !1,
+    lastError = !1,
+    requestSeq = 0;
 
   function b(force) {
+    if (force && f && !l) return i;
     if (force) {
       f = !1;
       l = !1;
-      i = null;
+      lastError = !1;
     }
     if (f) return i;
     f = !0;
+    var seq = ++requestSeq;
     try {
-      (s && s.fetchInterviewSheets
+      Promise.resolve(s && s.fetchInterviewSheets
         ? s.fetchInterviewSheets({ force: !!force })
         : fetch("./assets/interview_sheets_data.json", { cache: "force-cache" }).then(function (e) {
             return e && e.ok ? e.json() : null;
-          })
-      )
+          }))
         .then(function (e) {
-          i = e && typeof e == "object" ? e : null;
-        })
-        .catch(function () {
-          i = null;
+          if (seq !== requestSeq) return;
+          if (e && typeof e === "object" && !Array.isArray(e)) {
+            i = e;
+            lastError = !1;
+          } else {
+            // Keep the last usable data visible if a refresh fails.
+            lastError = !0;
+          }
+        }, function () {
+          if (seq === requestSeq) lastError = !0;
         })
         .then(function () {
+          if (seq !== requestSeq) return;
           l = !0;
-          try {
-            v();
-          } catch {}
+          try { v(); } catch {}
         });
     } catch {
-      i = null;
+      lastError = !0;
       l = !0;
     }
     return i;
@@ -60,7 +68,7 @@
         a = t.key + "::";
       for (var c in e) Object.prototype.hasOwnProperty.call(e, c) && e[c] && c.indexOf(a) === 0 && o++;
       var _ = d > 0 ? Math.min(100, Math.round((o / d) * 100)) : 0;
-      return { label: p, solved: o, total: d, pct: _ };
+      return { label: p, solved: o, total: d, pct: _, available: !!(n && Array.isArray(n.questions)) };
     });
   }
 
@@ -113,7 +121,8 @@
       n = !t;
     n && ((t = document.createElement("div")), (t.id = m), (t.className = "dsc-block"), r.appendChild(t));
 
-    if (!l && e.every(function (a) { return a.total === 0; })) {
+    if (!l && !i) {
+      t.setAttribute("aria-busy", "true");
       var skelSig = "loading";
       if (t.__uxaLastSig !== skelSig) {
         t.__uxaLastSig = skelSig;
@@ -127,17 +136,15 @@
           })
           .join("");
         t.innerHTML =
-          '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span></div><div class="dsc-rows uxa-skeleton--delayed" role="status" aria-live="polite" aria-busy="true"><span class="uxa-sr-only">Loading sheet coverage…</span>' +
+          '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span></div><div class="uxa-skeleton--delayed" role="status" aria-live="polite"><span class="uxa-sr-only">Loading sheet coverage…</span><div class="dsc-rows uxa-skeleton-group" aria-hidden="true">' +
           skRows +
-          "</div>";
+          "</div></div>";
       }
       return;
     }
 
-    var d = e.every(function (a) {
-      return a.total === 0;
-    });
-    if (d) {
+    t.removeAttribute("aria-busy");
+    if (lastError && !i) {
       var errSig = "error";
       if (t.__uxaLastSig !== errSig) {
         t.__uxaLastSig = errSig;
@@ -153,11 +160,29 @@
       return;
     }
 
-    var sig = JSON.stringify(e);
+    var refreshing = !l && !!i;
+    var sig = JSON.stringify([e, refreshing, lastError]);
     if (t.__uxaLastSig === sig) return;
     t.__uxaLastSig = sig;
+    var refreshStatus = refreshing
+      ? '<span class="uxa-loading-state uxa-loading-state-inline" role="status"><span class="uxa-spinner uxa-spinner--xs" aria-hidden="true"></span>Refreshing…</span>'
+      : '';
+    var refreshError = lastError && i
+      ? '<div class="dsc-empty" role="alert"><span>Could not refresh sheet data. Showing the last available results.</span><button type="button" class="uxa-retry-btn" data-dsc-retry="1">Retry</button></div>'
+      : '';
+    if (i && e.every(function (a) { return a.total === 0; })) {
+      t.innerHTML = '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span>' + refreshStatus +
+        '</div><div class="dsc-empty">No sheet questions are available yet.</div>' + refreshError;
+      var emptyRetry = t.querySelector("[data-dsc-retry]");
+      if (emptyRetry) emptyRetry.onclick = function () { b(!0); v(); };
+      return;
+    }
     var p = e
       .map(function (a) {
+        if (!a.available) {
+          return '<div class="dsc-row"><span class="dsc-name">' + a.label +
+            '</span><span class="dsc-track" aria-hidden="true"></span><span class="dsc-meta" aria-label="Data unavailable" title="Data unavailable">—</span></div>';
+        }
         var c = y(a.pct);
         return (
           '<div class="dsc-row"><span class="dsc-name">' +
@@ -177,11 +202,13 @@
       })
       .join("");
     t.innerHTML =
-      '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span><button type="button" class="dsc-link" data-dsc-open>Open Sheets &#8594;</button></div><div class="dsc-rows">' +
-      p +
-      "</div>";
+      '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span>' + refreshStatus +
+      '<button type="button" class="dsc-link" data-dsc-open>Open Sheets &#8594;</button></div><div class="dsc-rows">' +
+      p + "</div>" + refreshError;
     var o = t.querySelector("[data-dsc-open]");
     o && (o.onclick = x);
+    var retry = t.querySelector("[data-dsc-retry]");
+    if (retry) retry.onclick = function () { b(!0); v(); };
   }
 
   function v() {

@@ -172,7 +172,14 @@ async function main() {
     !!headerH1 && headerH1.textContent.trim() === "DSA Tracker");
 
   // Wait for shell sync (120ms debounce in src/premium-productivity-features.js)
-  await waitFor(() => window.document.getElementById("upp-command-fab") && window.document.getElementById("arise-theme-quick-toggle"));
+  await waitFor(() => {
+    const fab = window.document.getElementById("upp-command-fab");
+    const toggle = window.document.getElementById("arise-theme-quick-toggle");
+    // The elements can exist in their undocked fallback locations until the
+    // asynchronous header coordinator has run on a freshly changed route.
+    return fab?.classList.contains("upp-command-fab--docked") &&
+      toggle?.classList.contains("arise-theme-quick-toggle--docked");
+  });
   const themeBtn = window.document.getElementById("arise-theme-quick-toggle");
   const cmdFab = window.document.getElementById("upp-command-fab");
   check("Theme toggle and ⌘K Search bar both dock cleanly inside Workspace header",

@@ -157,7 +157,8 @@ try{
 
   function loadData(force) {
     if (c && !force) return Promise.resolve(c);
-    if (A && k && !force) return k;
+    // A retry shares the current request instead of racing another consumer.
+    if (A && k) return k;
     A = !0;
     loadError = !1;
     var u = window.__ARISE_WIDGET_UTILS__;
@@ -170,7 +171,7 @@ try{
     k = Promise.resolve(req)
       .then(function (r) {
         A = !1;
-        if (r && typeof r === "object" && Object.keys(r).length > 0) {
+        if (r && typeof r === "object" && !Array.isArray(r)) {
           c = r;
           loadError = !1;
         } else {
@@ -225,6 +226,10 @@ try{
   }
 
   function renderLoadingSkeleton() {
+    var system = window.AriseAnimationUpgrade;
+    if (system && typeof system.renderSkeleton === "function") {
+      return system.renderSkeleton({ variant: "table", header: false, label: "Loading curated interview problem sheets…" });
+    }
     var pills = [1, 2, 3, 4, 5]
       .map(function () {
         return '<div class="uxa-skeleton uxa-skeleton-pill" aria-hidden="true"></div>';
@@ -236,9 +241,10 @@ try{
       })
       .join("");
     return (
-      '<div class="uxa-skeleton--delayed" style="display:flex;flex-direction:column;gap:.85rem;min-height:420px" role="status" aria-live="polite" aria-busy="true">' +
+      '<div class="uxa-skeleton--delayed" style="min-height:420px" role="status" aria-live="polite" aria-busy="true">' +
       '<span class="uxa-sr-only">Loading curated interview problem sheets…</span>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:.5rem" aria-hidden="true">' +
+      '<div class="uxa-skeleton-group" aria-hidden="true">' +
+      '<div style="display:flex;flex-wrap:wrap;gap:.5rem">' +
       pills +
       "</div>" +
       '<div class="uxa-skeleton" style="height:8px;border-radius:999px" aria-hidden="true"></div>' +
@@ -250,7 +256,7 @@ try{
       '<div style="display:flex;flex-direction:column;gap:.4rem" aria-hidden="true">' +
       rows +
       "</div>" +
-      "</div>"
+      "</div></div>"
     );
   }
 
@@ -332,7 +338,9 @@ try{
         .join("");
     if (g.length === 0) {
       w =
-        "<div class='ish-empty'><div>No questions match your filters.</div>" +
+        "<div class='ish-empty'><div>" +
+        (hasActiveFilters ? "No questions match your filters." : "No questions are available in this sheet yet.") +
+        "</div>" +
         (hasActiveFilters
           ? "<button type='button' class='uxa-retry-btn' style='margin-top:.55rem' data-ish-clear-filters='1'>Reset filters</button>"
           : "") +
@@ -456,8 +464,9 @@ try{
           rb.addEventListener("click", function () {
             loadError = !1;
             h();
+            var mounted = n;
             loadData(!0).then(function () {
-              h();
+              if (n === mounted && mounted.isConnected !== false) h();
             });
           });
         }
@@ -473,7 +482,7 @@ try{
     n.removeAttribute("aria-busy");
     n.innerHTML =
       "<div class='ish-wrap'><div class='ish-header'><div class='ish-title'><span>📑</span> Interview Sheets</div><div class='ish-subtitle'>Built-in curated sheets on top of your DSA tracker — Blind 75, NeetCode 150, LeetCode Top Interview 150, Striver A2Z &amp; company-wise lists.</div></div>" +
-      L() +
+      (Object.keys(c).length ? L() : "<div class='uxa-empty-state'><div class='uxa-state-title'>No interview sheets available</div><div class='uxa-state-desc'>The sheet collection is empty. Your saved progress is unchanged.</div></div>") +
       "</div>";
     for (var i = n.querySelectorAll(".ish-tab"), r = 0; r < i.length; r++)
       i[r].addEventListener("click", function (t) {
@@ -554,9 +563,13 @@ try{
     }
     n = r;
     h();
-    loadData(!1).then(function () {
-      h();
-    });
+    if (!c && !loadError) {
+      var mounted = r;
+      loadData(!1).then(function () {
+        // The shared request may finish after this section has been removed.
+        if (n === mounted && mounted.isConnected !== false) h();
+      });
+    }
   };
   window.__unmountInterviewSheets = function (r) {
     f && clearTimeout(f);

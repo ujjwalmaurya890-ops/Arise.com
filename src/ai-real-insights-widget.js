@@ -9,7 +9,8 @@
     u = !1,
     lastErr = "",
     reqSeq = 0,
-    activeCtrl = null;
+    activeCtrl = null,
+    activeHost = null;
 
   function x() {
     if (!document.getElementById(v)) {
@@ -66,11 +67,17 @@
       s(e);
       return;
     }
+    if (!window.__ariseAI || typeof window.__ariseAI.ask !== "function") {
+      lastErr = "AI assistance is unavailable right now. Please try again after the workspace finishes loading.";
+      s(e);
+      return;
+    }
     if (activeCtrl) {
       try { activeCtrl.abort(); } catch (_) {}
     }
     var ctrl = typeof AbortController === "function" ? new AbortController() : null;
     activeCtrl = ctrl;
+    activeHost = e;
     var mySeq = ++reqSeq;
     lastErr = "";
     o = !0;
@@ -82,6 +89,7 @@
       .ask(n, JSON.stringify(i), { maxTokens: 500, signal: ctrl ? ctrl.signal : void 0 })
       .then(function (f) {
         if (mySeq !== reqSeq) return;
+        if (e.isConnected === false) { cancelDetached(); return; }
         I({
           text: f,
           generatedAt: new Date().toISOString(),
@@ -90,13 +98,16 @@
         });
         o = !1;
         activeCtrl = null;
+        activeHost = null;
         lastErr = "";
         s(e);
       })
       .catch(function (f) {
         if (mySeq !== reqSeq) return;
+        if (e.isConnected === false) { cancelDetached(); return; }
         o = !1;
         activeCtrl = null;
+        activeHost = null;
         lastErr = "Generation failed: " + ((f && f.message) || "Unknown error");
         s(e);
       });
@@ -142,7 +153,7 @@
       btnContent +
       '</button><button type="button" class="air-btn" data-air-action="toggle-settings">Model</button></div></div>';
     var bar = o
-      ? '<div class="uxa-progress-indeterminate" role="status" aria-live="polite" aria-label="Generating AI insights"><span class="uxa-sr-only">Generating AI insights…</span></div>'
+      ? '<div class="uxa-progress-indeterminate" role="status" aria-live="polite" aria-label="Generating AI insights"><span class="uxa-sr-only">' + (r ? 'Refreshing' : 'Generating') + ' AI insights…</span></div>'
       : "";
     var errHtml = lastErr
       ? '<div class="air-error" role="alert"><span>' +
@@ -172,16 +183,11 @@
         errHtml +
         a;
     } else if (o) {
-      n =
-        '<div class="uxa-skeleton-card" style="margin-top:.7rem" role="status" aria-live="polite" aria-busy="true">' +
-        '<span class="uxa-sr-only">Generating personalized AI insights…</span>' +
-        '<div class="uxa-skeleton uxa-skeleton-line" style="width:92%" aria-hidden="true"></div>' +
-        '<div class="uxa-skeleton uxa-skeleton-line" style="width:84%" aria-hidden="true"></div>' +
-        '<div class="uxa-skeleton uxa-skeleton-line" style="width:76%" aria-hidden="true"></div>' +
-        '<div class="uxa-skeleton uxa-skeleton-line" style="width:62%" aria-hidden="true"></div>' +
-        "</div>" +
-        errHtml +
-        a;
+      var system = window.AriseAnimationUpgrade;
+      var skeleton = system && typeof system.renderSkeleton === "function"
+        ? system.renderSkeleton({ variant: "widget", header: false, lines: 4, label: "Generating personalized AI insights…" })
+        : '<div class="uxa-skeleton-card" role="status" aria-live="polite"><span class="uxa-sr-only">Generating personalized AI insights…</span><div class="uxa-skeleton-group" aria-hidden="true"><div class="uxa-skeleton uxa-skeleton-line" style="width:92%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:84%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:76%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:62%"></div></div></div>';
+      n = '<div class="air-skeleton" aria-hidden="true">' + skeleton + '</div>' + errHtml + a;
     } else {
       n = '<div class="air-empty">No AI insights generated yet. Click "Generate AI Insights" above.</div>' + errHtml + a;
     }
@@ -243,7 +249,17 @@
           s(r));
     }
   }
+  function cancelDetached() {
+    if (!activeHost || activeHost.isConnected !== false) return;
+    reqSeq++;
+    o = !1;
+    lastErr = "";
+    activeHost = null;
+    if (activeCtrl) { try { activeCtrl.abort(); } catch (_) {} }
+    activeCtrl = null;
+  }
   function h() {
+    cancelDetached();
     u ||
       document.hidden ||
       ((u = !0),

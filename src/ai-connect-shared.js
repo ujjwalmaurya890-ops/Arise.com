@@ -39,29 +39,7 @@
     }
     var timeoutMs = typeof n.timeoutMs === "number" && n.timeoutMs > 0 ? n.timeoutMs : 30000;
     var ctrl = typeof AbortController === "function" ? new AbortController() : null;
-    var timedOut = !1;
     var upstream = n.signal;
-    var onAbort = function () {
-      if (ctrl) {
-        try { ctrl.abort(); } catch (_) {}
-      }
-    };
-    if (upstream) {
-      if (upstream.aborted) onAbort();
-      else if (typeof upstream.addEventListener === "function") upstream.addEventListener("abort", onAbort, { once: !0 });
-    }
-    var timer = ctrl
-      ? setTimeout(function () {
-          timedOut = !0;
-          try { ctrl.abort(); } catch (_) {}
-        }, timeoutMs)
-      : 0;
-    var cleanup = function () {
-      if (timer) clearTimeout(timer);
-      if (upstream && typeof upstream.removeEventListener === "function") {
-        upstream.removeEventListener("abort", onAbort);
-      }
-    };
     var fetchOpts = {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -73,34 +51,48 @@
       })
     };
     if (ctrl) fetchOpts.signal = ctrl.signal;
-    return Promise.resolve()
-      .then(function () {
-        return window.AriseAuth.fetch(l, fetchOpts);
-      })
-      .then(
-        function (i) {
-          cleanup();
-          return i
-            .json()
-            .catch(function () {
-              return {};
-            })
-            .then(function (r) {
-              if (!i.ok)
-                throw new Error(
-                  (r && r.error) ||
-                    (i.status === 429 ? "Rate limited — try again in a bit." : "Request failed (" + i.status + ").")
-                );
-              if (!r || !r.text) throw new Error("Model returned no text.");
-              return r.text;
-            });
-        },
-        function (err) {
-          cleanup();
-          if (timedOut) throw new Error("AI request timed out. Check your connection and try again.");
-          throw err;
-        }
-      );
+
+    // Keep the deadline active through JSON parsing too. Resolve cancellation
+    // even if a fetch implementation ignores AbortSignal; late results are ignored.
+    return new Promise(function (resolve, reject) {
+      var finished = !1;
+      var timer = setTimeout(function () {
+        if (ctrl) { try { ctrl.abort(); } catch (_) {} }
+        finish(new Error("AI request timed out. Check your connection and try again."));
+      }, timeoutMs);
+      function finish(err, value) {
+        if (finished) return;
+        finished = !0;
+        clearTimeout(timer);
+        if (upstream && typeof upstream.removeEventListener === "function") upstream.removeEventListener("abort", onAbort);
+        if (err) reject(err); else resolve(value);
+      }
+      function onAbort() {
+        if (ctrl) { try { ctrl.abort(); } catch (_) {} }
+        var err = new Error("AI request cancelled.");
+        err.name = "AbortError";
+        finish(err);
+      }
+      if (upstream) {
+        if (upstream.aborted) return onAbort();
+        if (typeof upstream.addEventListener === "function") upstream.addEventListener("abort", onAbort, { once: !0 });
+      }
+      Promise.resolve()
+        .then(function () {
+          if (finished) return null;
+          return window.AriseAuth.fetch(l, fetchOpts);
+        })
+        .then(function (response) {
+          if (finished) return null;
+          return Promise.resolve(response.json()).catch(function () { return {}; }).then(function (data) {
+            if (!response.ok) throw new Error((data && data.error) ||
+              (response.status === 429 ? "Rate limited — try again in a bit." : "Request failed (" + response.status + ")."));
+            if (!data || !data.text) throw new Error("Model returned no text.");
+            return data.text;
+          });
+        })
+        .then(function (value) { finish(null, value); }, function (err) { finish(err); });
+    });
   }
   window.__ariseAI = { MODELS: o, getSettings: u, saveSettings: c, clearSettings: s, hasKey: d, ask: S };
 })();

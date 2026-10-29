@@ -12,6 +12,8 @@
   window.__ariseMountSafetyInstalled = true;
 
   var mountErrors = (window.__ariseMountErrors = []);
+  // A rejected old mount must not replace a newer render (or a detached view).
+  var mountGenerations = new WeakMap();
 
   function escapeHtml(str) {
     return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
@@ -54,28 +56,29 @@
     var safe = function () {
       var args = Array.prototype.slice.call(arguments);
       var targetEl = args[0] && args[0].nodeType === 1 ? args[0] : null;
+      var generation = targetEl ? (mountGenerations.get(targetEl) || 0) + 1 : 0;
+      if (targetEl) mountGenerations.set(targetEl, generation);
+      var isCurrent = function () {
+        return !targetEl || (targetEl.isConnected !== false && mountGenerations.get(targetEl) === generation);
+      };
       var retry = function () {
         safe.apply(window, args);
       };
+      function fail(err) {
+        if (!isCurrent() || (err && err.name === "AbortError")) return;
+        recordMountError(name, err);
+        renderWidgetError(targetEl, name, retry);
+      }
       try {
         var out = fn.apply(this, arguments);
         if (out && typeof out.then === "function") {
-          return out.then(
-            function (val) {
-              if (targetEl) targetEl.removeAttribute("aria-busy");
-              return val;
-            },
-            function (err) {
-              recordMountError(name, err);
-              renderWidgetError(targetEl, name, retry);
-            }
-          );
+          return out.then(function (val) { return val; }, fail);
         }
-        if (targetEl) targetEl.removeAttribute("aria-busy");
+        // The widget owns aria-busy: a synchronous mount can start an async
+        // request and must remain busy until that request actually settles.
         return out;
       } catch (err) {
-        recordMountError(name, err);
-        renderWidgetError(targetEl, name, retry);
+        fail(err);
       }
     };
     safe.__ariseWrapped = true;

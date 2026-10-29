@@ -275,9 +275,9 @@
     var out = "";
     for (var i = 0; i < count; i++) {
       out +=
-        '<div class="uxa-skeleton-card" aria-hidden="true">' +
+        '<div class="uxa-skeleton-card uxa-skeleton-group" aria-hidden="true">' +
         '<div class="uxa-skeleton uxa-skeleton-text uxa-skeleton-w-40"></div>' +
-        '<div class="uxa-skeleton uxa-skeleton-text uxa-skeleton-w-70"></div>' +
+        '<div class="uxa-skeleton uxa-skeleton-metric-value"></div>' +
         (sub ? '<div class="uxa-skeleton uxa-skeleton-text uxa-skeleton-w-55"></div>' : "") +
         "</div>";
     }
@@ -288,12 +288,12 @@
     opts = opts || {};
     var avatar = opts.avatar !== false;
     return (
-      '<div class="uxa-skeleton-profile" aria-hidden="true">' +
+      '<div class="uxa-skeleton-profile" aria-hidden="true"><div class="uxa-skeleton-group uxa-skeleton-profile-group">' +
       (avatar ? '<div class="uxa-skeleton uxa-skeleton-avatar"></div>' : "") +
       '<div class="uxa-skeleton-profile-info">' +
       '<div class="uxa-skeleton uxa-skeleton-text uxa-skeleton-w-40" style="height:1.05rem"></div>' +
       '<div class="uxa-skeleton uxa-skeleton-text uxa-skeleton-w-60"></div>' +
-      "</div></div>"
+      "</div></div></div>"
     );
   }
 
@@ -353,35 +353,60 @@
 
   var cachedSheetsPromise = null;
   var cachedFetchRef = null;
+  var sheetsInFlight = null;
 
+  /** The sheets dataset is shared by DSA, coverage, search and command palette.
+   * Coalesce concurrent retries, bound both fetch and JSON parsing, and never
+   * let an obsolete request invalidate a newer request or a good cached value. */
   function fetchInterviewSheets(opts) {
     opts = opts || {};
     if (typeof fetch !== "function") return Promise.resolve(null);
-    if (opts.force) cachedSheetsPromise = null;
-    if (!cachedSheetsPromise || cachedFetchRef !== fetch) {
-      cachedFetchRef = fetch;
-      cachedSheetsPromise = Promise.resolve()
-        .then(function () {
-          var ctrl = typeof AbortController === "function" ? new AbortController() : null;
-          var timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 12000) : 0;
-          var reqOpts = ctrl ? { cache: "force-cache", signal: ctrl.signal } : { cache: "force-cache" };
-          return Promise.resolve(fetch("./assets/interview_sheets_data.json", reqOpts)).finally(function () {
-            if (timer) clearTimeout(timer);
-          });
-        })
-        .then(function (res) {
-          return res && res.ok ? res.json() : null;
-        })
-        .then(function (data) {
-          if (!data || typeof data !== "object") cachedSheetsPromise = null;
-          return data && typeof data === "object" ? data : null;
-        })
-        .catch(function () {
-          cachedSheetsPromise = null;
-          return null;
-        });
+    var fetchImpl = fetch;
+    if (cachedFetchRef !== fetchImpl) {
+      if (sheetsInFlight && sheetsInFlight.cancel) sheetsInFlight.cancel();
+      cachedFetchRef = fetchImpl;
+      cachedSheetsPromise = null;
+      sheetsInFlight = null;
     }
-    return cachedSheetsPromise;
+    if (sheetsInFlight) return sheetsInFlight.promise;
+    if (!opts.force && cachedSheetsPromise) return cachedSheetsPromise;
+
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var timeout = typeof opts.timeoutMs === "number" && opts.timeoutMs > 0 ? opts.timeoutMs : 12000;
+    var request = {};
+    sheetsInFlight = request;
+    request.promise = new Promise(function (resolve) {
+      var finished = false;
+      var timer = setTimeout(function () {
+        if (ctrl) { try { ctrl.abort(); } catch (_) {} }
+        finish(null);
+      }, timeout);
+      function finish(value) {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        // A different fetch implementation/request may have replaced this one.
+        if (sheetsInFlight !== request) return resolve(null);
+        sheetsInFlight = null;
+        var valid = value && typeof value === "object" && !Array.isArray(value);
+        if (valid) cachedSheetsPromise = Promise.resolve(value);
+        // A failed refresh must not evict the last usable cached dataset.
+        resolve(valid ? value : null);
+      }
+      request.cancel = function () {
+        if (ctrl) { try { ctrl.abort(); } catch (_) {} }
+        finish(null);
+      };
+      Promise.resolve()
+        .then(function () {
+          return fetchImpl("./assets/interview_sheets_data.json", ctrl
+            ? { cache: "force-cache", signal: ctrl.signal }
+            : { cache: "force-cache" });
+        })
+        .then(function (res) { return res && res.ok ? res.json() : null; })
+        .then(finish, function () { finish(null); });
+    });
+    return request.promise;
   }
 
   window.__ARISE_WIDGET_UTILS__ = {

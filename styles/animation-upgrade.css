@@ -43,8 +43,13 @@
   --skeleton-radius-lg: 14px;
   --skeleton-radius-pill: 999px;
   --skeleton-delay: 120ms;
-  --skeleton-base: color-mix(in srgb, var(--text-primary, #e2e8f0) 7%, var(--surface-muted, rgba(148, 163, 184, 0.08)));
-  --skeleton-highlight: color-mix(in srgb, var(--text-primary, #e2e8f0) 15%, var(--surface, rgba(148, 163, 184, 0.16)));
+  --skeleton-base: color-mix(in srgb, var(--text-primary, #e2e8f0) 10%, var(--surface, #111827));
+  --skeleton-highlight: color-mix(in srgb, var(--text-primary, #e2e8f0) 9%, transparent);
+  --skeleton-shimmer-angle: 90deg;
+  --skeleton-gap: 0.75rem;
+  --skeleton-row-height: 3.1rem;
+  --skeleton-input-height: 2.4rem;
+  --skeleton-chart-height: 9rem;
 
   /* 5. Motion intensity & overlay tokens */
   --motion-distance-xs: 2px;
@@ -57,8 +62,8 @@
 }
 
 html[data-theme-mode="light"] {
-  --skeleton-base: color-mix(in srgb, var(--text-primary, #0f172a) 7%, var(--surface-muted, #f1f5f9));
-  --skeleton-highlight: color-mix(in srgb, var(--surface, #ffffff) 82%, var(--text-primary, #0f172a) 4%);
+  --skeleton-base: color-mix(in srgb, var(--text-primary, #0f172a) 12%, var(--surface, #fff));
+  --skeleton-highlight: color-mix(in srgb, var(--surface, #fff) 30%, transparent);
   --overlay-scrim-bg: rgba(15, 23, 42, 0.44);
 }
 
@@ -311,14 +316,40 @@ button[data-uxa-busy="true"] {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    90deg,
+    var(--skeleton-shimmer-angle),
     transparent 0%,
     var(--skeleton-highlight) 50%,
     transparent 100%
   );
   transform: translate3d(-100%, 0, 0);
   animation: uxa-shimmer var(--motion-skeleton) var(--ease-standard) infinite;
+  pointer-events: none;
 }
+
+/* A whole placeholder shares one composited shimmer, rather than animating
+   every line and chart bar separately. The shapes remain static underneath. */
+.uxa-skeleton-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--skeleton-gap);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.uxa-skeleton-group::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(var(--skeleton-shimmer-angle), transparent 20%, var(--skeleton-highlight) 50%, transparent 80%);
+  transform: translate3d(-100%, 0, 0);
+  animation: uxa-shimmer var(--motion-skeleton) var(--ease-standard) infinite;
+  pointer-events: none;
+}
+
+.uxa-skeleton-group .uxa-skeleton::after { content: none; }
+html[dir="rtl"] .uxa-skeleton-group::after,
+html[dir="rtl"] .uxa-skeleton::after { animation-direction: reverse; }
 
 .uxa-skeleton--delayed {
   opacity: 0;
@@ -372,6 +403,13 @@ button[data-uxa-busy="true"] {
   background: var(--surface, rgba(15, 23, 42, 0.5));
 }
 
+.uxa-skeleton-profile-group {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: .85rem;
+}
+
 .uxa-skeleton-profile-info {
   flex: 1;
   min-width: 0;
@@ -417,6 +455,76 @@ button[data-uxa-busy="true"] {
 .uxa-skeleton-stat {
   height: 4.1rem;
   border-radius: var(--skeleton-radius-md);
+}
+
+/* Shared component-shaped layouts for deferred dashboards, charts, lists,
+   tables and forms. These dimensions follow the existing card/grid scale. */
+.uxa-skeleton-layout { min-width: 0; box-sizing: border-box; }
+.uxa-skeleton-layout .uxa-skeleton { display: block; flex-shrink: 0; }
+.uxa-skeleton-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.uxa-skeleton-heading-copy { flex: 1; min-width: 0; display: grid; gap: .55rem; }
+.uxa-skeleton-title { width: min(44%, 15rem); height: 1rem; }
+.uxa-skeleton-subtitle { width: min(72%, 25rem); height: .62rem; }
+.uxa-skeleton-action { width: 5.25rem; height: 1.9rem; border-radius: var(--skeleton-radius-md); }
+.uxa-skeleton-tabs { display: flex; gap: .45rem; overflow: hidden; padding: .2rem 0; }
+.uxa-skeleton-tab { width: 5.25rem; height: 1.7rem; border-radius: var(--skeleton-radius-pill); }
+.uxa-skeleton-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; }
+.uxa-skeleton-layout--table .uxa-skeleton-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.uxa-skeleton-metric {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: .45rem;
+  min-height: 4.6rem;
+  padding: .75rem;
+  border: 1px solid var(--border, rgba(148, 163, 184, .14));
+  border-radius: var(--skeleton-radius-md);
+  background: var(--surface-muted, transparent);
+}
+.uxa-skeleton-metric-label { width: 60%; height: .55rem; }
+.uxa-skeleton-metric-value { width: 42%; height: 1.2rem; }
+.uxa-skeleton-metric-detail { width: 72%; height: .5rem; }
+.uxa-skeleton-controls { display: flex; gap: .5rem; min-width: 0; }
+.uxa-skeleton-input { flex: 1 1 10rem; min-width: 0; height: var(--skeleton-input-height); }
+.uxa-skeleton-filter { width: 6.5rem; height: var(--skeleton-input-height); }
+.uxa-skeleton-rows { display: grid; gap: .4rem; }
+.uxa-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  min-height: var(--skeleton-row-height);
+  padding: .6rem .75rem;
+  border: 1px solid var(--border, rgba(148, 163, 184, .14));
+  border-radius: var(--skeleton-radius-md);
+}
+.uxa-skeleton-row-check { width: 1.15rem; height: 1.15rem; border-radius: var(--skeleton-radius-xs); }
+.uxa-skeleton-row-avatar { width: 2rem; height: 2rem; border-radius: 50%; }
+.uxa-skeleton-row-copy { flex: 1; min-width: 0; display: grid; gap: .45rem; }
+.uxa-skeleton-row-title { width: 58%; height: .65rem; }
+.uxa-skeleton-row-meta { width: 35%; height: .5rem; }
+.uxa-skeleton-row-end { width: 3rem; height: 1.15rem; border-radius: var(--skeleton-radius-pill); }
+.uxa-skeleton-chart {
+  height: var(--skeleton-chart-height);
+  padding: .75rem .8rem 0;
+  border: 1px solid var(--border, rgba(148, 163, 184, .14));
+  border-radius: var(--skeleton-radius-md);
+  background: repeating-linear-gradient(to top, transparent 0, transparent calc(25% - 1px), var(--border, rgba(148, 163, 184, .14)) 25%);
+}
+.uxa-skeleton-chart-bars { height: 100%; display: flex; align-items: end; justify-content: space-around; gap: .65rem; }
+.uxa-skeleton-chart-bar { flex: 1 1 0; max-width: 2.75rem; border-radius: var(--skeleton-radius-xs) var(--skeleton-radius-xs) 0 0; }
+.uxa-skeleton-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.uxa-skeleton-field { height: var(--skeleton-input-height); }
+.uxa-skeleton-form-button { width: 6.5rem; height: var(--skeleton-input-height); }
+.uxa-skeleton-copy { display: grid; gap: .55rem; }
+.uxa-skeleton-copy .uxa-skeleton-line { margin: 0; }
+
+@media (max-width: 520px) {
+  .uxa-skeleton-metrics,
+  .uxa-skeleton-layout--table .uxa-skeleton-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .uxa-skeleton-filter { width: 4rem; }
+  .uxa-skeleton-controls .uxa-skeleton-filter:last-child { display: none; }
+  .uxa-skeleton-chart { height: 7rem; }
+  .uxa-skeleton-form { grid-template-columns: 1fr; }
 }
 
 /* Deferred widget mount skeleton (.arise-mount-skeleton in index.html) */
@@ -568,9 +676,11 @@ button[data-uxa-busy="true"] {
 }
 
 .uxa-stale-refreshing {
-  opacity: 0.78;
+  opacity: 0.88;
   transition: opacity var(--motion-normal) var(--ease-standard);
 }
+
+.air-skeleton { margin-top: .7rem; }
 
 /* Broken-image clean fallback placeholder */
 img.uxa-img-fallback {
@@ -813,8 +923,10 @@ img.uxa-img-fallback {
   }
 
   html[data-theme] .uxa-skeleton::after,
+  html[data-theme] .uxa-skeleton-group::after,
   html[data-theme] .arise-mount-skeleton__bar::after,
   .uxa-skeleton::after,
+  .uxa-skeleton-group::after,
   .arise-mount-skeleton__bar::after {
     animation: none !important;
     transform: none !important;

@@ -86,28 +86,43 @@
         var queue = window.__ariseMountQueue = [];
         var failedQueue = window.__ariseFailedMounts = [];
         var flushing = false;
-        function renderMountSkeleton(el, isFullSection) {
+        var MOUNT_SHAPES = {
+          __mountAttendanceTracker: 'dashboard', __mountCGPATracker: 'dashboard',
+          __mountCompetitiveProgramming: 'dashboard', __mountExamTracker: 'dashboard',
+          __mountExpenses: 'dashboard', __mountHackathonTracker: 'dashboard',
+          __mountPlacementTracker: 'dashboard', __mountSemesterMastery: 'chart',
+          __mountCareerCommandCenter: 'chart', __mountDevMasteryHeatmap: 'chart',
+          __mountHabitHeatmap: 'chart', __mountInterviewSheets: 'table',
+          __mountCertificates: 'table', __mountProjectsWidget: 'table',
+          __mountLocalFiles: 'list', __mountNotesApp: 'list', __mountPersonalWiki: 'list',
+          __mountSocialMedia: 'list', __mountBackupCenter: 'form'
+        };
+        // These optional hooks have no implementation in the checked-in build.
+        var UNAVAILABLE_MOUNTS = { __mountCSEPlacementCritical: 1, __mountSemesterMastery: 1 };
+        function renderMountSkeleton(el, isFullSection, name) {
           if (!el || el.nodeType !== 1 || el.children.length) return;
-          var minH = isFullSection ? ' style="min-height:280px"' : "";
-          el.innerHTML =
-            '<div class="arise-mount-skeleton" data-arise-skeleton="1" role="status" aria-live="polite" aria-busy="true"' + minH + ">" +
-              '<span class="uxa-sr-only">Loading widget…</span>' +
-              '<div class="arise-mount-skeleton__head" aria-hidden="true">' +
-                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--title"></div>' +
-                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--badge"></div>' +
-              "</div>" +
-              '<div class="arise-mount-skeleton__stats" aria-hidden="true">' +
-                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--stat"></div>' +
-                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--stat"></div>' +
-                '<div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--stat"></div>' +
-              "</div>" +
-              '<div class="arise-mount-skeleton__bar" style="width:86%" aria-hidden="true"></div>' +
-              '<div class="arise-mount-skeleton__bar" style="width:64%" aria-hidden="true"></div>' +
-            "</div>";
+          var label = (name || 'Widget').replace(/^__mount/, '').replace(/([a-z])([A-Z])/g, '$1 $2');
+          var system = window.AriseAnimationUpgrade;
+          el.setAttribute('aria-busy', 'true');
+          if (system && typeof system.renderSkeleton === 'function') {
+            el.innerHTML = system.renderSkeleton({
+              variant: MOUNT_SHAPES[name] || (isFullSection ? 'dashboard' : 'widget'),
+              label: 'Loading ' + label + '…',
+              minHeight: isFullSection ? '280px' : null
+            });
+            el.firstElementChild.setAttribute('data-arise-skeleton', '1');
+          } else {
+            // The shared runtime normally loads first; keep an accessible fallback.
+            el.innerHTML = '<div class="arise-mount-skeleton" data-arise-skeleton="1" role="status"><span class="uxa-sr-only">Loading widget…</span><div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--title" aria-hidden="true"></div><div class="arise-mount-skeleton__bar arise-mount-skeleton__bar--stat" aria-hidden="true"></div></div>';
+          }
         }
         function renderMountFailure(el, item) {
           if (!el || el.nodeType !== 1) return;
           el.removeAttribute("aria-busy");
+          if (UNAVAILABLE_MOUNTS[item.name]) {
+            el.innerHTML = '<div class="uxa-empty-state" data-arise-mount-error="1"><div class="uxa-state-title">Panel unavailable</div><div class="uxa-state-desc">This optional panel is not included in this version. Your syllabus and saved progress are still available.</div></div>';
+            return;
+          }
           el.innerHTML =
             '<div class="uxa-error-state" data-arise-mount-error="1" role="alert">' +
               '<div class="uxa-state-title">Widget could not be loaded</div>' +
@@ -118,7 +133,7 @@
           if (btn) {
             btn.addEventListener("click", function () {
               el.innerHTML = "";
-              renderMountSkeleton(el, !!DEFERRED_MOUNTS[item.name]);
+              renderMountSkeleton(el, !!DEFERRED_MOUNTS[item.name], item.name);
               var already = false;
               for (var k = 0; k < queue.length; k++) {
                 if (queue[k].name === item.name && queue[k].args[0] === el) { already = true; break; }
@@ -145,7 +160,7 @@
               return;
             }
             if (DEFERRED_MOUNTS[name] && typeof window.__ariseExpedite === "function") window.__ariseExpedite();
-            renderMountSkeleton(el, !!DEFERRED_MOUNTS[name]);
+            renderMountSkeleton(el, !!DEFERRED_MOUNTS[name], name);
             for (var i = 0; i < queue.length; i++) {
               if (queue[i].name === name && queue[i].args[0] === el) return;
             }
@@ -160,6 +175,7 @@
         function clearSkeleton(el) {
           if (el && el.nodeType === 1 && el.firstElementChild && (el.firstElementChild.hasAttribute("data-arise-skeleton") || el.firstElementChild.hasAttribute("data-arise-mount-error")) && el.children.length === 1) {
             el.innerHTML = "";
+            el.removeAttribute("aria-busy");
           }
         }
         var MULTI_STAGE_MOUNTS = { __mountSemesterMastery: 1, __mountLocalFiles: 1, __mountPlacementTracker: 1 };
@@ -943,20 +959,20 @@ window.AriseBoot.ready.then(function () {
     ];
     /*CHUNKS:START*/
     var CHUNKS = [
-      "./assets/chunks/w01.3ba0c70c.js",
-      "./assets/chunks/w02.debdf92b.js",
-      "./assets/chunks/w03.7b523f9b.js",
-      "./assets/chunks/w04.9fd29bb2.js",
+      "./assets/chunks/w01.06846d10.js",
+      "./assets/chunks/w02.7469255a.js",
+      "./assets/chunks/w03.d5ce07a6.js",
+      "./assets/chunks/w04.184d5eb3.js",
       "./assets/chunks/w05.5f9bbf13.js",
-      "./assets/chunks/w06.8e594165.js",
-      "./assets/chunks/w07.3ba54f53.js",
-      "./assets/chunks/w08.6b20d92a.js",
-      "./assets/chunks/w09.841256dc.js",
-      "./assets/chunks/w10.31f7b41f.js",
+      "./assets/chunks/w06.065292b5.js",
+      "./assets/chunks/w07.c019168c.js",
+      "./assets/chunks/w08.46e7825c.js",
+      "./assets/chunks/w09.9d70b3c6.js",
+      "./assets/chunks/w10.7d84e241.js",
       "./assets/chunks/w11.67fafa76.js",
-      "./assets/chunks/w12.437428d3.js"
+      "./assets/chunks/w12.1604ce85.js"
     ];
-    var CHUNK_FILES = {"./assets/chunks/w01.3ba0c70c.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.debdf92b.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js"],"./assets/chunks/w03.7b523f9b.js":["./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.9fd29bb2.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.5f9bbf13.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.8e594165.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.3ba54f53.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js"],"./assets/chunks/w08.6b20d92a.js":["./src/dsa-mistake-journal-widget.js","./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js"],"./assets/chunks/w09.841256dc.js":["./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js","./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.31f7b41f.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.67fafa76.js":["./src/expenses.js"],"./assets/chunks/w12.437428d3.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js","./src/career-intelligence-dashboard.js"]};
+    var CHUNK_FILES = {"./assets/chunks/w01.06846d10.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.7469255a.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js"],"./assets/chunks/w03.d5ce07a6.js":["./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.184d5eb3.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.5f9bbf13.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.065292b5.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.c019168c.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js","./src/dsa-mistake-journal-widget.js"],"./assets/chunks/w08.46e7825c.js":["./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js"],"./assets/chunks/w09.9d70b3c6.js":["./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js","./src/features/semester-risk/cse-syllabus-unified-widget.js"],"./assets/chunks/w10.7d84e241.js":["./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.67fafa76.js":["./src/expenses.js"],"./assets/chunks/w12.1604ce85.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js","./src/career-intelligence-dashboard.js"]};
     /*CHUNKS:END*/
 
     function loadCss() {
@@ -1005,6 +1021,36 @@ window.AriseBoot.ready.then(function () {
     ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
       window.addEventListener(ev, scheduleInteractionExpedite, { once: true, passive: true, capture: true });
     });
+
+    // A request that never fires load/error must not strand an entire route.
+    // Removing a timed-out script also releases the ordered script queue so the
+    // source-file fallback can run. Completion is guarded against late events.
+    function injectWidgetScript(src, onLoad, onFailure) {
+      var script = document.createElement('script');
+      var done = false;
+      var timer = setTimeout(function () { finish(false, 'timed out'); }, 12000);
+      function finish(ok, reason) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        script.onload = script.onerror = null;
+        if (!ok && script.parentNode) script.parentNode.removeChild(script);
+        if (ok) onLoad(); else onFailure(reason);
+      }
+      script.src = src;
+      script.async = false;
+      script.onload = function () { finish(true); };
+      script.onerror = function () { finish(false, 'failed'); };
+      document.body.appendChild(script);
+    }
+
+    function rememberWidgetFailure(src) {
+      if (failedWidgetScripts.indexOf(src) === -1) failedWidgetScripts.push(src);
+      console.error('[widget-loader] failed to load: ' + src);
+      if (typeof window.__ariseReportWidgetError === 'function') {
+        try { window.__ariseReportWidgetError(src); } catch (e) {}
+      }
+    }
 
     function loadScriptsInOrder(list) {
       // Perf patch #3 (chunked + yielding). Perf patch #2 created all ~100
@@ -1091,13 +1137,14 @@ window.AriseBoot.ready.then(function () {
 
       function nextBatch() {
         if (index >= list.length) { finish(); return; }
-        var expStep = (list === CHUNKS) ? 2 : 12;
+        // A failed chunk must finish its source-file fallback before the next
+        // chunk executes, otherwise dependent modules can initialize out of order.
+        var expStep = (list === CHUNKS) ? 1 : 12;
         var size = expedite ? Math.min(expStep, list.length - index) : (index < bootCap ? Math.min(BATCH, bootCap - index) : BATCH);
         var batch = list.slice(index, index + size);
         index += size;
         var left = batch.length;
         batch.forEach(function (src) {
-          var s = document.createElement('script');
           var settled = false;
           function settle() {
             if (settled) return;
@@ -1108,37 +1155,23 @@ window.AriseBoot.ready.then(function () {
               else yieldThen(nextBatch);
             }
           }
-          s.src = src;
-          s.async = false;
-          s.onload = settle;
-          s.onerror = function () {
+          injectWidgetScript(src, settle, function () {
             var parts = CHUNK_FILES[src];
             if (parts && parts.length) {
-              // v225: chunk unavailable -> load the original files one-by-one, same order.
-              console.warn('[widget-loader] chunk failed, falling back to ' + parts.length + ' files: ' + src);
+              // Chunk unavailable: retain ordered execution of the original files.
+              console.warn('[widget-loader] chunk unavailable, falling back to ' + parts.length + ' files: ' + src);
               var n = parts.length;
               parts.forEach(function (f) {
-                var t = document.createElement('script');
-                t.src = f; t.async = false;
-                t.onload = function () { if (--n === 0) settle(); };
-                t.onerror = function () {
-                  failedWidgetScripts.push(f);
-                  console.error('[widget-loader] failed to load: ' + f);
-                  if (typeof window.__ariseReportWidgetError === 'function') { try { window.__ariseReportWidgetError(f); } catch (e) {} }
+                injectWidgetScript(f, function () { if (--n === 0) settle(); }, function () {
+                  rememberWidgetFailure(f);
                   if (--n === 0) settle();
-                };
-                document.body.appendChild(t);
+                });
               });
               return;
             }
-            failedWidgetScripts.push(src);
-            console.error('[widget-loader] failed to load: ' + src);
-            if (typeof window.__ariseReportWidgetError === 'function') {
-              try { window.__ariseReportWidgetError(src); } catch (e) {}
-            }
+            rememberWidgetFailure(src);
             settle();
-          };
-          document.body.appendChild(s);
+          });
         });
       }
 
@@ -1162,29 +1195,29 @@ window.AriseBoot.ready.then(function () {
       loadScriptsInOrder(useChunks ? CHUNKS : SCRIPTS);
     }
 
+    var retryingScripts = false;
     window.__ariseRetryWidgetScripts = function () {
+      if (retryingScripts) return;
       var retryList = failedWidgetScripts.splice(0, failedWidgetScripts.length);
       if (!retryList.length) {
-        try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
+        // The script loaded but its mount hook failed to initialize. Re-running
+        // an already-executed guarded module cannot recover it; reload instead.
+        location.reload();
         return;
       }
+      retryingScripts = true;
       var remaining = retryList.length;
+      function retrySettled() {
+        if (--remaining !== 0) return;
+        retryingScripts = false;
+        try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
+      }
       retryList.forEach(function (src) {
-        var s = document.createElement('script');
-        s.src = src + (src.indexOf('?') === -1 ? '?retry=' : '&retry=') + Date.now();
-        s.async = false;
-        s.onload = function () {
-          if (--remaining === 0) {
-            try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
-          }
-        };
-        s.onerror = function () {
-          failedWidgetScripts.push(src);
-          if (--remaining === 0) {
-            try { if (typeof window.__ariseFlushMounts === 'function') window.__ariseFlushMounts(); } catch (e) {}
-          }
-        };
-        document.body.appendChild(s);
+        var retryUrl = src + (src.indexOf('?') === -1 ? '?retry=' : '&retry=') + Date.now();
+        injectWidgetScript(retryUrl, retrySettled, function () {
+          rememberWidgetFailure(src);
+          retrySettled();
+        });
       });
     };
 

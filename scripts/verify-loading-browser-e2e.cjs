@@ -230,6 +230,37 @@ const bundle = buildSync({
       `PASS [2/7]: Dashboard boot settled cleanly (FCP=${bootPerf.paints['first-contentful-paint']}ms, DCL=${bootPerf.domContentLoadedMs}ms, CLS=${bootPerf.bootCls}, idleAnimations=${bootPerf.runningAnimationsAtIdle}).`
     );
 
+    // Exercise actual shared skeleton geometry across viewport sizes and both
+    // theme token sets, without replacing or delaying any application content.
+    const skeletonProbes = [];
+    for (const width of [320, 390, 768, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const [theme, mode] of [['cyberMidnightPro', 'dark'], ['appleGlassLight', 'light']]) {
+        const probe = await page.evaluate(({ theme, mode }) => {
+          const root = document.documentElement;
+          const oldTheme = root.dataset.theme;
+          // ThemeSystem writes palette variables inline, so use its real
+          // preview API rather than changing the data attribute alone.
+          window.AriseThemeSystem.applyTheme(theme, false, { isPreview: true });
+          const host = document.createElement('div');
+          host.style.cssText = 'position:fixed;inset:0 auto auto 0;width:100%;padding:12px;z-index:-1;box-sizing:border-box';
+          host.innerHTML = ['dashboard', 'chart', 'table', 'list', 'form'].map(variant => window.AriseAnimationUpgrade.renderSkeleton({ variant, delayed: false })).join('');
+          document.body.appendChild(host);
+          const cards = [...host.querySelectorAll('.uxa-skeleton-layout')];
+          const base = getComputedStyle(host.querySelector('.uxa-skeleton')).backgroundColor;
+          const result = { mode, width: innerWidth, cards: cards.length, fits: cards.every(card => card.scrollWidth <= card.clientWidth + 1), base };
+          host.remove(); window.AriseThemeSystem.applyTheme(oldTheme, false, { isPreview: true });
+          return result;
+        }, { theme, mode });
+        assert.equal(probe.cards, 5); assert.ok(probe.fits, `${mode} skeleton overflow at ${width}px`);
+        skeletonProbes.push(probe);
+      }
+    }
+    assert.notEqual(skeletonProbes[0].base, skeletonProbes[1].base, 'light and dark skeleton surfaces resolve differently');
+    metricsReport.skeletonProbes = skeletonProbes;
+    await page.setViewportSize({ width: 1440, height: 900 });
+    console.log('PASS: shared skeleton variants fit 320–1920px in light and dark themes.');
+
     // -----------------------------------------------------------------------
     // 2. Key Route Navigation, Non-Blank Screens & Route Transition Stability
     // -----------------------------------------------------------------------
@@ -448,17 +479,21 @@ const bundle = buildSync({
       const probeBtn = document.createElement('button');
       probeBtn.className = 'btn';
       const probeSkel = document.createElement('div');
-      probeSkel.className = 'uxa-skeleton-line';
+      probeSkel.className = 'uxa-skeleton uxa-skeleton-line';
+      const probeGroup = document.createElement('div');
+      probeGroup.className = 'uxa-skeleton-group';
       const probeSpin = document.createElement('span');
       probeSpin.className = 'uxa-spinner';
-      document.body.append(probeBtn, probeSkel, probeSpin);
+      document.body.append(probeBtn, probeSkel, probeGroup, probeSpin);
 
       const btnTransition = parseFloat(getComputedStyle(probeBtn).transitionDuration) || 0;
-      const skelAnimName = getComputedStyle(probeSkel).animationName;
+      const skelAnimName = getComputedStyle(probeSkel, '::after').animationName;
+      const groupAnimName = getComputedStyle(probeGroup, '::after').animationName;
       const spinAnimName = getComputedStyle(probeSpin).animationName;
 
       probeBtn.remove();
       probeSkel.remove();
+      probeGroup.remove();
       probeSpin.remove();
 
       return {
@@ -466,6 +501,7 @@ const bundle = buildSync({
         uxaReduced: window.AriseAnimationUpgrade?.prefersReducedMotion?.() === true,
         btnTransition,
         skelAnimName,
+        groupAnimName,
         spinAnimName,
         mobileNoOverflow: document.documentElement.scrollWidth <= window.innerWidth + 2
       };
@@ -475,6 +511,7 @@ const bundle = buildSync({
     assert.equal(rmAudit.uxaReduced, true, 'AriseAnimationUpgrade.prefersReducedMotion() detects OS reduced motion');
     assert.ok(rmAudit.btnTransition <= 0.001, `Button transition collapses under reduced motion (got ${rmAudit.btnTransition}s)`);
     assert.equal(rmAudit.skelAnimName, 'none', 'Skeleton shimmer animation is disabled under reduced motion');
+    assert.equal(rmAudit.groupAnimName, 'none', 'Grouped shimmer is disabled under reduced motion');
     assert.equal(rmAudit.spinAnimName, 'uxa-reduced-pulse', 'Active spinner uses calm opacity pulse instead of continuous spin under reduced motion');
     assert.equal(rmAudit.mobileNoOverflow, true, 'Mobile viewport (390x844) has zero horizontal overflow');
     console.log('PASS [7/7]: prefers-reduced-motion: reduce + Mobile (390x844) responsive checks verified.');

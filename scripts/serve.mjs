@@ -72,6 +72,14 @@ createServer(async (req, res) => {
     let st = await stat(file).catch(() => null);
     let effectiveRel = relPath;
     if (!st || st.isDirectory()) {
+      // Only application routes get the SPA fallback. A missing JS/CSS/media
+      // asset must fail visibly and must never poison the offline asset cache.
+      if (relPath !== "/index.html" && (path.extname(relPath) || /^\/(assets|src|styles)\//.test(relPath))) {
+        res.writeHead(404, mergeHeaders(DEPLOYMENT_SECURITY_HEADERS, {
+          "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8"
+        })).end("File not found.");
+        return;
+      }
       file = path.join(root, "index.html");
       effectiveRel = "/index.html";
       st = await stat(file);
@@ -83,7 +91,7 @@ createServer(async (req, res) => {
     const cc = cacheControlFor(effectiveRel);
 
     if (req.headers["if-none-match"] === etag && !req.headers.range) {
-      res.writeHead(304, mergeHeaders(DEPLOYMENT_SECURITY_HEADERS, { ETag: etag, "Cache-Control": cc })).end();
+      res.writeHead(304, mergeHeaders(DEPLOYMENT_SECURITY_HEADERS, { ETag: etag, "Cache-Control": cc, Vary: "Accept-Encoding" })).end();
       return;
     }
 
@@ -101,26 +109,48 @@ createServer(async (req, res) => {
       cache.set(file, entry);
     }
 
-    // Support HTTP Range requests for streaming audio files
-    if (req.headers.range && entry.raw) {
-      const m = /bytes=(\d+)-(\d*)/.exec(req.headers.range);
-      if (m) {
-        const start = Number(m[1]);
-        const end = m[2] ? Math.min(Number(m[2]), entry.raw.length - 1) : entry.raw.length - 1;
-        const slice = entry.raw.subarray(start, end + 1);
-        res.writeHead(206, mergeHeaders(DEPLOYMENT_SECURITY_HEADERS, {
-          "Content-Type": contentType,
-          "Accept-Ranges": "bytes",
-          "Content-Range": `bytes ${start}-${end}/${entry.raw.length}`,
-          "Content-Length": slice.length,
-          "Cache-Control": cc,
-          ETag: etag
-        })).end(slice);
+    // Single byte ranges (including suffixes), only for GET. Ignore a stale
+    // If-Range validator and return the full representation instead.
+    const ifRange = req.headers["if-range"];
+    const rangeFresh = !ifRange || (!String(ifRange).startsWith("W/") && ifRange === etag) ||
+      Date.parse(ifRange) >= Math.floor(st.mtimeMs / 1000) * 1000;
+    if (req.method === "GET" && req.headers.range && rangeFresh) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range));
+      const length = entry.raw.length;
+      let start = NaN, end = NaN;
+      if (match && (match[1] || match[2])) {
+        if (!match[1]) {
+          const suffix = Number(match[2]);
+          if (Number.isSafeInteger(suffix) && suffix > 0) { start = Math.max(0, length - suffix); end = length - 1; }
+        } else {
+          start = Number(match[1]);
+          end = match[2] ? Number(match[2]) : length - 1;
+        }
+      }
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= length || end < start) {
+        res.writeHead(416, mergeHeaders(DEPLOYMENT_SECURITY_HEADERS, {
+          "Content-Range": `bytes */${length}`, "Content-Length": 0,
+          "Accept-Ranges": "bytes", "Cache-Control": "no-store"
+        })).end();
         return;
       }
+      end = Math.min(end, length - 1);
+      const slice = entry.raw.subarray(start, end + 1);
+      res.writeHead(206, mergeHeaders(DEPLOYMENT_SECURITY_HEADERS, {
+        "Content-Type": contentType, "Accept-Ranges": "bytes",
+        "Content-Range": `bytes ${start}-${end}/${length}`, "Content-Length": slice.length,
+        "Cache-Control": cc, ETag: etag
+      })).end(slice);
+      return;
     }
 
-    const ae = String(req.headers["accept-encoding"] || "");
+    const encodings = new Map(String(req.headers["accept-encoding"] || "").toLowerCase().split(",").map(value => {
+      const [name, ...params] = value.trim().split(";");
+      const quality = params.find(p => p.trim().startsWith("q="));
+      const q = quality ? Number(quality.trim().slice(2)) : 1;
+      return [name, Number.isFinite(q) && q >= 0 && q <= 1 ? q : 0];
+    }));
+    const quality = name => encodings.get(name) ?? encodings.get("*") ?? 0;
     const headers = mergeHeaders(DEPLOYMENT_SECURITY_HEADERS, {
       "Content-Type": contentType,
       "Cache-Control": cc,
@@ -128,13 +158,13 @@ createServer(async (req, res) => {
       Vary: "Accept-Encoding"
     });
 
-    if (entry.br && /\bbr\b/.test(ae)) {
+    if (entry.br && quality("br") > 0 && quality("br") >= quality("gzip")) {
       headers["Content-Encoding"] = "br";
       headers["Content-Length"] = entry.br.length;
       res.writeHead(200, headers).end(entry.br);
       return;
     }
-    if (entry.gz && /\bgzip\b/.test(ae)) {
+    if (entry.gz && quality("gzip") > 0) {
       headers["Content-Encoding"] = "gzip";
       headers["Content-Length"] = entry.gz.length;
       res.writeHead(200, headers).end(entry.gz);

@@ -1,7 +1,17 @@
 export function startProtectedRuntime() {
   return window.AriseBoot.ready.then(async () => {
-    // Preserve the existing runtime; only delay it until access/restore/consent.
-    for (const placeholder of document.querySelectorAll('script[data-arise-protected]')) {
+    // Fetch in parallel only AFTER access/restore/consent. Keep execution in the
+    // original order below; preload mode must match each eventual script type.
+    const placeholders = [...document.querySelectorAll('script[data-arise-protected]')];
+    for (const placeholder of placeholders) {
+      const link = document.createElement('link');
+      link.rel = placeholder.dataset.module ? 'modulepreload' : 'preload';
+      link.href = placeholder.dataset.src;
+      if (placeholder.dataset.module) link.crossOrigin = 'anonymous';
+      else link.setAttribute('as', 'script');
+      document.head.appendChild(link);
+    }
+    for (const placeholder of placeholders) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script'); script.src = placeholder.dataset.src;
         if (placeholder.dataset.module) { script.type = 'module'; script.crossOrigin = 'anonymous'; }

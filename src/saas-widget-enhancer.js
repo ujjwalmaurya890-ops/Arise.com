@@ -49,8 +49,17 @@
     if (!mainEl) return [];
     var flexBody = mainEl.querySelector(":scope > div.flex-1");
     if (!flexBody) return [];
-    var l1 = flexBody.firstElementChild || flexBody;
+    // Supplemental Settings diagnostics may briefly precede the React route
+    // during navigation. They are not the route's card container.
+    var l1 = Array.prototype.find.call(flexBody.children, function (child) {
+      return child.id !== 'upp-data-health-card';
+    }) || flexBody;
     var container = l1.firstElementChild || l1;
+    // The Analytics error boundary is a layout wrapper, not a widget. Keep
+    // existing quick-jump/filter discovery aimed at the actual chart cards.
+    if (container.classList && container.classList.contains('arise-route-state')) {
+      container = container.firstElementChild || container;
+    }
     var candidates = [];
     var children = Array.prototype.slice.call(container.children || []);
     children.forEach(function (child) {
@@ -214,7 +223,8 @@
       }
     }
     var widgets = discoverWidgets(mainEl);
-    if (widgets.length < 3) {
+    var routeLoading = !!mainEl.querySelector("[data-arise-route-loading]");
+    if (widgets.length < 3 && !routeLoading) {
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
       return;
     }
@@ -274,6 +284,14 @@
     if (bar.previousElementSibling !== hdr) {
       hdr.insertAdjacentElement("afterend", bar);
     }
+
+    // Preserve the bar's footprint while a lazy route is pending. Removing it
+    // and reinserting it after the asset loads shifted the entire route body.
+    var pending = routeLoading && widgets.length < 3;
+    bar.style.visibility = pending ? 'hidden' : '';
+    bar.inert = pending;
+    if (pending) { bar.setAttribute('aria-hidden', 'true'); return; }
+    bar.removeAttribute('aria-hidden');
 
     var inpEl = bar.querySelector("#arise-pwb-input");
     if (inpEl && document.activeElement !== inpEl && inpEl.value !== filterQuery) {

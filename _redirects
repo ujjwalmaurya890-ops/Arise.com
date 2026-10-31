@@ -5,4 +5,7 @@
 /api/leetcode/*   /.netlify/functions/leetcode/:splat  200
 /api/codechef/*   /.netlify/functions/codechef/:splat  200
 /api/gfg/*        /.netlify/functions/gfg/:splat       200
+/assets/* /404.html 404
+/src/* /404.html 404
+/styles/* /404.html 404
 /* /index.html 200

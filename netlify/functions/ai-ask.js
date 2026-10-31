@@ -50,19 +50,29 @@ exports.handler = async function (event) {
     });
   }
 
+  const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : event.body || '{}';
+  // Both 6,000-character fields may contain four-byte Unicode. Bound the raw
+  // body as well, so unrelated fields cannot force an unbounded JSON parse.
+  if (Buffer.byteLength(raw, 'utf8') > 64 * 1024) return respond(413, { error: 'Request too large.' });
   let body;
   try {
-    body = JSON.parse(event.body || "{}");
+    body = JSON.parse(raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error();
   } catch (e) {
-    return respond(400, { error: "Invalid JSON body." });
+    return respond(400, { error: "Expected a JSON object." });
   }
 
   const system = typeof body.system === "string" ? body.system : "";
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
   const model = ALLOWED_MODELS.indexOf(body.model) !== -1 ? body.model : DEFAULT_MODEL;
-  const maxTokens = Math.min(Number(body.maxTokens) || 500, MAX_TOKENS_CAP);
+  const requestedTokens = body.maxTokens === undefined ? 500 : Number(body.maxTokens);
+  if (body.maxTokens !== undefined && !['number', 'string'].includes(typeof body.maxTokens) ||
+      !Number.isSafeInteger(requestedTokens) || requestedTokens < 1) {
+    return respond(400, { error: 'maxTokens must be a positive integer.' });
+  }
+  const maxTokens = Math.min(requestedTokens, MAX_TOKENS_CAP);
 
-  if (!prompt) return respond(400, { error: "Missing prompt." });
+  if (!prompt.trim()) return respond(400, { error: "Missing prompt." });
   if (system.length > MAX_CHARS || prompt.length > MAX_CHARS) {
     return respond(400, { error: "Request too large." });
   }
@@ -94,8 +104,8 @@ exports.handler = async function (event) {
       return respond(anthropicRes.status === 429 ? 429 : 502, { error: msg });
     }
 
-    const block = (data.content || []).find(function (b) { return b.type === "text"; });
-    if (!block || !block.text) {
+    const block = (Array.isArray(data?.content) ? data.content : []).find(function (b) { return b && b.type === "text"; });
+    if (!block || typeof block.text !== 'string' || !block.text.trim()) {
       return respond(502, { error: "Model returned no text." });
     }
 

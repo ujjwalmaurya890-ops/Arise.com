@@ -756,7 +756,7 @@ const CGPATrackerSection9=b.memo(function(){const t=b.useRef(null);return b.useE
 const NotesAppSection9=b.memo(function(){const t=b.useRef(null),w=b.useRef(null),[nTab,setNTab]=b.useState("notes");return b.useEffect(()=>{const n=t.current,wk=w.current;return n&&window.__mountNotesApp&&window.__mountNotesApp(n),wk&&window.__mountPersonalWiki&&window.__mountPersonalWiki(wk),()=>{n&&window.__unmountNotesApp&&window.__unmountNotesApp(n),wk&&window.__unmountPersonalWiki&&window.__unmountPersonalWiki(wk)}},[]),y.jsxs("div",{className:"space-y-4",children:[y.jsxs("div",{className:"flex gap-2 p-1 bg-cyber-card/40 border border-cyber-border/40 rounded-xl w-fit",children:[y.jsx("button",{type:"button",onClick:()=>setNTab("notes"),className:"px-4 py-2 rounded-lg text-sm font-medium transition-all "+(nTab==="notes"?"bg-neon-cyan/20 text-neon-cyan":"text-gray-400 hover:text-gray-200"),children:"\uD83D\uDCDD Notes"}),y.jsx("button",{type:"button",onClick:()=>setNTab("wiki"),className:"px-4 py-2 rounded-lg text-sm font-medium transition-all "+(nTab==="wiki"?"bg-neon-cyan/20 text-neon-cyan":"text-gray-400 hover:text-gray-200"),children:"\uD83D\uDCDA Wiki"})]}),y.jsx("div",{style:{display:nTab==="notes"?"block":"none"},children:y.jsx("div",{ref:t})}),y.jsx("div",{style:{display:nTab==="wiki"?"block":"none"},children:y.jsx("div",{ref:w})})]})});
 const ExpensesSection9=b.memo(function(){const t=b.useRef(null);return b.useEffect(()=>{const n=t.current;return n&&window.__mountExpenses&&window.__mountExpenses(n),()=>{n&&window.__unmountExpenses&&window.__unmountExpenses(n)}},[]),y.jsx("div",{className:"space-y-5",children:y.jsx("div",{ref:t})})});
 const ExamTrackerSection9=b.memo(function(){const t=b.useRef(null);return b.useEffect(()=>{const n=t.current;return n&&window.__mountExamTracker&&window.__mountExamTracker(n),()=>{n&&window.__unmountExamTracker&&window.__unmountExamTracker(n)}},[]),y.jsx("div",{className:"space-y-5",children:y.jsx("div",{ref:t})})});
-const g9=()=>y.jsxs("div",{className:"space-y-5 uxa-skeleton--delayed",role:"status","aria-live":"polite","aria-busy":"true",children:[y.jsx("span",{className:"uxa-sr-only",children:"Loading section…"}),y.jsx("div",{className:"h-24 uxa-skeleton rounded-2xl","aria-hidden":"true"}),y.jsx("div",{className:"grid grid-cols-2 lg:grid-cols-4 gap-4","aria-hidden":"true",children:[...Array(4)].map((e,t)=>y.jsx("div",{className:"h-24 uxa-skeleton rounded-2xl"},t))}),y.jsx("div",{className:"h-64 uxa-skeleton rounded-2xl","aria-hidden":"true"})]});
+const g9=()=>y.jsxs("div",{className:"space-y-5 uxa-skeleton--delayed arise-route-skeleton","data-arise-route-loading":"true",role:"status","aria-live":"polite","aria-busy":"true",children:[y.jsx("span",{className:"uxa-sr-only",children:"Loading section…"}),y.jsx("div",{className:"h-24 uxa-skeleton rounded-2xl","aria-hidden":"true"}),y.jsx("div",{className:"grid grid-cols-2 lg:grid-cols-4 gap-4","aria-hidden":"true",children:[...Array(4)].map((e,t)=>y.jsx("div",{className:"h-24 uxa-skeleton rounded-2xl"},t))}),y.jsx("div",{className:"h-64 uxa-skeleton rounded-2xl","aria-hidden":"true"})]});
 const SE=b.memo(function(){const{activeSection:t,level:n,streak:r}=Yn(),[a,s]=b.useState(!1),l=i9(t),gp=(HN.find(q=>q.id===t)||{}).group,[an,setAn]=b.useState(""),fr=b.useRef(!0),u=()=>{switch(t){case"dashboard":return y.jsx(wE,{});case"learning":return y.jsx(o9,{});case"exam-tracker":return y.jsx(ExamTrackerSection9,{});case"dsa":return y.jsx(s9,{});case"dev":return y.jsx(l9,{});case"cgpa":return y.jsx(CGPATrackerSection9,{});case"cp":return y.jsx(CompetitiveProgrammingSection9,{});case"social-media":return y.jsx(SocialMediaSection9,{});case"hackathon-tracker":return y.jsx(HackathonTrackerSection9,{});case"placement-tracker":return y.jsx(PlacementTrackerSection9,{});case"certificates":return y.jsx(CertificatesSection9,{});case"attendance-skills":return y.jsx(AttendanceSkillsSection9,{});case"cse-syllabus":return y.jsx(c9,{});case"projects":return y.jsx(u9,{});case"notes":return y.jsx(NotesAppSection9,{});case"expenses":return y.jsx(ExpensesSection9,{});case"resources":return y.jsx(h9,{});case"analytics":return y.jsx(m9,{});case"achievements":return y.jsx(p9,{});case"settings":return y.jsx(y9,{});default:return y.jsx(wE,{})}};b.useEffect(()=>{if(fr.current){fr.current=!1;return}const mEl=document.getElementById("arise-main");mEl&&(mEl.scrollTop=0);setAn(ariseLbl(i9(t))+" page")},[t]);return y.jsxs("div",{className:"flex h-screen bg-cyber-black overflow-hidden",children:[y.jsx("a",{href:"#arise-main",className:"arise-skip-link",onClick:e=>{e.preventDefault();const q=document.getElementById("arise-main");q&&q.focus()},children:"Skip to main content"}),y.jsx("div",{role:"status","aria-live":"polite","aria-atomic":"true",className:"sr-only",children:an}),y.jsx(VN,{}),y.jsx(a9,{mobileOpen:a,setMobileOpen:s}),y.jsxs("main",{id:"arise-main",tabIndex:-1,className:"flex-1 overflow-y-auto relative z-10 flex flex-col",children:[y.jsxs("header",{className:`
           sticky top-0 z-30 glass-strong
           border-b border-cyber-border/30
@@ -2053,23 +2053,60 @@ var Zv=[{category:"DSA",items:[{title:"NeetCode 150",url:"https://neetcode.io/pr
 var Uq=b.memo(function(){const[t,n]=b.useState(Zv[0].category),r=Zv.find(a=>a.category===t)?.items||[],ptc=b.useRef(null);b.useEffect(()=>{const el=ptc.current;return el&&window.__mountPlacementTracker&&window.__mountPlacementTracker(el),()=>{el&&window.__unmountPlacementTracker&&window.__unmountPlacementTracker(el)}},[]);return y.jsxs("div",{className:"space-y-6",children:[y.jsx(et,{title:"📋 Internship & Placement Tracker",children:y.jsx("div",{ref:ptc})}),y.jsx("div",{className:"flex gap-2 flex-wrap",children:Zv.map(a=>y.jsx("button",{onClick:()=>n(a.category),className:`px-4 py-2 rounded-lg text-sm font-medium transition-all ${t===a.category?"bg-neon-cyan/20 text-neon-cyan":"bg-cyber-card text-gray-400 hover:text-gray-200"}`,children:a.category},a.category))}),y.jsx("div",{className:"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4",children:r.map(a=>y.jsx("a",{href:a.url,target:"_blank",rel:"noopener noreferrer",children:y.jsxs(et,{className:"hover:border-neon-cyan/30 transition-all h-full",children:[y.jsx("h4",{className:"font-semibold text-gray-200 text-sm mb-1",children:a.title}),y.jsx("p",{className:"text-xs text-gray-400",children:a.desc}),y.jsxs("div",{className:"mt-3 text-xs text-neon-cyan flex items-center gap-1",children:[y.jsx(Vx,{className:"w-3 h-3"})," Open →"]})]})},a.url))})]})});
 var Vq=Object.freeze(Object.defineProperty({__proto__:null,default:Uq},Symbol.toStringTag,{value:"Module"}));
 var __ariseAnalyticsProm = null;
+function __ariseValidAnalyticsModule(module) {
+  var component = module && module.default;
+  return typeof component === 'function' || !!(component && typeof component === 'object' &&
+    (component.$$typeof === Symbol.for('react.memo') || component.$$typeof === Symbol.for('react.forward_ref')));
+}
 function __loadAriseAnalytics() {
-  if (globalThis.__ARISE_ANALYTICS_MODULE__) return Promise.resolve(globalThis.__ARISE_ANALYTICS_MODULE__);
+  if (__ariseValidAnalyticsModule(globalThis.__ARISE_ANALYTICS_MODULE__)) return Promise.resolve(globalThis.__ARISE_ANALYTICS_MODULE__);
   if (__ariseAnalyticsProm) return __ariseAnalyticsProm;
   globalThis.__ARISE_BUNDLE_DEPS__ = { b, ze, t_, Fi, qA, hl, f6, Yn, z0, y, Xe, et };
   __ariseAnalyticsProm = new Promise(function(resolve, reject) {
-    if (typeof document === "undefined") { reject(new Error("no document")); return; }
-    var s = document.createElement("script");
-    s.src = "./assets/app-analytics.js";
-    s.async = true;
-    s.onload = function() { resolve(globalThis.__ARISE_ANALYTICS_MODULE__); };
-    s.onerror = function(e) { __ariseAnalyticsProm = null; reject(e); };
-    document.head.appendChild(s);
+    if (typeof document === "undefined") { reject(new Error("Analytics requires a browser.")); return; }
+    var script = document.createElement("script"), settled = false;
+    var timer = setTimeout(function () { finish(false); }, 12000);
+    function finish(ok) {
+      if (settled) return;
+      settled = true; clearTimeout(timer); script.onload = script.onerror = null;
+      var module = globalThis.__ARISE_ANALYTICS_MODULE__;
+      if (ok && __ariseValidAnalyticsModule(module)) resolve(module);
+      else {
+        script.remove(); __ariseAnalyticsProm = null; globalThis.__ARISE_ANALYTICS_MODULE__ = null;
+        reject(new Error("The Analytics file could not load. Check your connection and retry."));
+      }
+    }
+    script.src = "./assets/app-analytics.js";
+    script.async = true;
+    script.onload = function () { finish(true); };
+    script.onerror = function () { finish(false); };
+    try { document.head.appendChild(script); } catch (_) { finish(false); }
   });
   return __ariseAnalyticsProm;
 }
-const __AriseLazyAnalytics = b.lazy(__loadAriseAnalytics);
-const Jce = { default: function(props) { return y.jsx(__AriseLazyAnalytics, props); } };
+// Contain a rejected lazy import/render error to Analytics, not the entire
+// workspace root. A fresh lazy component on Retry clears React's rejected cache.
+class __AriseAnalyticsBoundary extends b.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false, Lazy: b.lazy(__loadAriseAnalytics) };
+    this.retry = () => {
+      __ariseAnalyticsProm = null;
+      this.setState({ failed: false, Lazy: b.lazy(__loadAriseAnalytics) });
+    };
+  }
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    return y.jsx("div", { className: "arise-route-state", children: this.state.failed
+      ? y.jsxs("section", { className: "uxa-error-state", role: "alert", children: [
+          y.jsx("h2", { className: "uxa-state-title", children: "Analytics could not load" }),
+          y.jsx("p", { className: "uxa-state-desc", children: "Check your connection and retry. Your saved data is unchanged, and other workspace sections remain available." }),
+          y.jsx("button", { type: "button", className: "uxa-retry-btn", onClick: this.retry, children: "Retry Analytics" })
+        ] })
+      : y.jsx(b.Suspense, { fallback: y.jsx(g9, {}), children: y.jsx(this.state.Lazy, this.props) }) });
+  }
+}
+const Jce = { default: function(props) { return y.jsx(__AriseAnalyticsBoundary, props); } };
 const eue=b.memo(function(){const{achievements:t,xp:n,level:r}=Yn(),[a,s]=b.useState("All"),l=b.useMemo(()=>["All",...new Set(t.map(m=>m.category))],[t]),u=b.useMemo(()=>t.filter(m=>a==="All"||m.category===a),[t,a]),f=t.filter(m=>m.unlocked).length,h=t.filter(m=>m.unlocked).reduce((m,p)=>m+p.xp,0);return y.jsxs("div",{className:"space-y-6",children:[y.jsxs("div",{className:"grid grid-cols-2 sm:grid-cols-4 gap-3",children:[y.jsx(Xe,{label:"Level",value:r,icon:"⭐",color:"var(--warning)"}),y.jsx(Xe,{label:"Total XP",value:n,icon:"💎",color:"var(--info)"}),y.jsx(Xe,{label:"Unlocked",value:`${f}/${t.length}`,icon:"🏆",color:"var(--success)"}),y.jsx(Xe,{label:"Earned XP",value:h,icon:"✨",color:"var(--secondary)"})]}),y.jsx(et,{children:y.jsxs("div",{className:"flex items-center gap-4",children:[y.jsx("div",{className:"text-center",children:y.jsxs("div",{className:"text-3xl font-black bg-gradient-to-r from-neon-cyan to-neon-purple bg-clip-text text-transparent",children:["Lvl ",r]})}),y.jsxs("div",{className:"flex-1",children:[y.jsxs("div",{className:"flex justify-between text-xs text-gray-500 mb-1",children:[y.jsxs("span",{children:[n%100," / 100 XP"]}),y.jsxs("span",{children:["Level ",r+1]})]}),y.jsx(bl,{value:n%100,height:"h-3",color:"linear-gradient(to right, var(--info), var(--secondary), var(--warning))",animated:!0})]})]})}),y.jsx("div",{className:"flex gap-2 flex-wrap",children:l.map(m=>y.jsx("button",{onClick:()=>s(m),className:`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${a===m?"bg-neon-cyan/20 text-neon-cyan":"bg-cyber-card text-gray-400 hover:text-gray-200"}`,children:m},m))}),y.jsx("div",{className:"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3",children:u.map(m=>y.jsx("div",{className:`glass rounded-xl p-4 transition-all ${m.unlocked?"border-opacity-50":"opacity-50 grayscale"}`,style:{borderColor:m.unlocked?`${_v[m.rarity]}40`:void 0},children:y.jsxs("div",{className:"flex items-start gap-3",children:[y.jsx("span",{className:"text-2xl",children:m.icon}),y.jsxs("div",{className:"flex-1 min-w-0",children:[y.jsxs("div",{className:"flex items-center gap-2 flex-wrap",children:[y.jsx("h4",{className:"font-semibold text-sm text-gray-200 truncate",children:m.title}),y.jsx("span",{className:"text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0",style:{background:`${_v[m.rarity]}20`,color:_v[m.rarity]},children:m.rarity})]}),y.jsx("p",{className:"text-xs text-gray-400 mt-0.5",children:m.description}),y.jsxs("div",{className:"flex items-center gap-2 mt-2",children:[y.jsxs("span",{className:"text-xs text-neon-cyan font-mono",children:["+",m.xp," XP"]}),m.unlocked&&y.jsx("span",{className:"text-[10px] text-neon-green",children:"✓ Unlocked"})]})]})]})},m.id))})]})});
 const tue=Object.freeze(Object.defineProperty({__proto__:null,default:eue},Symbol.toStringTag,{value:"Module"}));
 const nue=[{id:"cyberpunk",name:"Cyberpunk",color:"var(--info)"},{id:"amoled",name:"AMOLED",color:"#ffffff"},{id:"midnight",name:"Midnight Blue",color:"#0a84ff"},{id:"matrix",name:"Matrix Green",color:"var(--success)"}];

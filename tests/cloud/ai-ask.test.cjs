@@ -158,3 +158,34 @@ test('source guard: timeout is bounded and every response uses the private heade
   const respondMatches = source.match(/'Cache-Control': 'no-store, private'/g);
   assert.ok(respondMatches && respondMatches.length === 1, 'single respond() helper owns the shared headers');
 });
+
+test('non-object JSON and oversized raw bodies are rejected without an upstream call', async () => {
+  let calls = 0;
+  upstream = async () => { calls++; throw new Error('unexpected upstream'); };
+  for (const body of [null, [], 'text', 123, true]) {
+    const response = await handler(post(body));
+    assert.equal(response.statusCode, 400);
+  }
+  const oversized = await handler(post({ prompt: 'valid', ignored: 'x'.repeat(65536) }));
+  assert.equal(oversized.statusCode, 413);
+  assert.equal(calls, 0);
+});
+
+test('explicit token budgets must be finite positive integers, capped at the existing maximum', async () => {
+  let calls = 0;
+  upstream = async () => { calls++; return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }] }) }; };
+  for (const maxTokens of [-1, 0, 1.5, 'Infinity', 'invalid', true, [], null]) {
+    assert.equal((await handler(post({ prompt: 'hi', maxTokens }))).statusCode, 400, String(maxTokens));
+  }
+  assert.equal(calls, 0);
+  assert.equal((await handler(post({ prompt: 'hi', maxTokens: 1 }))).statusCode, 200);
+});
+
+test('malformed or blank provider content is an explicit 502, never a false success or unhandled rejection', async () => {
+  for (const data of [null, { content: {} }, { content: [{ type: 'text', text: 123 }] }, { content: [{ type: 'text', text: '  ' }] }]) {
+    upstream = async () => ({ ok: true, status: 200, json: async () => data });
+    const response = await handler(post({ prompt: 'hi' }));
+    assert.equal(response.statusCode, 502);
+    privateHeaders(response);
+  }
+});

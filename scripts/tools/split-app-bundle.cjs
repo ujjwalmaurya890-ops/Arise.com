@@ -216,23 +216,60 @@ const firstAfterJce = units.findIndex((u, i) => !inAnalytics[i] && i > eqUnitIdx
 const lazyJceShim = {
   kind: "stmt",
   src: `var __ariseAnalyticsProm = null;
+function __ariseValidAnalyticsModule(module) {
+  var component = module && module.default;
+  return typeof component === 'function' || !!(component && typeof component === 'object' &&
+    (component.$$typeof === Symbol.for('react.memo') || component.$$typeof === Symbol.for('react.forward_ref')));
+}
 function __loadAriseAnalytics() {
-  if (globalThis.__ARISE_ANALYTICS_MODULE__) return Promise.resolve(globalThis.__ARISE_ANALYTICS_MODULE__);
+  if (__ariseValidAnalyticsModule(globalThis.__ARISE_ANALYTICS_MODULE__)) return Promise.resolve(globalThis.__ARISE_ANALYTICS_MODULE__);
   if (__ariseAnalyticsProm) return __ariseAnalyticsProm;
   globalThis.__ARISE_BUNDLE_DEPS__ = { ${depsFromMain.join(", ")} };
   __ariseAnalyticsProm = new Promise(function(resolve, reject) {
-    if (typeof document === "undefined") { reject(new Error("no document")); return; }
-    var s = document.createElement("script");
-    s.src = "./assets/app-analytics.js";
-    s.async = true;
-    s.onload = function() { resolve(globalThis.__ARISE_ANALYTICS_MODULE__); };
-    s.onerror = function(e) { __ariseAnalyticsProm = null; reject(e); };
-    document.head.appendChild(s);
+    if (typeof document === "undefined") { reject(new Error("Analytics requires a browser.")); return; }
+    var script = document.createElement("script"), settled = false;
+    var timer = setTimeout(function () { finish(false); }, 12000);
+    function finish(ok) {
+      if (settled) return;
+      settled = true; clearTimeout(timer); script.onload = script.onerror = null;
+      var module = globalThis.__ARISE_ANALYTICS_MODULE__;
+      if (ok && __ariseValidAnalyticsModule(module)) resolve(module);
+      else {
+        script.remove(); __ariseAnalyticsProm = null; globalThis.__ARISE_ANALYTICS_MODULE__ = null;
+        reject(new Error("The Analytics file could not load. Check your connection and retry."));
+      }
+    }
+    script.src = "./assets/app-analytics.js";
+    script.async = true;
+    script.onload = function () { finish(true); };
+    script.onerror = function () { finish(false); };
+    try { document.head.appendChild(script); } catch (_) { finish(false); }
   });
   return __ariseAnalyticsProm;
 }
-const __AriseLazyAnalytics = b.lazy(__loadAriseAnalytics);
-const Jce = { default: function(props) { return y.jsx(__AriseLazyAnalytics, props); } };`
+// Contain a rejected lazy import/render error to Analytics, not the entire
+// workspace root. A fresh lazy component on Retry clears React's rejected cache.
+class __AriseAnalyticsBoundary extends b.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false, Lazy: b.lazy(__loadAriseAnalytics) };
+    this.retry = () => {
+      __ariseAnalyticsProm = null;
+      this.setState({ failed: false, Lazy: b.lazy(__loadAriseAnalytics) });
+    };
+  }
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    return y.jsx("div", { className: "arise-route-state", children: this.state.failed
+      ? y.jsxs("section", { className: "uxa-error-state", role: "alert", children: [
+          y.jsx("h2", { className: "uxa-state-title", children: "Analytics could not load" }),
+          y.jsx("p", { className: "uxa-state-desc", children: "Check your connection and retry. Your saved data is unchanged, and other workspace sections remain available." }),
+          y.jsx("button", { type: "button", className: "uxa-retry-btn", onClick: this.retry, children: "Retry Analytics" })
+        ] })
+      : y.jsx(b.Suspense, { fallback: y.jsx(g9, {}), children: y.jsx(this.state.Lazy, this.props) }) });
+  }
+}
+const Jce = { default: function(props) { return y.jsx(__AriseAnalyticsBoundary, props); } };`
 };
 mainUnits.splice(mainUnits.indexOf(units[firstAfterJce]), 0, lazyJceShim);
 

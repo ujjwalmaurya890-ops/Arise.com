@@ -242,3 +242,8 @@
       color 90ms linear;
   }
 }
+
+@media (max-width: 1023px), (pointer: coarse) {
+  .wnav-pill { min-height: 44px; flex-shrink: 0; }
+  .wnav { scroll-padding-inline: 4px; padding: 4px 2px; }
+}

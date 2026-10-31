@@ -230,6 +230,21 @@
     });
   }
 
+  // HTML escaping alone does not make a URL safe. Validate at the render
+  // boundary without rewriting the user's stored Markdown or link fields.
+  function safeURL(value, opts) {
+    if (typeof value !== "string") return "";
+    var text = value.trim();
+    if (!text || /[\u0000-\u001f\u007f]/.test(text)) return "";
+    try {
+      var url = new URL(text, document.baseURI);
+      if (url.protocol !== "http:" && url.protocol !== "https:" &&
+          !(opts && opts.allowMailto && url.protocol === "mailto:")) return "";
+      if (url.username || url.password) return "";
+      return url.href;
+    } catch (_) { return ""; }
+  }
+
   function prefersReducedMotion() {
     if (document.documentElement && document.documentElement.classList.contains("perf-lite")) return true;
     return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -418,6 +433,7 @@
     startOfDay: startOfDay,
     highestCrossed: highestCrossed,
     bootUpdater: bootUpdater,
+    safeURL: safeURL,
     prefersReducedMotion: prefersReducedMotion,
     smoothScroll: smoothScroll,
     setHTMLIfChanged: setHTMLIfChanged,

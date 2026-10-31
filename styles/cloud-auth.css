@@ -39,3 +39,10 @@ html:not([data-cloud-auth="ready"]) #root { display:none !important; }
 @media (max-width:600px) { #cloud-account { bottom:calc(136px + env(safe-area-inset-bottom,0px)); right:12px; } #cloud-account-panel { width:min(330px,calc(100vw - 24px)); max-height:calc(100dvh - 196px); overflow-y:auto; } }
 
 [data-theme-mode="dark"] .cloud-brand img { filter:invert(1); }
+
+/* Keep recovery/account controls reachable on short and landscape viewports. */
+#cloud-conflict .cloud-card { max-height: calc(100dvh - 40px); overflow-y: auto; }
+#cloud-account-panel { max-height: calc(100dvh - 180px); overflow-y: auto; }
+@media (max-width: 600px) {
+  #cloud-account-panel { max-height: calc(100dvh - 196px); }
+}

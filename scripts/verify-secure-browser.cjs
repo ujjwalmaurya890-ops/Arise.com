@@ -27,7 +27,7 @@ const bundle = buildSync({ stdin: { contents: source, resolveDir: process.cwd(),
   const browser = await chromium.launch({ args: binary.args.filter(arg => !['--disable-web-security', '--allow-running-insecure-content', '--disable-site-isolation-trials', '--single-process'].includes(arg)), executablePath: process.env.CHROMIUM_PATH || await binary.executablePath(), headless: true,
     env: { ...process.env, ...(libraries ? { LD_LIBRARY_PATH: path.join(libraries, 'lib') + ':' + (process.env.LD_LIBRARY_PATH || '') } : {}) } });
   const errors = [], output = path.join(process.cwd(), '.test-artifacts'); fs.mkdirSync(output, { recursive: true });
-  const contexts = [];
+  const contexts = [], offlineContexts = new WeakSet();
   try {
     const locked = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' }); contexts.push(locked);
     const entry = await locked.newPage();
@@ -42,6 +42,9 @@ const bundle = buildSync({ stdin: { contents: source, resolveDir: process.cwd(),
       const context = await browser.newContext({ viewport, serviceWorkers: 'block' }); contexts.push(context);
       await context.route('**/assets/cloud-auth.js', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: bundle }));
       await context.route('**/api/cloud**', async route => {
+        // Playwright route.fulfill can return fixture data even while its
+        // context is offline. Never let that act as a false cloud acknowledgment.
+        if (offlineContexts.has(context)) return route.abort('internetdisconnected');
         const request = route.request(), url = new URL(request.url());
         const result = await f.handler({ httpMethod: request.method(), headers: request.headers(), queryStringParameters: Object.fromEntries(url.searchParams), body: request.postData() || '' });
         await route.fulfill({ status: result.statusCode, headers: result.headers, body: result.body });
@@ -61,7 +64,7 @@ const bundle = buildSync({ stdin: { contents: source, resolveDir: process.cwd(),
       await window.AriseAuth.sync.flush();
     });
     assert.match((await f.request()('?action=read&key=tasks')).value, /device-A-task/);
-    console.log('PASS: authenticated production dashboard and all 110 widget scripts load; automatic writes are acknowledged.');
+    console.log('PASS: authenticated production dashboard and all configured widget scripts load; automatic writes are acknowledged.');
     const navigation = ['DSA Tracker', 'Development', 'Learning', 'Expenses', 'Notes'];
     const visited = [];
     for (const name of navigation) {
@@ -138,10 +141,16 @@ const bundle = buildSync({ stdin: { contents: source, resolveDir: process.cwd(),
     });
     assert.equal(zipBytes, 350011);
     console.log('PASS: real Chromium worker-based ZIP export/import preserves large JSON.');
+    offlineContexts.add(b.context);
     await b.context.setOffline(true);
+    await b.page.waitForFunction(() => navigator.onLine === false);
     await b.page.evaluate(async () => { localStorage.setItem('notes', '[{"id":"offline-note","content":"retained"}]'); await window.AriseAuth.sync.flush(); });
     assert.equal(await b.page.evaluate(() => window.AriseAuth.sync.lastStatus.status), 'offline');
+    assert.ok(await b.page.evaluate(() => window.AriseAuth.sync.queue.some(op => op.key === 'notes' && op.value.includes('offline-note'))), 'offline write remains queued');
+    assert.doesNotMatch((await f.request()('?action=read&key=notes')).value, /offline-note/, 'offline fixture must not acknowledge an unsent write');
+    offlineContexts.delete(b.context);
     await b.context.setOffline(false);
+    await b.page.waitForFunction(() => navigator.onLine === true);
     await b.page.evaluate(async () => { await window.AriseAuth.sync.flush(); });
     assert.match((await f.request()('?action=read&key=notes')).value, /offline-note/);
     console.log('PASS: offline pending queue reconnects and saves without duplication.');

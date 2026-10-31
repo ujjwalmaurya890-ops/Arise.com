@@ -18,9 +18,9 @@ function reservePort() {
   });
 }
 
-function request(port, requestPath) {
+function request(port, requestPath, headers = {}, method = 'GET') {
   return new Promise((resolve, reject) => {
-    const req = http.get({ hostname: '127.0.0.1', port, path: requestPath }, response => {
+    const req = http.get({ hostname: '127.0.0.1', port, path: requestPath, headers, method }, response => {
       const chunks = [];
       response.on('data', chunk => chunks.push(chunk));
       response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks).toString('utf8') }));
@@ -68,7 +68,41 @@ function waitForListen(child) {
     assert.doesNotMatch(missingBuild.body, /ENOENT|stack|arise-serve-error-test/);
     assert.match(child.__stderr || '', /\[serve\] request failed:/, 'internal failure is logged for the developer');
 
-    console.log('Local server errors: malformed URI -> 400; missing build -> logged 500 without diagnostic leakage.');
+    fs.mkdirSync(path.join(root, 'dist/assets'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'dist/index.html'), '<!doctype html><title>Fixture shell</title>');
+    fs.writeFileSync(path.join(root, 'dist/assets/audio.mp3'), '0123456789');
+    fs.writeFileSync(path.join(root, 'dist/assets/code.js'), '// compression fixture\n'.repeat(100));
+    const missing = await request(port, '/assets/missing.js');
+    assert.equal(missing.status, 404, 'missing assets must not become a successful HTML response');
+    assert.equal(missing.headers['cache-control'], 'no-store');
+    assert.equal((await request(port, '/notes')).status, 200, 'extensionless SPA navigation is preserved');
+    for (const [range, status, body, contentRange] of [
+      ['bytes=0-3', 206, '0123', 'bytes 0-3/10'],
+      ['bytes=7-', 206, '789', 'bytes 7-9/10'],
+      ['bytes=-3', 206, '789', 'bytes 7-9/10'],
+      ['bytes=-20', 206, '0123456789', 'bytes 0-9/10'],
+      ['bytes=7-99', 206, '789', 'bytes 7-9/10'],
+      ['bytes=99-', 416, '', 'bytes */10'],
+      ['bytes=5-2', 416, '', 'bytes */10'],
+      ['bytes=-0', 416, '', 'bytes */10'],
+      ['bytes=oops', 416, '', 'bytes */10']
+    ]) {
+      const response = await request(port, '/assets/audio.mp3', { Range: range });
+      assert.equal(response.status, status, range);
+      assert.equal(response.body, body, range);
+      assert.equal(response.headers['content-range'], contentRange, range);
+      assert.equal(Number(response.headers['content-length']), Buffer.byteLength(body), range);
+    }
+    const head = await request(port, '/assets/audio.mp3', {}, 'HEAD');
+    assert.equal(head.status, 200); assert.equal(head.body, ''); assert.equal(head.headers['content-length'], '10');
+    const identity = await request(port, '/assets/code.js', { 'Accept-Encoding': 'br;q=0, gzip;q=0' });
+    assert.equal(identity.headers['content-encoding'], undefined, 'q=0 explicitly rejects compression');
+    const gzip = await request(port, '/assets/code.js', { 'Accept-Encoding': 'br;q=0, gzip;q=1' });
+    assert.equal(gzip.headers['content-encoding'], 'gzip');
+    const notModified = await request(port, '/assets/code.js', { 'If-None-Match': identity.headers.etag });
+    assert.equal(notModified.status, 304);
+    assert.equal(notModified.headers.vary, 'Accept-Encoding');
+    console.log('Local server: safe 400/500/404, SPA fallback, valid/invalid/suffix audio ranges, HEAD, encoding q-values and 304 Vary passed.');
   } finally {
     await new Promise(resolve => {
       if (child.exitCode !== null || child.signalCode !== null) return resolve();

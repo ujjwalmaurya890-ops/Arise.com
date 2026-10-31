@@ -10,6 +10,9 @@ const {
 const policies = [
   ['/', 'no-cache, no-store, must-revalidate'],
   ['/index.html', 'no-cache, no-store, must-revalidate'],
+  ['/404.html', 'no-store'],
+  ['/manifest.webmanifest', 'no-cache, must-revalidate'],
+  ['/assets/interview_sheets_data.json', 'public, max-age=60, must-revalidate'],
   ['/service-worker.js', 'no-cache, no-store, must-revalidate'],
   ['/assets/cloud-auth.js', 'no-cache, must-revalidate'],
   ['/assets/cloud-auth.js?build=2', 'no-cache, must-revalidate'],
@@ -45,3 +48,10 @@ assert.equal(header('content-security-policy'), "base-uri 'self'");
 assert.equal(Object.keys(merged).filter(key => key.toLowerCase() === 'content-type').length, 1);
 
 console.log(`HTTP policy: ${policies.length} cache cases and deployment/API security headers passed.`);
+
+const fs = require('node:fs');
+const path = require('node:path');
+const redirects = fs.readFileSync(path.resolve(__dirname, '../_redirects'), 'utf8');
+for (const dir of ['assets', 'src', 'styles']) {
+  assert.ok(redirects.indexOf('/' + dir + '/* /404.html 404') < redirects.indexOf('/* /index.html 200'));
+}

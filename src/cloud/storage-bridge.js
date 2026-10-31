@@ -42,7 +42,15 @@
       var previousMarker = !quiet && schema.isLocalKey(key) ? native.getItem(journalKey(key, false)) : null;
       var marker = !quiet && schema.isLocalKey(key) ? markDirty(key, false) : null;
       try { native.setItem(physical(key), value); }
-      catch (error) { if (marker) { if (previousMarker) native.setItem(journalKey(key, false), previousMarker); else native.removeItem(journalKey(key, false)); } throw error; }
+      catch (error) {
+        if (marker) { if (previousMarker) native.setItem(journalKey(key, false), previousMarker); else native.removeItem(journalKey(key, false)); }
+        try {
+          if (error && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' || error.code === 22)) {
+            window.dispatchEvent(new CustomEvent('arise:storage-quota', { detail: { key: key } }));
+          }
+        } catch (notifyError) {}
+        throw error;
+      }
       if (!quiet) emit(key, value, marker);
     },
     removeItem: function (key) {

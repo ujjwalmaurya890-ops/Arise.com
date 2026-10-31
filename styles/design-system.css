@@ -1,0 +1,312 @@
+/*
+ * ARISE design system foundation
+ * Semantic aliases deliberately follow the active theme's existing tokens so
+ * built-in, imported and user-authored themes continue to switch atomically.
+ */
+:root {
+  /* Brand: Indigo is the identity; the theme's own secondary/chart hues support it. */
+  --brand-primary: var(--primary);
+  --brand-primary-hover: var(--primary-hover);
+  --brand-on-primary: var(--primary-contrast);
+  --brand-on-primary-hover: var(--primary-hover-contrast, var(--primary-contrast));
+  --brand-secondary: var(--chart-2);
+  --brand-tertiary: var(--chart-5);
+  --brand-accent: var(--primary-fg, var(--primary));
+  --brand-highlight: var(--chart-3);
+  --brand-muted: var(--text-tertiary);
+
+  /* Surfaces: each step is intentionally tonal, not a new decorative color. */
+  --surface-app: var(--background);
+  --surface-app-secondary: var(--background-secondary);
+  --surface-sidebar: var(--sidebar-bg);
+  --surface-header: var(--navbar-bg);
+  --surface-content: var(--background);
+  --surface-section: var(--surface-muted);
+  --surface-card: var(--surface);
+  --surface-card-elevated: color-mix(in srgb, var(--surface) 76%, var(--surface-active));
+  --surface-floating: var(--surface);
+  --surface-modal: var(--surface);
+  --surface-dropdown: var(--surface);
+  --surface-input: var(--surface-muted);
+  --surface-interactive: var(--surface-hover);
+  --surface-selected: color-mix(in srgb, var(--primary) 10%, var(--surface));
+
+  /* Text roles. Disabled text remains legible; disabled state is also expressed by behavior. */
+  --text-heading: var(--text-primary);
+  --text-body: var(--text-primary);
+  --text-body-secondary: var(--text-secondary);
+  --text-body-tertiary: var(--text-tertiary);
+  --text-muted: var(--text-tertiary);
+  --text-disabled: color-mix(in srgb, var(--text-tertiary) 78%, var(--surface));
+  --text-placeholder: var(--text-tertiary);
+  --text-link: var(--link);
+  --text-link-hover: var(--link-hover);
+  --text-inverted: var(--primary-contrast);
+  --text-on-accent: var(--primary-contrast);
+
+  /* Boundaries, states and semantic feedback. */
+  --border-primary: var(--border);
+  --border-secondary: color-mix(in srgb, var(--border) 72%, transparent);
+  --border-subtle: color-mix(in srgb, var(--border) 55%, transparent);
+  --border-card: var(--border);
+  --border-input: var(--border-strong);
+  --border-divider: var(--border);
+  --border-focus: var(--primary);
+  --border-selected: color-mix(in srgb, var(--primary) 48%, var(--border));
+  --focus-ring: var(--text-primary);
+
+  --success-fg: var(--success);
+  --success-bg: color-mix(in srgb, var(--success) 4%, var(--surface));
+  --success-border: color-mix(in srgb, var(--success) 34%, var(--border));
+  --warning-fg: var(--warning);
+  --warning-bg: color-mix(in srgb, var(--warning) 4%, var(--surface));
+  --warning-border: color-mix(in srgb, var(--warning) 36%, var(--border));
+  --danger-fg: var(--danger);
+  --danger-bg: color-mix(in srgb, var(--danger) 4%, var(--surface));
+  --danger-border: color-mix(in srgb, var(--danger) 36%, var(--border));
+  --info-fg: var(--info);
+  --info-bg: color-mix(in srgb, var(--info) 4%, var(--surface));
+  --info-border: color-mix(in srgb, var(--info) 34%, var(--border));
+  --neutral-fg: var(--text-secondary);
+  --neutral-bg: var(--surface-muted);
+  --neutral-border: var(--border);
+  --pending-fg: var(--warning-fg);
+  --pending-bg: var(--warning-bg);
+  --pending-border: var(--warning-border);
+  --disabled-fg: var(--text-disabled);
+  --disabled-bg: var(--surface-muted);
+  --disabled-border: var(--border);
+
+  /* Chart aliases are theme-aware. The additional series keep charts distinct. */
+  --chart-primary: var(--chart-1);
+  --chart-secondary: var(--chart-2);
+  --chart-tertiary: var(--chart-3);
+  --chart-comparison: var(--chart-4);
+  --chart-highlight: var(--chart-5);
+  --chart-positive: var(--chart-3);
+  --chart-negative: var(--danger);
+  --chart-neutral: var(--text-tertiary);
+  --chart-grid: var(--border);
+  --chart-axis: var(--text-secondary);
+  --chart-tooltip-bg: var(--surface-floating);
+  --chart-tooltip-fg: var(--text-primary);
+  --chart-tooltip-border: var(--border-strong);
+  --chart-6: #0D9488;
+  --chart-7: #D97706;
+  --chart-8: #DB2777;
+
+  /* 4px spacing foundation, component geometry and four practical elevations. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --control-height-sm: 2rem;
+  --control-height-md: 2.5rem;
+  --control-height-lg: 2.75rem;
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-panel: 1rem;
+  --radius-modal: 1rem;
+  --radius-pill: 999px;
+  --elevation-0: none;
+  --elevation-1: var(--shadow-sm);
+  --elevation-2: var(--shadow-md);
+  --elevation-3: var(--shadow-md);
+  --elevation-4: var(--shadow-lg);
+  --motion-fast: 140ms;
+  --motion-standard: 180ms;
+  --motion-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+html[data-theme-mode="light"] {
+  color-scheme: light;
+  --surface-card-elevated: color-mix(in srgb, var(--surface) 86%, var(--surface-active));
+  --surface-selected: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  --border-secondary: color-mix(in srgb, var(--border) 82%, transparent);
+  --border-subtle: color-mix(in srgb, var(--border) 68%, transparent);
+  --elevation-1: 0 1px 2px color-mix(in srgb, var(--text-primary) 5%, transparent);
+  --elevation-2: 0 6px 18px color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --elevation-3: 0 12px 28px color-mix(in srgb, var(--text-primary) 9%, transparent);
+  --elevation-4: 0 24px 56px color-mix(in srgb, var(--text-primary) 12%, transparent);
+  --chart-6: #0F766E;
+  --chart-7: #B45309;
+  --chart-8: #BE185D;
+}
+
+html[data-theme-mode="dark"] {
+  color-scheme: dark;
+  --surface-card-elevated: color-mix(in srgb, var(--surface) 74%, var(--surface-active));
+  --surface-selected: color-mix(in srgb, var(--primary) 13%, var(--surface));
+  --elevation-1: 0 1px 2px color-mix(in srgb, #000 22%, transparent);
+  --elevation-2: 0 8px 20px color-mix(in srgb, #000 28%, transparent);
+  --elevation-3: 0 14px 32px color-mix(in srgb, #000 34%, transparent);
+  --elevation-4: 0 24px 56px color-mix(in srgb, #000 42%, transparent);
+}
+
+html[data-theme] {
+  color-scheme: light dark;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scroll-behavior: smooth;
+}
+html[data-theme-mode="light"] { color-scheme: light; }
+html[data-theme-mode="dark"] { color-scheme: dark; }
+html[data-theme] body {
+  background: var(--surface-app) !important;
+  color: var(--text-body) !important;
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+}
+html[data-theme] #root,
+html[data-theme] #arise-main,
+html[data-theme] #arise-main main,
+html[data-theme] .min-h-screen {
+  background-color: var(--surface-app) !important;
+  background-image: none !important;
+  color: var(--text-body) !important;
+}
+
+/* Shared surfaces: preserve specialized visualization/editor internals. */
+html[data-theme] .glass,
+html[data-theme] .glass-premium,
+html[data-theme] .glass-strong,
+html[data-theme] .glass-card,
+html[data-theme] .lpa50-card,
+html[data-theme] .att-card,
+html[data-theme] .att-stat-card,
+html[data-theme] .att-sub-card,
+html[data-theme] .skt-card,
+html[data-theme] .skt-stat-card,
+html[data-theme] .skt-skill-card,
+html[data-theme] [class*="bg-cyber-card"],
+html[data-theme] .arise-bento-card,
+html[data-theme] .readiness-panel {
+  background-color: var(--surface-card) !important;
+  background-image: none !important;
+  border-color: var(--border-card) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--elevation-1) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html[data-theme] .glass-card:hover,
+html[data-theme] .card-hover-glow:hover,
+html[data-theme] .arise-bento-card:hover,
+html[data-theme] .quick-action:hover {
+  box-shadow: var(--elevation-2) !important;
+  border-color: var(--border-strong) !important;
+}
+html[data-theme-mode="light"] .glass,
+html[data-theme-mode="light"] .glass-premium,
+html[data-theme-mode="light"] .glass-strong,
+html[data-theme-mode="light"] .glass-card,
+html[data-theme-mode="light"] .lpa50-card,
+html[data-theme-mode="light"] .att-card,
+html[data-theme-mode="light"] .att-stat-card,
+html[data-theme-mode="light"] .att-sub-card,
+html[data-theme-mode="light"] .skt-card,
+html[data-theme-mode="light"] .skt-stat-card,
+html[data-theme-mode="light"] .skt-skill-card,
+html[data-theme-mode="light"] [class*="bg-cyber-card"],
+html[data-theme-mode="light"] .arise-bento-card,
+html[data-theme-mode="light"] .readiness-panel {
+  background-color: var(--surface-card) !important;
+  box-shadow: var(--elevation-1) !important;
+}
+
+/* Navigation is quiet at rest; the selected item is a tinted, readable state. */
+html[data-theme] .nav-item {
+  border-radius: var(--radius-control) !important;
+  transition: color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+html[data-theme] .nav-active {
+  background: var(--surface-selected) !important;
+  border-color: var(--border-selected) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+html[data-theme] .nav-active span,
+html[data-theme] .nav-active * { color: var(--text-primary) !important; }
+html[data-theme] .nav-active svg { color: var(--brand-accent) !important; }
+
+/* Consistent field surfaces and visible keyboard focus across widgets. */
+html[data-theme] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+html[data-theme] select,
+html[data-theme] textarea {
+  background-color: var(--surface-input) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-input) !important;
+  border-radius: var(--radius-control) !important;
+}
+html[data-theme] input::placeholder,
+html[data-theme] textarea::placeholder { color: var(--text-placeholder); opacity: 1; }
+html[data-theme] :is(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px !important;
+}
+html[data-theme] :is(input, select, textarea):focus-visible {
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px var(--ring) !important;
+}
+html[data-theme] :is(.theme-btn-primary, .et-btn-primary, .crt-btn-primary, .ptx-btn-primary):hover {
+  color: var(--brand-on-primary-hover) !important;
+}
+html[data-theme] button:disabled,
+html[data-theme] [aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* Tables, floating surfaces and semantic feedback use the same token roles. */
+html[data-theme] table {
+  border-color: var(--border-primary);
+  border-radius: var(--radius-card);
+}
+html[data-theme] thead,
+html[data-theme] th {
+  background: var(--surface-section);
+  color: var(--text-body-secondary);
+}
+html[data-theme] tbody tr { border-color: var(--border-divider); }
+html[data-theme] tbody tr:hover { background: var(--surface-interactive); }
+html[data-theme] [role="dialog"],
+html[data-theme] [role="menu"],
+html[data-theme] [role="listbox"],
+html[data-theme] [role="tooltip"],
+html[data-theme] .theme-switcher-panel,
+html[data-theme] .recharts-default-tooltip {
+  background-color: var(--surface-floating);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+html[data-theme] a { color: var(--text-link); }
+html[data-theme] a:hover { color: var(--text-link-hover); }
+html[data-theme] ::selection {
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
+  color: var(--text-primary);
+}
+
+/* Retire the old full-screen grid/glow: it competed with data and raised noise. */
+.arise-saas-backdrop { background-image: none !important; }
+
+@media (max-width: 700px) {
+  html[data-theme] #arise-main main { min-width: 0; }
+  html[data-theme] main table { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme] { scroll-behavior: auto; }
+  html[data-theme] *,
+  html[data-theme] *::before,
+  html[data-theme] *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

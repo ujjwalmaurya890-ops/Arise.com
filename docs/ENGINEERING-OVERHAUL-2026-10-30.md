@@ -12,6 +12,8 @@ This is an incremental upgrade of the **existing application**, not a replacemen
 
 The [measurement record](ENGINEERING-OVERHAUL-MEASUREMENTS-2026-10-30.json) retains all six baseline runs, six intermediate after-runs and six final after-runs. Raw logs/screenshots remain in ignored `.test-artifacts/overhaul/`. No actual user accounts or production data were used.
 
+> **Pre-merge update (2026-10-31):** a fresh CI-equivalent run exposed an existing month-end Expenses test-fixture bug. It is corrected with deterministic boundary regressions; production code is unchanged. The fresh advisory scan now reports **6 moderate, 0 high/critical** findings. See the dated follow-up in section 10; the original measurements and audit result remain historical evidence.
+
 ## 1. Architecture discovered
 
 - **Entrypoint:** `index.html` contains the sign-in gate, inert pre-rendered fallback, early error recorder, deferred mount contracts and ordered widget loader. `src/cloud/storage-schema.js` and `storage-bridge.js` load before application code.
@@ -142,6 +144,7 @@ The following existing files have deliberate modifications. No dependency versio
 | `package.json` | Engineering-browser and measurement commands only. |
 | `scripts/verify-secure-browser.cjs` | Offline fixture no longer falsely acknowledges requests; network-state/queue assertions. |
 | `tests/test-backup-secrets.cjs` | Completion-based export waits instead of guessed sleeps. |
+| `tests/test-expenses-premium-scenario.js` | Pre-merge follow-up: calendar-safe fixtures and frozen-clock month-end/leap-year/year-boundary regressions. |
 | `tests/test-serve-errors.cjs` | Static/range/HEAD/encoding regression coverage. |
 | `tests/test-server-http-policy.cjs` | Extended HTTP policy assertions. |
 | `tests/cloud/ai-ask.test.cjs` | Malformed body, budget and provider tests. |
@@ -230,6 +233,18 @@ Only these obsolete generated chunks were removed by the **existing** content-ha
 | `npm audit --json` | **0 reported vulnerabilities** | All reported severity counts zero; not a security certification. |
 | `npm run test:rules` | **SKIPPED / NOT TESTED** | No Firestore emulator. Output: 0 pass, 1 skip. This is **not** a passed authorization test. |
 | `git diff --check` / targeted syntax checks | **PASS** | Source/template and generated-output checks also exercised by the suite. |
+
+### Pre-merge follow-up — 2026-10-31
+
+Both initial GitHub Actions runs for PR #19 failed at `npm test`, so later audit/emulator/browser stages were skipped. Detailed CI logs were not accessible from this environment, but a clean `npm ci`, build and CI-equivalent local run reproduced a failure in `tests/test-expenses-premium-scenario.js`.
+
+**Cause:** `monthsAgoISO` subtracted a month using `setMonth()` while retaining the current day, then set the fixture day. On October 31, “September 31” overflowed into October; the supposed previous-month income/expenses were in the current, incomplete month. The production scenario correctly excluded those fixtures and rendered its empty state. The test then dereferenced a missing scenario form. This is a test-fixture correction, not a change to production expense calculations.
+
+**Fix/verification:** construct the target month at day 1, then clamp the requested/original day to that month's last day. Six explicit calendar-fixture assertions and four frozen-widget-clock scenarios cover October 31, non-leap/leap February and the year boundary. The new cases failed before the fix. All **45 scenario assertions passed** separately in UTC, Asia/Kolkata and America/Los_Angeles; the existing monthly/weekly suites passed **156/9 assertions**. `CI=true GITHUB_ACTIONS=true npm test` then passed all **57 feature runners and 61 cloud tests**. Production sources/chunks, dependencies, lockfile and public cache revision `56ebcba9eb9791b9` are unchanged.
+
+**Current advisory status:** the 2026-10-31 scan reports **6 moderate, 0 high, 0 critical** findings in the transitive glob/minimatch/rimraf dependency chain (also attributed through gaxios/gcp-metadata/google-gax). `npm audit --audit-level=high`, the existing CI policy, exits 0. The earlier zero-advisory result is a dated observation, not a current guarantee. These moderate findings remain follow-up work; no automatic dependency upgrade or audit-policy weakening was performed.
+
+The results above are local verification. Fresh remote CI status is recorded on [PR #19](https://github.com/ujjwalmaurya890-ops/Arise.com/pull/19), and must be checked before merging; initial skipped emulator/browser steps are not passing evidence.
 
 ### Failures and test limitations retained in the record
 

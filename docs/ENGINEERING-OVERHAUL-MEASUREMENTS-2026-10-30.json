@@ -768,5 +768,34 @@
     "engineeringBrowser": "passed",
     "loadingUXBrowser": "passed",
     "npmAuditReportedVulnerabilities": 0
+  },
+  "preMergeFollowUp": {
+    "date": "2026-10-31",
+    "cause": "The Expenses test monthsAgoISO helper overflowed shorter months when subtracting from day 31 before setting the fixture day. Production scenario calculations are unchanged.",
+    "file": "tests/test-expenses-premium-scenario.js",
+    "verification": {
+      "beforeFix": "Boundary cases and real-clock scenario suite failed locally.",
+      "scenarioAssertionsPassedPerTimezone": 45,
+      "timezones": [
+        "UTC",
+        "Asia/Kolkata",
+        "America/Los_Angeles"
+      ],
+      "monthlyAssertionsPassed": 156,
+      "weeklyAssertionsPassed": 9,
+      "featureRunnersPassed": 57,
+      "cloudTestsPassed": 61
+    },
+    "npmAudit": {
+      "moderate": 6,
+      "high": 0,
+      "critical": 0,
+      "existingAuditLevel": "high",
+      "exitCode": 0,
+      "note": "Earlier zero-advisory result above is historical; moderate transitive findings remain open."
+    },
+    "productionCodeChanged": false,
+    "publicCacheRevision": "56ebcba9eb9791b9",
+    "remoteCI": "Check PR #19 for fresh remote results; local passes are not a remote CI result."
   }
 }

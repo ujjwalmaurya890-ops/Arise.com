@@ -13,12 +13,20 @@ function assert(cond, msg) {
   else { fail++; console.error('FAIL:', msg); }
 }
 
-function freshDom() {
+function freshDom(reference) {
   const dom = new JSDOM('<!doctype html><html><body><div id="app"></div></body></html>', {
     url: 'https://example.test/', runScripts: 'dangerously'
   });
   const window = dom.window;
   window.__ARISE_MUTATION_BUS__ = { subscribe: function () {} };
+  if (reference) {
+    // Freeze only this widget realm, leaving the Node/jsdom host clock alone.
+    const RealDate = window.Date, now = reference.getTime();
+    window.Date = class extends RealDate {
+      constructor(...args) { super(...(args.length ? args : [now])); }
+      static now() { return now; }
+    };
+  }
   return dom;
 }
 
@@ -51,16 +59,57 @@ function iso(daysAgoFromToday) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-function monthsAgoISO(n, day) {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  if (day) d.setDate(day);
+function monthsAgoISO(n, day, reference = new Date()) {
+  // Start at day 1: setMonth() on the 31st can overflow a shorter month
+  // before the requested fixture day is applied (September becomes October).
+  const d = new Date(reference.getFullYear(), reference.getMonth() - n, 1);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day || reference.getDate(), lastDay));
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 function seedTransactions(window, list) {
   window.localStorage.setItem('arise-expenses-v1', JSON.stringify(list));
 }
+
+// Calendar boundaries must stay in the intended completed month, including
+// shorter months and the prior year. These fixtures run on every CI date.
+const calendarCases = [
+  { now: [2026, 9, 31], n: 1, day: 5, expected: '2026-09-05' },
+  { now: [2026, 9, 31], n: 1, expected: '2026-09-30' },
+  { now: [2026, 2, 31], n: 1, expected: '2026-02-28' },
+  { now: [2024, 2, 31], n: 1, expected: '2024-02-29' },
+  { now: [2026, 0, 31], n: 1, day: 5, expected: '2025-12-05' },
+  { now: [2026, 4, 31], n: 1, day: 6, expected: '2026-04-06' }
+];
+for (const test of calendarCases) {
+  const reference = new Date(...test.now, 12);
+  assert(monthsAgoISO(test.n, test.day, reference) === test.expected,
+    'Completed-month fixture for ' + reference.toDateString() + ' is ' + test.expected);
+}
+
+(function testScenarioAtCalendarBoundaries() {
+  for (const parts of [[2026, 9, 31], [2026, 2, 31], [2024, 2, 31], [2026, 0, 31]]) {
+    const reference = new Date(...parts, 12), label = reference.toDateString();
+    const dom = freshDom(reference), window = dom.window;
+    try {
+      seedTransactions(window, [
+        { id: 'boundary-income', type: 'income', title: 'Stipend', amount: 8000, category: 'Income', date: monthsAgoISO(1, 5, reference) },
+        { id: 'boundary-food', type: 'expense', title: 'Food', amount: 6000, category: 'Food', date: monthsAgoISO(1, 6, reference) }
+      ]);
+      loadScript(window, 'src/expenses.js');
+      const el = mount(window), form = el.querySelector('[data-role="scenario-form"]');
+      assert(form !== null, label + ': prior-month history enables the scenario form');
+      if (!form) continue;
+      assert(el.innerHTML.includes('based on last 3 complete months'), label + ': correct trailing window');
+      form.querySelector('[name="scenarioCategory"]').value = 'Food';
+      form.querySelector('[name="scenarioCutPct"]').value = '50';
+      form.querySelector('[name="scenarioIncomeDelta"]').value = '1000';
+      form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+      assert(el.innerHTML.includes('2,666.67'), label + ': original projected-net calculation remains correct');
+    } finally { window.close(); }
+  }
+})();
 
 // ---------------------------------------------------------------------
 // 1. Premium tab renders with its three sections and a Save Snapshot btn

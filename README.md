@@ -23,6 +23,12 @@ Node 22.22+: `npm ci`, configure `.env` from `.env.example`, then `npm run dev`.
 `npm test` runs the checked-in feature regression files plus the cloud/auth/sync tests. `npm run test:rules` requires a local Firestore emulator; without one, the rules test reports a skip. `npm run build` produces a safe **`dist/`** site. **Netlify must publish `dist`, never `.`.** The old shared-code `/api/sync` is retired (HTTP 410); never redeploy its unauthenticated implementation.
 
 
+## Engineering audit — 2026-10-30
+
+The [engineering report](docs/ENGINEERING-OVERHAUL-2026-10-30.md) documents the existing architecture, incremental security/reliability/UI changes, exact file inventory, executed tests, mixed performance results, and remaining work. [Recorded lab measurements](docs/ENGINEERING-OVERHAUL-MEASUREMENTS-2026-10-30.json) include every baseline and after-run summary, not just favorable results.
+
+With the built site running, `npm run test:browser:engineering` checks route layouts, recovery, attachment safety and the real offline shell. `npm run test:performance -- measurement` repeats the local lab protocol. These use explicit test authentication fixtures; they do not verify live provider credentials or relax the production sign-in gate.
+
 ## ✨ Core Features
 
 ### 📚 Academic Management

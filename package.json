@@ -14,7 +14,9 @@
     "configure:access": "node --env-file-if-exists=.env scripts/configure-access.cjs",
     "test:browser": "node scripts/verify-secure-browser.cjs",
     "test:browser:ux": "node scripts/verify-loading-browser-e2e.cjs",
-    "audit:storage": "node scripts/tools/audit-storage.cjs"
+    "audit:storage": "node scripts/tools/audit-storage.cjs",
+    "test:browser:engineering": "node scripts/verify-engineering-browser.cjs",
+    "test:performance": "node scripts/measure-dashboard.cjs"
   },
   "dependencies": {
     "fflate": "0.8.3",

@@ -11,7 +11,7 @@ test('service worker bypasses protected APIs, fetches security scripts network-f
     const events = {}, deleted = [], navigation = [], calls = [];
     const response = new Response('new security code');
     const context = {
-      URL, Request, Response, setTimeout,
+      URL, Request, Response, setTimeout, clearTimeout,
       self: { location: { origin: 'https://example.test' }, registration: { scope: 'https://example.test/' },
         addEventListener: (name, handler) => { events[name] = handler; },
         clients: { claim: async () => {}, matchAll: async () => [{ url: 'https://example.test/notes', navigate: async url => navigation.push(url) }] } },
@@ -26,7 +26,7 @@ test('service worker bypasses protected APIs, fetches security scripts network-f
       events.fetch({ request: new Request('https://example.test' + pathname), respondWith: () => assert.fail('protected response must never be cached') });
     }
     let fetched;
-    events.fetch({ request: new Request('https://example.test/assets/cloud-auth.js'), respondWith: promise => { fetched = promise; } });
+    events.fetch({ request: new Request('https://example.test/assets/cloud-auth.js'), waitUntil: promise => { work = promise; }, respondWith: promise => { fetched = promise; } });
     assert.equal(await (await fetched).text(), 'new security code');
     assert.equal(calls.at(-1), 'https://example.test/assets/cloud-auth.js');
     assert.ok(!/localStorage|indexedDB/.test(code), 'cache upgrades never delete progress/backup/session storage');

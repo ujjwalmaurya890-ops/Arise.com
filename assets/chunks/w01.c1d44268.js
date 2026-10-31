@@ -467,6 +467,15 @@ try{
     fetchInterviewSheets: fetchInterviewSheets
   };
   window.__ariseShared = window.__ARISE_WIDGET_UTILS__;
+  if (!window.__ariseQuotaToastBound) {
+    window.__ariseQuotaToastBound = true;
+    window.addEventListener("arise:storage-quota", function () {
+      showToast(
+        "Storage is full — this change wasn't saved. Export a backup from Backup Center, then free up space.",
+        "danger"
+      );
+    });
+  }
 })();
 
 }catch(__arise_e){setTimeout(function(){throw __arise_e})}

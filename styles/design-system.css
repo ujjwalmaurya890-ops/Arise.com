@@ -31,6 +31,25 @@
   --surface-interactive: var(--surface-hover);
   --surface-selected: color-mix(in srgb, var(--primary) 10%, var(--surface));
 
+  /* Accessible ink + soft variants.
+     The raw brand hues are correct for fills, borders and icons, but on a
+     tinted surface they lose contrast (e.g. indigo #435EE0 is 3.4:1 on the
+     dark card). These variants keep the hue and move it toward the active
+     theme's text colour, so labels on tinted surfaces clear 4.5:1 in every
+     built-in theme. Soft variants are the matching tinted backgrounds. */
+  --primary-ink: color-mix(in srgb, var(--primary) 35%, var(--text-primary));
+  --secondary-ink: color-mix(in srgb, var(--secondary) 45%, var(--text-primary));
+  --success-ink: color-mix(in srgb, var(--success) 55%, var(--text-primary));
+  --warning-ink: color-mix(in srgb, var(--warning) 55%, var(--text-primary));
+  --danger-ink: color-mix(in srgb, var(--danger) 55%, var(--text-primary));
+  --info-ink: color-mix(in srgb, var(--info) 55%, var(--text-primary));
+  --primary-soft: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  --secondary-soft: color-mix(in srgb, var(--secondary) 12%, var(--surface));
+  --success-soft: color-mix(in srgb, var(--success) 12%, var(--surface));
+  --warning-soft: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  --danger-soft: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  --info-soft: color-mix(in srgb, var(--info) 12%, var(--surface));
+
   /* Text roles. Disabled text remains legible; disabled state is also expressed by behavior. */
   --text-heading: var(--text-primary);
   --text-body: var(--text-primary);
@@ -294,6 +313,116 @@ html[data-theme] ::selection {
 
 /* Retire the old full-screen grid/glow: it competed with data and raised noise. */
 .arise-saas-backdrop { background-image: none !important; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Palette consistency pass
+   Widget stylesheets were authored at different times and some labels still
+   use the raw brand hue on a tinted surface. These aliases keep the hue but
+   use the accessible ink variant, so the same label reads in every theme.
+   ───────────────────────────────────────────────────────────────────────── */
+html[data-theme] .dmp-eyebrow { color: var(--info-ink) !important; }
+html[data-theme] .dvp-eyebrow { color: var(--secondary-ink) !important; }
+html[data-theme] .pcc-eyebrow { color: var(--success-ink) !important; }
+html[data-theme] .acm-day-name,
+html[data-theme] .upp-health-kicker,
+html[data-theme] .et-kicker,
+html[data-theme] .csp-btn,
+html[data-theme] .csp150-tab-btn[aria-selected="true"],
+html[data-theme] .csp150-tab-btn.active,
+html[data-theme] .csp150-tab-btn[data-active="1"],
+html[data-theme] .htw-btn-primary,
+html[data-theme] .ptx-primary-badge,
+html[data-theme] .ptx-star-label,
+html[data-theme] .ptx-chip-active,
+html[data-theme] .ptx-i-current-badge,
+html[data-theme] .crt-tag,
+html[data-theme] .et-dday-days,
+html[data-theme] .theme-active-badge,
+html[data-theme] .arise-pwb-density[aria-pressed="true"],
+html[data-theme] .slp-enhanced-head-badge,
+html[data-theme] .cloud-eyebrow,
+html[data-theme] .theme-mode-btn[aria-pressed="true"] {
+  color: var(--primary-ink) !important;
+}
+html[data-theme] .cr-eyebrow {
+  color: color-mix(in srgb, var(--cr-to, var(--info)) 70%, var(--text-primary)) !important;
+}
+html[data-theme] .cr-metric-contrib {
+  color: color-mix(in srgb, var(--cr-metric-color, var(--info)) 70%, var(--text-primary)) !important;
+}
+html[data-theme] .wnav-icon {
+  color: var(--primary-ink) !important;
+}
+html[data-theme] .et-dday-days[data-state="examday"] { color: var(--warning-ink) !important; }
+html[data-theme] .et-dday-days[data-state="completed"] { color: var(--success-ink) !important; }
+html[data-theme] .ptx-a-reminder,
+html[data-theme] .ptx-a-rating,
+html[data-theme] .ptx-a-stage-stale,
+html[data-theme] .ptx-mock-gap-badge,
+html[data-theme] .ptx-t3-warn { color: var(--warning-ink) !important; }
+html[data-theme] .ptx-mock-action-badge,
+html[data-theme] .ptx-ct-delta-up,
+html[data-theme] .ptx-t3-ok { color: var(--success-ink) !important; }
+html[data-theme] .ptx-ct-delta-dn,
+html[data-theme] .ptx-danger,
+html[data-theme] .cgpa-danger { color: var(--danger-ink) !important; }
+html[data-theme] .att-zone-badge[data-tone="success"] { color: var(--success-ink) !important; }
+html[data-theme] .att-zone-badge[data-tone="warning"] { color: var(--warning-ink) !important; }
+html[data-theme] .att-zone-badge[data-tone="danger"],
+html[data-theme] .att-zone-badge[data-tone="critical"] { color: var(--danger-ink) !important; }
+html[data-theme] .att-zone-badge[data-tone="info"] { color: var(--info-ink) !important; }
+
+/* Theme switcher previews sit on the panel surface in both modes. */
+html[data-theme] .theme-switcher-preview-card,
+html[data-theme] .theme-switcher-preview-strip {
+  border-color: var(--border) !important;
+}
+
+/* Tooltips follow the surface instead of carrying a fixed dark navy. */
+html[data-theme] [data-tooltip]:hover:after {
+  color: var(--text-primary) !important;
+  background: var(--surface) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* One brand gradient for progress, not a four-hue rainbow. */
+html[data-theme] .progress-fill {
+  background: linear-gradient(90deg, var(--primary), var(--secondary)) !important;
+  box-shadow: none !important;
+}
+
+/* A dual focus indicator: high-contrast outline for WCAG 2.2 plus the brand
+   ring, so focus is visible on both light and dark surfaces. */
+html[data-theme] a:focus-visible,
+html[data-theme] button:focus-visible,
+html[data-theme] [role="button"]:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--ring) !important;
+}
+
+/* Theme switches are a state change, not a repaint flash. The theme system
+   marks the document for ~120 ms; only colour-bearing properties animate. */
+html[data-theme-switching] body,
+html[data-theme-switching] #root,
+html[data-theme-switching] header,
+html[data-theme-switching] aside,
+html[data-theme-switching] main,
+html[data-theme-switching] .glass,
+html[data-theme-switching] .glass-card,
+html[data-theme-switching] .glass-strong,
+html[data-theme-switching] .card,
+html[data-theme-switching] .quick-action,
+html[data-theme-switching] .stat-badge,
+html[data-theme-switching] .nav-item,
+html[data-theme-switching] button,
+html[data-theme-switching] input,
+html[data-theme-switching] select,
+html[data-theme-switching] textarea {
+  transition: background-color 120ms ease, color 120ms ease,
+    border-color 120ms ease, box-shadow 120ms ease !important;
+}
 
 @media (max-width: 700px) {
   html[data-theme] #arise-main main { min-width: 0; }

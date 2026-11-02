@@ -4,7 +4,7 @@ html:not([data-cloud-auth="ready"]) #root { display:none !important; }
 .cloud-card { width:min(100%,480px); padding:clamp(24px,5vw,40px); border:1px solid var(--border,#272b40); background:var(--surface,#101420); border-radius:24px; box-shadow:0 20px 70px #0003; animation:cloud-enter .3s ease-out; }
 .cloud-brand { display:flex; align-items:center; gap:12px; font-size:20px; font-weight:800; letter-spacing:-.5px; margin-bottom:36px; }
 .cloud-brand img { width:36px; height:36px; }
-.cloud-eyebrow { font-size:11px; text-transform:uppercase; color:var(--primary,#818cf8); font-weight:700; letter-spacing:.14em; }
+.cloud-eyebrow { font-size:11px; text-transform:uppercase; color:var(--primary-ink,var(--primary,#818cf8)); font-weight:700; letter-spacing:.14em; }
 .cloud-card h1 { font-size:clamp(26px,5vw,34px); font-weight:800; line-height:1.2; letter-spacing:-1px; margin:12px 0 16px; }
 .cloud-card p { color:var(--text-secondary,#9ca7bd); font-size:14px; line-height:1.75; margin:12px 0; overflow-wrap:anywhere; }
 #cloud-gate[data-busy="true"] #cloud-message { display:flex; align-items:flex-start; gap:10px; }

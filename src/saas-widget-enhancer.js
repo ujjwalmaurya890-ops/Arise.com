@@ -206,9 +206,47 @@
     if (btn.textContent !== labelStr) btn.textContent = labelStr;
   }
 
+  var ASYNC_MULTI_SECTIONS = {
+    "Dashboard": 1,
+    "Learning": 1,
+    "DSA Tracker": 1,
+    "Development": 1,
+    "Projects": 1,
+    "CSE Syllabus": 1,
+    "Analytics": 1,
+    "Achievements": 1,
+    "Settings": 1
+  };
+  var routeSettleUntil = 0;
+  var routeSettleTimer = null;
+  var observedHeader = null;
+  var headerObserver = null;
+
+  function ensureHeaderObserver(mainEl) {
+    if (!mainEl || typeof MutationObserver !== "function") return;
+    var hdr = mainEl.querySelector(":scope > header");
+    if (!hdr || hdr === observedHeader) return;
+    observedHeader = hdr;
+    if (headerObserver) headerObserver.disconnect();
+    headerObserver = new MutationObserver(function () {
+      var curMain = getMain();
+      if (!curMain) return;
+      var nextTitle = getSectionTitle(curMain);
+      if (nextTitle !== lastSectionTitle) {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        syncEnhancements();
+      }
+    });
+    headerObserver.observe(hdr, { childList: true, characterData: true, subtree: true });
+  }
+
   function syncEnhancementsCore() {
     var mainEl = getMain();
     syncScrollTopBtn(mainEl);
+    ensureHeaderObserver(mainEl);
     var bar = document.getElementById("arise-page-widget-bar");
     if (!mainEl || document.documentElement.classList.contains("arise-focus-active")) {
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
@@ -221,10 +259,21 @@
         filterQuery = "";
         clearFilteredOut(mainEl);
       }
+      if (window.__ariseWidgetsReady && ASYNC_MULTI_SECTIONS[title]) {
+        routeSettleUntil = Date.now() + 260;
+        if (routeSettleTimer) clearTimeout(routeSettleTimer);
+        routeSettleTimer = setTimeout(function () {
+          routeSettleTimer = null;
+          syncEnhancements();
+        }, 270);
+      } else {
+        routeSettleUntil = 0;
+      }
     }
     var widgets = discoverWidgets(mainEl);
     var routeLoading = !!mainEl.querySelector("[data-arise-route-loading]");
-    if (widgets.length < 3 && !routeLoading) {
+    var asyncSettling = !!(window.__ariseWidgetsReady && ASYNC_MULTI_SECTIONS[title] && Date.now() < routeSettleUntil);
+    if (widgets.length < 3 && !routeLoading && !asyncSettling) {
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
       return;
     }
@@ -285,9 +334,9 @@
       hdr.insertAdjacentElement("afterend", bar);
     }
 
-    // Preserve the bar's footprint while a lazy route is pending. Removing it
-    // and reinserting it after the asset loads shifted the entire route body.
-    var pending = routeLoading && widgets.length < 3;
+    // Preserve the bar's footprint while a lazy route or external widget mount is pending.
+    // Removing it and reinserting it after the asset/widget loads shifted the entire route body.
+    var pending = (routeLoading || asyncSettling) && widgets.length < 3;
     bar.style.visibility = pending ? 'hidden' : '';
     bar.inert = pending;
     if (pending) { bar.setAttribute('aria-hidden', 'true'); return; }

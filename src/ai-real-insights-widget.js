@@ -269,11 +269,8 @@
       }, 150));
   }
   function w() {
-    var e = 0,
-      r = setInterval(function () {
-        document.hidden || (e++, (b() || e > 60) && (clearInterval(r), y()));
-      }, 200);
-    window.__ARISE_MUTATION_BUS__.subscribe(h);
+    y();
+    window.__ARISE_MUTATION_BUS__.subscribe(function () { document.hidden || y(); });
     window.addEventListener("storage", h);
   }
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", w) : w();

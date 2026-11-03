@@ -212,7 +212,7 @@
   }
 
   function v() {
-    k(g());
+    if (document.getElementById("dmt-sheet-coverage")) k(g());
   }
   s.bootUpdater(v);
 })();

@@ -96,7 +96,22 @@
     }
   }
 
+  window.__ariseWrapMounts = scan;
+  if (typeof window.__ariseFlushReadyMounts === "function" && !window.__ariseFlushReadyMounts.__msWrapped) {
+    var origReady = window.__ariseFlushReadyMounts;
+    var wrappedReady = function () { scan(); return origReady.apply(this, arguments); };
+    wrappedReady.__msWrapped = true;
+    window.__ariseFlushReadyMounts = wrappedReady;
+  }
+  if (typeof window.__ariseFlushMounts === "function" && !window.__ariseFlushMounts.__msWrapped) {
+    var origAll = window.__ariseFlushMounts;
+    var wrappedAll = function () { scan(); return origAll.apply(this, arguments); };
+    wrappedAll.__msWrapped = true;
+    window.__ariseFlushMounts = wrappedAll;
+  }
+
   scan();
   window.addEventListener("load", scan);
+  window.addEventListener("arise:widgets-ready", scan);
   setTimeout(scan, 1500);
 })();

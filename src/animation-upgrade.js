@@ -321,7 +321,19 @@
   // Viewport Card Reveal + Route Entrance Coordinator
   // -------------------------------------------------------------------------
   var seen = typeof WeakSet === "function" ? new WeakSet() : null;
+  var observedCards = [];
   var io = null;
+
+  function pruneObservedCards() {
+    if (!io || !observedCards.length) return;
+    for (var i = observedCards.length - 1; i >= 0; i--) {
+      var c = observedCards[i];
+      if (!c || c.isConnected === false) {
+        try { if (c) io.unobserve(c); } catch (_) {}
+        observedCards.splice(i, 1);
+      }
+    }
+  }
 
   function ensureObserver() {
     if (io || typeof IntersectionObserver !== "function" || prefersReducedMotion()) {
@@ -335,6 +347,8 @@
             entry.target.classList.add("uxa-in");
             entry.target.style.removeProperty("--uxa-stagger");
             io.unobserve(entry.target);
+            var idx = observedCards.indexOf(entry.target);
+            if (idx !== -1) observedCards.splice(idx, 1);
           }
         }
       },
@@ -354,6 +368,7 @@
     if (!title || title === lastRouteHeading) return;
     var hadPrior = !!lastRouteHeading;
     lastRouteHeading = title;
+    pruneObservedCards();
     if (!hadPrior || prefersReducedMotion()) return;
     main.classList.remove("uxa-route-enter");
     clearTimeout(routeAnimTimer);
@@ -367,38 +382,54 @@
 
   function scanCards() {
     syncRouteTransition();
+    pruneObservedCards();
     if (prefersReducedMotion()) return;
     var obs = ensureObserver();
     if (!obs) return;
 
-    var nodes = document.querySelectorAll(CARD_SELECTOR);
+    var main = document.getElementById("arise-main");
+    if (!main) return;
+    var nodes = main.querySelectorAll(CARD_SELECTOR);
+    if (!nodes.length) return;
     var viewportH = window.innerHeight || 900;
-    var staggerIndex = 0;
 
+    // Pass 1: pure geometry reads (zero DOM writes -> single layout pass, zero thrashing)
+    var inView = [];
+    var offscreen = [];
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       if (seen && seen.has(el)) continue;
-      if (seen) seen.add(el);
-
       var rect = el.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) continue;
-
+      if (seen) seen.add(el);
       if (rect.top < viewportH * 0.92 && rect.bottom > 0) {
-        var delay = Math.min(staggerIndex * 24, 120);
-        staggerIndex++;
-        el.style.setProperty("--uxa-stagger", delay + "ms");
-        el.classList.add("uxa-reveal");
-        (function (target) {
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-              target.classList.add("uxa-in");
-            });
-          });
-        })(el);
+        inView.push(el);
       } else {
-        el.classList.add("uxa-reveal");
-        obs.observe(el);
+        offscreen.push(el);
       }
+    }
+
+    // Pass 2: pure style/class writes + single shared double-rAF reveal
+    for (var j = 0; j < inView.length; j++) {
+      var target = inView[j];
+      var delay = Math.min(j * 24, 120);
+      target.style.setProperty("--uxa-stagger", delay + "ms");
+      target.classList.add("uxa-reveal");
+    }
+    if (inView.length) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          for (var k = 0; k < inView.length; k++) {
+            inView[k].classList.add("uxa-in");
+          }
+        });
+      });
+    }
+    for (var m = 0; m < offscreen.length; m++) {
+      var card = offscreen[m];
+      card.classList.add("uxa-reveal");
+      observedCards.push(card);
+      obs.observe(card);
     }
   }
 

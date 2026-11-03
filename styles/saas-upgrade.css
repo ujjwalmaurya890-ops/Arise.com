@@ -69,3 +69,13 @@ html[data-theme-mode="dark"] .stat-badge[style*="var(--primary)"]{color:var(--pr
   #arise-main .cgpa-subject-row { grid-template-columns: minmax(0, 1fr); }
   #arise-main .cgpa-subject-index { display: none; }
 }
+
+#career-intelligence[hidden] { display: none !important; }
+#arise-main .dmp-shell,
+#arise-main .dvp-shell,
+#arise-main .pcc-shell,
+#arise-main .csp-panel,
+#career-intelligence {
+  contain: style;
+}
+

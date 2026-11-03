@@ -22,26 +22,32 @@
     for (var i = 0; i < native.length; i++) { var key = native.key(i); if (key && key.startsWith(start)) { var entry = JSON.parse(native.getItem(key)); if (schema.isKey(entry.key)) result.push(entry); } }
     return result.sort(function (a, b) { return a.occurredAt.localeCompare(b.occurredAt) || a.opId.localeCompare(b.opId); });
   }
+  var cachedKeys = null, cachedNativeLen = -1;
+  function invalidateKeys() { cachedKeys = null; cachedNativeLen = -1; }
   function accountKeys() {
+    if (!prefix) return [];
+    if (cachedKeys && cachedNativeLen === native.length) return cachedKeys;
     var result = [];
-    if (!prefix) return result;
     for (var i = 0; i < native.length; i++) {
       var key = native.key(i);
       if (key && key.indexOf(prefix) === 0) result.push(decodeURIComponent(key.slice(prefix.length)));
     }
-    return result.sort();
+    cachedKeys = result.sort();
+    cachedNativeLen = native.length;
+    return cachedKeys;
   }
   var facade = {
     getItem: function (key) { key = String(key); return deviceKey(key) ? native.getItem(key) : uid ? native.getItem(physical(key)) : null; },
     setItem: function (key, value) {
       key = String(key); value = String(value);
-      if (deviceKey(key)) return native.setItem(key, value);
+      if (deviceKey(key)) { invalidateKeys(); return native.setItem(key, value); }
       if (!uid) throw new DOMException('Sign in before changing progress.', 'SecurityError');
-      var old = native.getItem(physical(key));
+      var phys = physical(key);
+      var old = native.getItem(phys);
       if (old === value) return;
       var previousMarker = !quiet && schema.isLocalKey(key) ? native.getItem(journalKey(key, false)) : null;
       var marker = !quiet && schema.isLocalKey(key) ? markDirty(key, false) : null;
-      try { native.setItem(physical(key), value); }
+      try { native.setItem(phys, value); if (old === null) invalidateKeys(); }
       catch (error) {
         if (marker) { if (previousMarker) native.setItem(journalKey(key, false), previousMarker); else native.removeItem(journalKey(key, false)); }
         try {
@@ -55,14 +61,16 @@
     },
     removeItem: function (key) {
       key = String(key);
-      if (deviceKey(key)) return native.removeItem(key);
+      if (deviceKey(key)) { invalidateKeys(); return native.removeItem(key); }
       if (!uid) return;
-      var old = native.getItem(physical(key));
+      var phys = physical(key);
+      var old = native.getItem(phys);
       var marker = !quiet && old !== null && schema.isLocalKey(key) ? markDirty(key, false) : null;
-      native.removeItem(physical(key));
+      native.removeItem(phys);
+      if (old !== null) invalidateKeys();
       if (!quiet && old !== null) emit(key, null, marker);
     },
-    clear: function () { accountKeys().forEach(function (key) { facade.removeItem(key); }); },
+    clear: function () { accountKeys().slice().forEach(function (key) { facade.removeItem(key); }); },
     key: function (index) { return accountKeys()[index] || null; }
   };
   Object.defineProperty(facade, 'length', { get: function () { return accountKeys().length; } });
@@ -257,8 +265,8 @@
         }).catch(reject);
       });
     },
-    activate: function (owner) { if (!owner || owner.includes('/')) throw new Error('Invalid owner.'); uid = owner; prefix = 'arise:account:' + encodeURIComponent(uid) + ':'; },
-    lock: function () { uid = prefix = null; },
+    activate: function (owner) { if (!owner || owner.includes('/')) throw new Error('Invalid owner.'); uid = owner; prefix = 'arise:account:' + encodeURIComponent(uid) + ':'; invalidateKeys(); },
+    lock: function () { uid = prefix = null; invalidateKeys(); },
     onChange: function (listener) { listeners.push(listener); return function () { listeners = listeners.filter(function (entry) { return entry !== listener; }); }; },
     apply: function (key, value) {
       quiet++;

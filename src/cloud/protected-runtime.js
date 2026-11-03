@@ -11,21 +11,42 @@ export function startProtectedRuntime() {
       else link.setAttribute('as', 'script');
       document.head.appendChild(link);
     }
-    for (const placeholder of placeholders) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script'); script.src = placeholder.dataset.src;
-        if (placeholder.dataset.module) { script.type = 'module'; script.crossOrigin = 'anonymous'; }
-        let settled = false;
-        const timer = setTimeout(() => finish(false), 15000);
-        const finish = ok => {
-          if (settled) return;
-          settled = true; clearTimeout(timer); script.onload = script.onerror = null;
-          if (ok) resolve();
-          else { script.remove(); reject(new Error('Workspace asset unavailable.')); }
-        };
-        script.onload = () => finish(true); script.onerror = () => finish(false);
-        try { document.head.appendChild(script); } catch { finish(false); }
-      });
+    const loadOne = placeholder => new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = placeholder.dataset.src;
+      if (placeholder.dataset.module) {
+        script.type = 'module';
+        script.crossOrigin = 'anonymous';
+      } else {
+        script.async = false;
+      }
+      let settled = false;
+      const timer = setTimeout(() => finish(false), 15000);
+      const finish = ok => {
+        if (settled) return;
+        settled = true; clearTimeout(timer); script.onload = script.onerror = null;
+        if (ok) resolve();
+        else { script.remove(); reject(new Error('Workspace asset unavailable.')); }
+      };
+      script.onload = () => finish(true); script.onerror = () => finish(false);
+      try { document.head.appendChild(script); } catch { finish(false); }
+    });
+    // Batch contiguous classic scripts with script.async = false so V8 streams and
+    // compiles them concurrently while guaranteeing strict insertion-order execution,
+    // then run module scripts (already modulepreloaded above) in exact sequence.
+    let i = 0;
+    while (i < placeholders.length) {
+      if (placeholders[i].dataset.module) {
+        await loadOne(placeholders[i]);
+        i++;
+      } else {
+        const batch = [];
+        while (i < placeholders.length && !placeholders[i].dataset.module) {
+          batch.push(loadOne(placeholders[i]));
+          i++;
+        }
+        await Promise.all(batch);
+      }
     }
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(() => {});
   }).catch(() => {

@@ -160,7 +160,7 @@
 
   function enqueueUpdater(fn) {
     if (queue.indexOf(fn) === -1) queue.push(fn);
-    if (!flushTimer) flushTimer = setTimeout(flushQueue, 150);
+    if (!flushTimer) flushTimer = setTimeout(flushQueue, 16);
   }
 
   function hasStructuralContentMutation(records) {
@@ -172,7 +172,7 @@
         t &&
         t.closest &&
         t.closest(
-          "#upp-command-overlay, #upp-shortcuts-overlay, #upp-health-overlay, #arise-page-widget-bar, #arise-scroll-top-btn, .recharts-tooltip-wrapper, #arise-shared-toast"
+          "#upp-command-overlay, #upp-shortcuts-overlay, #upp-health-overlay, #arise-page-widget-bar, #arise-scroll-top-btn, .recharts-tooltip-wrapper, .lhm-tooltip, #arise-shared-toast"
         )
       ) {
         continue;
@@ -193,6 +193,14 @@
     return false;
   }
 
+  var remoteStorageQueued = false;
+  function runAllUpdaters() {
+    remoteStorageQueued = false;
+    for (var i = 0; i < registeredUpdaters.length; i++) {
+      registeredUpdaters[i]();
+    }
+  }
+
   function ensureSharedSubscription() {
     if (sharedBusSubscribed) return;
     if (!window.__ARISE_MUTATION_BUS__ || typeof window.__ARISE_MUTATION_BUS__.subscribe !== "function") return;
@@ -204,10 +212,16 @@
         enqueueUpdater(registeredUpdaters[i]);
       }
     });
-    window.addEventListener("storage", function () {
-      for (var i = 0; i < registeredUpdaters.length; i++) {
-        registeredUpdaters[i]();
+    window.addEventListener("storage", function (ev) {
+      if (ev && ev.__ariseRemote) {
+        if (!remoteStorageQueued) {
+          remoteStorageQueued = true;
+          if (typeof queueMicrotask === "function") queueMicrotask(runAllUpdaters);
+          else Promise.resolve().then(runAllUpdaters);
+        }
+        return;
       }
+      runAllUpdaters();
     });
   }
 

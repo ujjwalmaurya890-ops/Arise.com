@@ -51,12 +51,54 @@
     liveEl.textContent = sec.label + " tab selected";
   }
 
-  // Single shared resize registry that automatically prunes disconnected tablists
+  // Single shared resize + observer registry that actively prunes disconnected tablists
   var resizeEntries = [];
+  var trackedRails = [];
   var resizeBound = false;
   var resizeRaf = 0;
+  var cleanupBusBound = false;
+
+  // Shared "Back to tabs" button + tracked IntersectionObservers so detached rails are unobserved
+  var backBtn = null;
+  var activeScrolledRail = null;
+
+  function pruneDisconnectedRails() {
+    for (var i = resizeEntries.length - 1; i >= 0; i--) {
+      if (!resizeEntries[i].rail || resizeEntries[i].rail.isConnected === false) {
+        resizeEntries.splice(i, 1);
+      }
+    }
+    for (var j = trackedRails.length - 1; j >= 0; j--) {
+      var item = trackedRails[j];
+      if (!item.rail || item.rail.isConnected === false) {
+        if (activeScrolledRail === item.rail) {
+          if (backBtn) backBtn.hidden = true;
+          activeScrolledRail = null;
+        }
+        try { if (item.io) item.io.disconnect(); } catch {}
+        trackedRails.splice(j, 1);
+      }
+    }
+  }
+
+  function ensureCleanupBus() {
+    if (cleanupBusBound) return;
+    if (!window.__ARISE_MUTATION_BUS__ || typeof window.__ARISE_MUTATION_BUS__.subscribe !== "function") return;
+    cleanupBusBound = true;
+    window.__ARISE_MUTATION_BUS__.subscribe(function (records) {
+      if (!trackedRails.length && !resizeEntries.length) return;
+      for (var i = 0; i < records.length; i++) {
+        if (records[i].removedNodes && records[i].removedNodes.length) {
+          pruneDisconnectedRails();
+          return;
+        }
+      }
+    });
+  }
 
   function registerResize(rail, fn) {
+    pruneDisconnectedRails();
+    ensureCleanupBus();
     resizeEntries.push({ rail: rail, fn: fn });
     if (resizeBound) return;
     resizeBound = true;
@@ -67,23 +109,15 @@
         var sched = typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout;
         resizeRaf = sched(function () {
           resizeRaf = 0;
-          for (var i = resizeEntries.length - 1; i >= 0; i--) {
-            var entry = resizeEntries[i];
-            if (!entry.rail || (entry.rail.isConnected === false)) {
-              resizeEntries.splice(i, 1);
-              continue;
-            }
-            entry.fn();
+          pruneDisconnectedRails();
+          for (var i = 0; i < resizeEntries.length; i++) {
+            resizeEntries[i].fn();
           }
         }, 0);
       },
       { passive: true }
     );
   }
-
-  // Shared "Back to tabs" button + tracked IntersectionObservers so detached rails are unobserved
-  var backBtn = null;
-  var activeScrolledRail = null;
 
   function ensureBackBtn() {
     if (backBtn) return backBtn;
@@ -109,16 +143,14 @@
   function observeBackToTabs(rail) {
     if (!rail || rail.__wnavBackToTabsInit) return;
     rail.__wnavBackToTabsInit = true;
+    pruneDisconnectedRails();
+    ensureCleanupBus();
     if (typeof IntersectionObserver !== "function") return;
     var btn = ensureBackBtn();
     var io = new IntersectionObserver(
       function (entries) {
         if (rail.isConnected === false) {
-          if (activeScrolledRail === rail) {
-            btn.hidden = true;
-            activeScrolledRail = null;
-          }
-          io.disconnect();
+          pruneDisconnectedRails();
           return;
         }
         var first = entries[0];
@@ -135,7 +167,7 @@
       },
       { threshold: 0 }
     );
-    rail.__wnavIO = io;
+    trackedRails.push({ rail: rail, io: io });
     io.observe(rail);
   }
 
@@ -173,7 +205,6 @@
 
       var parent = rail.parentNode;
       if (parent) {
-        if (getComputedStyle(parent).position === "static") parent.style.position = "relative";
         parent.classList.add("wnav-chevron-wrap");
         parent.insertBefore(prevBtn, rail);
         parent.insertBefore(nextBtn, rail.nextSibling);

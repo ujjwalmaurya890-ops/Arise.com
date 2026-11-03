@@ -157,6 +157,7 @@
 }
 .wnav-chevron:hover { background: var(--surface-hover, rgba(148,163,184,.1)); color: var(--text-primary); }
 .wnav-chevron[hidden] { display: none; }
+.wnav-chevron-wrap { position: relative; }
 @media (max-width: 640px) {
   /* the rail already drag-scrolls with a fade indicator on touch — chevrons
      are desktop-only anyway (see the any-pointer:fine check in JS), but

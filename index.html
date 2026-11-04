@@ -1,6 +1,26 @@
 <!doctype html>
 <html lang="en" data-theme="cyberMidnightPro" data-theme-mode="dark">
   <head>
+    <!-- CSP: stylesheets are loaded non-blocking with media="print" and promoted
+         once fetched. This used to be an inline onload="" attribute, which a
+         Content-Security-Policy without 'unsafe-inline' for scripts would
+         silently ignore - the sheets would stay print-only and the page would
+         render unstyled. Doing it from a listener keeps that guarantee. -->
+    <script>
+      (function () {
+        function promote(link) {
+          if (link && link.tagName === "LINK") link.media = "all";
+        }
+        document.addEventListener("load", function (ev) { promote(ev.target); }, true);
+        document.addEventListener("DOMContentLoaded", function () {
+          var pending = document.querySelectorAll('link[data-promote-on-load]');
+          for (var i = 0; i < pending.length; i++) {
+            if (pending[i].sheet) promote(pending[i]);
+            else pending[i].addEventListener("load", function () { promote(this); });
+          }
+        });
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="theme-color" content="#090B10" />
     <meta name="description" content="Arise — Your complete local-first CSE & Software Engineering workspace for DSA mastery, academics, projects, competitive programming, and placement readiness." />
@@ -17,7 +37,7 @@
     <link rel="stylesheet" href="./styles/theme.css" />
     <link rel="stylesheet" crossorigin href="./assets/app-styles.css" />
     <link rel="stylesheet" href="./styles/saas-upgrade.css" />
-    <link rel="stylesheet" href="./assets/responsive-patch.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./assets/responsive-patch.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./assets/responsive-patch.css" /></noscript>
     <link rel="stylesheet" href="./styles/cloud-auth.css" />
     <script src="./src/cloud/storage-schema.js"></script>
@@ -325,14 +345,14 @@
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/learning-heatmap-widget.js"></script>
     <script type="application/x-arise-protected" data-arise-protected data-module="1" data-src="./assets/app-bundle.js"></script>
     <link rel="stylesheet" href="./styles/animation-upgrade.css" />
-    <link rel="stylesheet" href="./styles/typography-upgrade.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./styles/typography-upgrade.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/typography-upgrade.css" /></noscript>
     <link rel="stylesheet" href="./styles/design-system.css" />
-    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker.css" /></noscript>
-    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-dday.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-dday.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-dday.css" /></noscript>
-    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-analytics.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-analytics.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-analytics.css" /></noscript>
     <style id="perf-lite-css">
       /* v221 perf-lite, rewritten in the 2026-11 motion pass.

@@ -130,22 +130,60 @@ test("connect-src is an explicit allow-list matching the sources in the repo", (
   assert.ok(!connect.includes("https:"), "connect-src must not be 'https:'");
 });
 
-test("connect-src does not over-grant: every host is referenced in the repo", () => {
-  const sources = fs.readdirSync(path.join(root, "src"));
-  const corpus = [
-    fs.readFileSync(path.join(root, "index.html"), "utf8"),
-    ...sources.filter((name) => name.endsWith(".js")).map((name) => fs.readFileSync(path.join(root, "src", name), "utf8")),
-    fs.existsSync(path.join(root, "dist/assets/cloud-auth.js"))
-      ? fs.readFileSync(path.join(root, "dist/assets/cloud-auth.js"), "utf8")
-      : ""
-  ].join("\n");
+/**
+ * Every connect-src host must be justified by something that is actually
+ * committed. Two kinds of justification are accepted:
+ *
+ *   "literal"  - the hostname appears in the app's own committed source.
+ *   "sdk:<pkg>" - the hostname is an endpoint of a declared dependency, and the
+ *                file named imports that dependency.
+ *
+ * This deliberately does NOT read dist/. An earlier version of this test did,
+ * and passed locally only because a build had been run: dist/ is git-ignored, so
+ * on a clean checkout the Firebase hosts had no evidence and the suite went red
+ * for everyone else. A test that depends on an uncommitted build artifact is a
+ * broken test, not a broken app.
+ */
+const CONNECT_JUSTIFICATIONS = {
+  "identitytoolkit.googleapis.com": { kind: "sdk", pkg: "firebase", importedBy: "src/cloud/auth-entry.js" },
+  "securetoken.googleapis.com": { kind: "sdk", pkg: "firebase", importedBy: "src/cloud/auth-entry.js" },
+  "api.open-meteo.com": { kind: "literal" }
+};
+
+test("connect-src does not over-grant: every host is justified by committed source", () => {
+  const srcDir = path.join(root, "src");
+  const walk = (dir) =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return walk(full);
+      return entry.name.endsWith(".js") ? [fs.readFileSync(full, "utf8")] : [];
+    });
+  const corpus = [fs.readFileSync(path.join(root, "index.html"), "utf8"), ...walk(srcDir)].join("\n");
+  const declaredDeps = Object.keys(require(path.join(root, "package.json")).dependencies || {});
   const ignored = new Set(["'self'", "'none'"]);
+
   for (const source of (d["connect-src"] || []).filter((value) => !ignored.has(value))) {
     const host = source.replace(/^https:\/\//, "").replace(/\/$/, "");
-    assert.ok(
-      corpus.includes(host) || corpus.includes(host.split(".").slice(0, 2).join(".")),
-      "connect-src grants " + host + " but nothing in the app calls it - remove it rather than widen the policy"
-    );
+    const rule = CONNECT_JUSTIFICATIONS[host];
+    assert.ok(rule, "connect-src grants " + host + " with no recorded justification - add one or remove the host");
+
+    if (rule.kind === "literal") {
+      assert.ok(corpus.includes(host), "connect-src grants " + host + " but no committed source references it");
+      continue;
+    }
+
+    assert.ok(declaredDeps.includes(rule.pkg), host + " is justified by the " + rule.pkg + " dependency, which package.json must declare");
+    const importer = fs.readFileSync(path.join(root, rule.importedBy), "utf8");
+    assert.match(importer, new RegExp("from ['\"]" + rule.pkg + "/" ), rule.importedBy + " must actually import " + rule.pkg);
+  }
+});
+
+test("no justification is left over for a host that was removed from the policy", () => {
+  const granted = new Set(
+    (d["connect-src"] || []).filter((value) => !value.startsWith("'")).map((value) => value.replace(/^https:\/\//, "").replace(/\/$/, ""))
+  );
+  for (const host of Object.keys(CONNECT_JUSTIFICATIONS)) {
+    assert.ok(granted.has(host), "CONNECT_JUSTIFICATIONS documents " + host + " but connect-src no longer allows it - drop the stale entry");
   }
 });
 

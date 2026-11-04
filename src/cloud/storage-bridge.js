@@ -17,9 +17,43 @@
     var entry = Object.assign({ key: key, opId: crypto.randomUUID().replace(/-/g, ''), baseVersion: getVersion(key), occurredAt: new Date().toISOString(), journalKind: file ? 'file' : 'local' }, extra || {});
     native.setItem(journalKey(key, file), JSON.stringify(entry)); return entry;
   }
+  // A journal entry is the local record of a mutation that has not reached the
+  // server yet, so it is the one piece of data we cannot afford to lose - but a
+  // partially written, older-format or tampered entry must never be able to
+  // stop the whole sync. Previously one unparsable value threw out of
+  // recover(), which aborted initialize() and left the account permanently
+  // un-synced with no way for the user to see why.
+  var quarantined = [];
+  function quarantine(key, reason) {
+    quarantined.push({ key: key, reason: reason });
+    if (quarantined.length > 20) quarantined.shift();
+    try { native.setItem('arise:journal-corrupt:' + encodeURIComponent(uid) + ':' + Date.now(), key); } catch (_) {}
+  }
+  function parseJournal(raw, file) {
+    if (typeof raw !== 'string' || !raw) return null;
+    var entry;
+    try { entry = JSON.parse(raw); } catch (_) { return null; }
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+    if (typeof entry.key !== 'string' || !schema.isKey(entry.key)) return null;
+    if (typeof entry.opId !== 'string' || !/^[a-z0-9]{8,80}$/i.test(entry.opId)) return null;
+    if (typeof entry.occurredAt !== 'string' || !Number.isFinite(Date.parse(entry.occurredAt))) return null;
+    var base = Number(entry.baseVersion);
+    if (!Number.isSafeInteger(base) || base < 0) entry.baseVersion = 0; else entry.baseVersion = base;
+    if (file) {
+      if (typeof entry.database !== 'string' || !entry.database) return null;
+      if (typeof entry.id !== 'string' || !entry.id) return null;
+    }
+    return entry;
+  }
   function recover(file) {
     var result = [], start = 'arise:' + (file ? 'file-journal:' : 'journal:') + encodeURIComponent(uid) + ':';
-    for (var i = 0; i < native.length; i++) { var key = native.key(i); if (key && key.startsWith(start)) { var entry = JSON.parse(native.getItem(key)); if (schema.isKey(entry.key)) result.push(entry); } }
+    for (var i = 0; i < native.length; i++) {
+      var key = native.key(i);
+      if (!key || !key.startsWith(start)) continue;
+      var entry = parseJournal(native.getItem(key), file);
+      if (entry) result.push(entry);
+      else quarantine(key, 'unreadable journal entry');
+    }
     return result.sort(function (a, b) { return a.occurredAt.localeCompare(b.occurredAt) || a.opId.localeCompare(b.opId); });
   }
   var cachedKeys = null, cachedNativeLen = -1;
@@ -283,8 +317,17 @@
     recoverFileJournal: function () { return recover(true); },
     cleanJournal: function (key, opId, kind) {
       var name = journalKey(key, kind === 'file'), raw = native.getItem(name);
-      if (raw && JSON.parse(raw).opId === opId) native.removeItem(name);
+      if (!raw) return false;
+      // Only remove the marker we were asked to clear. If it is unreadable it
+      // can never match an opId, so it would otherwise be retried on every
+      // launch forever - quarantine it instead of parsing it blindly.
+      var entry = parseJournal(raw, kind === 'file');
+      if (!entry) { quarantine(name, 'unreadable journal marker'); return false; }
+      if (entry.opId !== opId) return false;
+      native.removeItem(name);
+      return true;
     },
+    journalHealth: function () { return { quarantined: quarantined.slice(), count: quarantined.length }; },
     save: function (key, value) { return vaultAction('readwrite', key, value); },
     load: function (key) { return vaultAction('readonly', key); },
     drop: function (key) { return vaultAction('readwrite', key); }

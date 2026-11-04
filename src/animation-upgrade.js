@@ -273,48 +273,209 @@
   /**
    * Coordinates keyboard Escape dismissal, initial focus, Tab wrapping, and
    * focus restoration to the element that triggered a modal/dialog.
+   *
+   * Called with no arguments it adopts every modal currently in the document;
+   * widgets can also bind a specific overlay. Before this, the helper existed
+   * but nothing called it, so widget dialogs: let Tab escape into the page
+   * behind them, never moved focus into the dialog, and dropped the user's
+   * focus back at <body> when they closed.
+   *
+   * All behaviour is opt-in by markup (`data-open`, `role="dialog"`,
+   * `aria-modal`) and purely additive; a dialog that is not open is never
+   * touched, and every failure path leaves focus where the browser put it.
    */
+  var FOCUSABLE_SELECTOR = [
+    "button:not(:disabled)",
+    "[href]",
+    "input:not(:disabled):not([type=hidden])",
+    "select:not(:disabled)",
+    "textarea:not(:disabled)",
+    '[tabindex]:not([tabindex="-1"])'
+  ].join(", ");
+
+  // Geometry is only meaningful when the environment actually performs layout.
+  // Node/jsdom test runs report zero-size boxes for everything, which would
+  // otherwise make every control look "hidden" and silently disable the trap.
+  var layoutAvailable = null;
+  function hasLayout() {
+    if (layoutAvailable !== null) return layoutAvailable;
+    try {
+      layoutAvailable = !!(document.body && document.body.getClientRects && document.body.getClientRects().length > 0);
+    } catch (_) {
+      layoutAvailable = false;
+    }
+    return layoutAvailable;
+  }
+
+  function isVisible(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (el.hidden) return false;
+    if (el.getAttribute("aria-hidden") === "true") return false;
+    if (el.closest && el.closest("[hidden], [aria-hidden='true'], [inert]")) return false;
+    try {
+      var style = window.getComputedStyle(el);
+      if (style && (style.visibility === "hidden" || style.visibility === "collapse" || style.display === "none")) {
+        return false;
+      }
+    } catch (_) {}
+    if (hasLayout() && el.getClientRects && el.getClientRects().length === 0) return false;
+    return true;
+  }
+
+  function focusablesIn(root) {
+    if (!root || !root.querySelectorAll) return [];
+    var found = root.querySelectorAll(FOCUSABLE_SELECTOR);
+    var result = [];
+    for (var i = 0; i < found.length; i++) {
+      if (isVisible(found[i])) result.push(found[i]);
+    }
+    return result;
+  }
+
+  function overlayIsOpen(overlayEl) {
+    if (!overlayEl || !overlayEl.isConnected) return false;
+    if (overlayEl.hasAttribute("data-open")) return overlayEl.getAttribute("data-open") === "true";
+    // No explicit state: a dialog that is displayed counts as open.
+    return isVisible(overlayEl);
+  }
+
   function bindModalA11y(overlayEl, opts) {
     if (!overlayEl || overlayEl.__uxaModalBound) return;
     overlayEl.__uxaModalBound = true;
     var options = opts || {};
-    var dialogSelector = options.dialogSelector || '[role="dialog"], .exw-pdf-dialog, .lf-modal-card, .crt-dialog';
+    var dialogSelector =
+      options.dialogSelector ||
+      '[role="dialog"], [aria-modal="true"], .exw-pdf-dialog, .exw-pdf-dialog, .lf-modal-box, .lf-modal-card, .crt-dialog, .hxp-pdf-dialog, .upp-command-dialog';
     var onClose = typeof options.onClose === "function" ? options.onClose : null;
+    var restoreTo = null;
+
+    function dialogEl() {
+      return overlayEl.querySelector(dialogSelector) || overlayEl;
+    }
+
+    function rememberFocus() {
+      var active = document.activeElement;
+      if (active && active !== document.body && active !== overlayEl && !overlayEl.contains(active)) {
+        restoreTo = active;
+      }
+    }
+
+    function restoreFocus() {
+      var target = restoreTo;
+      restoreTo = null;
+      if (target && typeof target.focus === "function" && target.isConnected) {
+        try {
+          target.focus({ preventScroll: true });
+        } catch (_) {
+          try { target.focus(); } catch (__e) {}
+        }
+      }
+    }
+
+    // Move focus into the dialog when it opens, and remember the trigger.
+    var wasOpen = overlayIsOpen(overlayEl);
+    if (wasOpen) rememberFocus();
+    if (typeof MutationObserver === "function") {
+      var stateObserver = new MutationObserver(function () {
+        var open = overlayIsOpen(overlayEl);
+        if (open === wasOpen) return;
+        wasOpen = open;
+        if (open) {
+          rememberFocus();
+          if (options.autoFocus !== false) {
+            requestAnimationFrame(function () {
+              if (!overlayIsOpen(overlayEl)) return;
+              var current = document.activeElement;
+              if (current && overlayEl.contains(current)) return;
+              var focusables = focusablesIn(dialogEl());
+              var target = (options.initialFocus && options.initialFocus()) || focusables[0];
+              if (target && typeof target.focus === "function") {
+                try { target.focus({ preventScroll: true }); } catch (_) {}
+              }
+            });
+          }
+        } else {
+          restoreFocus();
+        }
+      });
+      stateObserver.observe(overlayEl, { attributes: true, attributeFilter: ["data-open", "hidden", "aria-hidden"] });
+    }
 
     var onKeyDown = function (ev) {
-      var isOpen =
-        overlayEl.getAttribute("data-open") === "true" ||
-        (!overlayEl.hasAttribute("data-open") && overlayEl.isConnected && overlayEl.offsetParent !== null);
-      if (!isOpen) return;
-      if (ev.key === "Escape" && onClose) {
-        ev.stopPropagation();
-        onClose();
+      if (!overlayIsOpen(overlayEl)) return;
+      if (ev.key === "Escape") {
+        // Only the overlay the key event actually came from reacts, so stacked
+        // dialogs close innermost-first instead of all at once.
+        var owner = ev.target && ev.target.closest ? ev.target.closest('[data-open="true"]') : null;
+        if (owner && owner !== overlayEl) return;
+        if (onClose) {
+          ev.stopPropagation();
+          onClose();
+        }
         return;
       }
-      if (ev.key === "Tab") {
-        var dialog = overlayEl.querySelector(dialogSelector) || overlayEl;
-        var focusables = Array.prototype.slice
-          .call(
-            dialog.querySelectorAll(
-              'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
-            )
-          )
-          .filter(function (el) {
-            return !el.hidden && el.getAttribute("aria-hidden") !== "true";
-          });
-        if (!focusables.length) return;
-        var first = focusables[0];
-        var last = focusables[focusables.length - 1];
-        if (ev.shiftKey && document.activeElement === first) {
-          ev.preventDefault();
-          last.focus();
-        } else if (!ev.shiftKey && document.activeElement === last) {
-          ev.preventDefault();
-          first.focus();
-        }
+      if (ev.key !== "Tab") return;
+      var focusables = focusablesIn(dialogEl());
+      if (!focusables.length) {
+        // A dialog with no focusable child still must not leak Tab to the page.
+        ev.preventDefault();
+        return;
+      }
+      var first = focusables[0];
+      var last = focusables[focusables.length - 1];
+      var active = document.activeElement;
+      var inside = overlayEl.contains(active);
+      if (!inside) {
+        // Focus escaped (or never entered): pull it back into the dialog.
+        ev.preventDefault();
+        (ev.shiftKey ? last : first).focus();
+        return;
+      }
+      if (ev.shiftKey && (active === first || active === dialogEl())) {
+        ev.preventDefault();
+        last.focus();
+      } else if (!ev.shiftKey && active === last) {
+        ev.preventDefault();
+        first.focus();
       }
     };
     overlayEl.addEventListener("keydown", onKeyDown);
+
+    var api = {
+      restoreFocus: restoreFocus,
+      focusables: function () { return focusablesIn(dialogEl()); },
+      isOpen: function () { return overlayIsOpen(overlayEl); }
+    };
+    overlayEl.__uxaModalApi = api;
+    return api;
+  }
+
+  /**
+   * Adopt every dialog the widgets render. Re-scanned on the shared mutation
+   * bus, so lazily mounted widgets and re-rendered dialogs are covered without
+   * editing ~100 widget files. Returns the number of newly bound overlays.
+   */
+  var ADOPT_SELECTOR = [
+    '[data-open][aria-modal="true"]',
+    '[data-open][role="dialog"]',
+    '[data-open] .exw-pdf-dialog',
+    '[role="dialog"][aria-modal="true"]'
+  ].join(", ");
+
+  function adoptModals() {
+    if (typeof document === "undefined") return 0;
+    var bound = 0;
+    var candidates = document.querySelectorAll(ADOPT_SELECTOR);
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      // Prefer the overlay (the element that owns data-open) over the dialog.
+      var overlay = el.hasAttribute("data-open") ? el : el.parentElement;
+      if (overlay && !overlay.__uxaModalBound) {
+        bindModalA11y(overlay);
+        bound += 1;
+      }
+    }
+    return bound;
   }
 
   // -------------------------------------------------------------------------
@@ -1082,7 +1243,18 @@
     bindCursorGlow();
     applyMotionState();
 
-    // 5. Mark page-load complete for tests/telemetry (no behaviour attached).
+    // 5. Adopt widget dialogs for keyboard accessibility (Escape, Tab trap,
+    //    focus in/out). Runs after the first scan so the shell already exists,
+    //    then re-runs on the shared bus for lazily mounted widgets.
+    adoptModals();
+    setTimeout(adoptModals, 800);
+    if (window.__ARISE_MUTATION_BUS__ && typeof window.__ARISE_MUTATION_BUS__.subscribe === "function") {
+      window.__ARISE_MUTATION_BUS__.subscribe(function () {
+        if (!document.hidden) adoptModals();
+      });
+    }
+
+    // 6. Mark page-load complete for tests/telemetry (no behaviour attached).
     setTimeout(function () {
       docEl.setAttribute("data-uxa-ready", "1");
     }, 0);
@@ -1098,6 +1270,8 @@
     renderErrorState: renderErrorState,
     renderEmptyState: renderEmptyState,
     bindModalA11y: bindModalA11y,
+    adoptModals: adoptModals,
+    getFocusable: focusablesIn,
     scanCards: scanCards,
     scanDataViews: scanDataViews,
     animateIn: animateIn,

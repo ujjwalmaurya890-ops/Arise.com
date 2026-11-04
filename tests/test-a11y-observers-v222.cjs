@@ -2,7 +2,7 @@ const {JSDOM}=require("jsdom");const fs=require("fs");
 const dom=new JSDOM('<!doctype html><html><head></head><body><div id="root"></div></body></html>',{runScripts:"outside-only",pretendToBeVisual:true});
 const w=dom.window;let fail=0;const ok=(c,m)=>{console.log((c?"PASS ":"FAIL ")+m);if(!c)fail++};
 const run=f=>w.eval(fs.readFileSync(f,"utf8"));
-run("src/mutation-bus.js");run("src/a11y-color-patch.js");run("src/a11y-toast-patch.js");
+run("src/mutation-bus.js");run("src/a11y-color-patch.js");run("src/a11y-toast-patch.js");run("src/a11y-label-patch.js");
 ok(!!w.__ARISE_MUTATION_BUS__,"bus present");
 const d=w.document;
 // add nodes AFTER patches loaded -> should be labelled via bus path (scoped scan)
@@ -13,6 +13,7 @@ setTimeout(()=>{
   ok(d.querySelector(".att-zone-badge [data-uxa-tone-label]")?.textContent==="[At risk] ","tone label added to new node");
   ok(d.querySelector(".lh-cell").getAttribute("aria-label")==="Mon (activity level: High)","heat cell aria-label added");
   ok(d.querySelector(".htw-toast").getAttribute("role")==="status","toast role=status added");
+  ok(d.querySelector(".att-zone-badge").getAttribute("aria-label")===null,"tone badge keeps no invented aria-label");
   // >40 added nodes -> falls back to full-document scan
   const big=d.createElement("div");let h="";for(let i=0;i<60;i++)h+='<span class="hh-pct-up">'+i+'</span>';big.innerHTML=h;
   d.getElementById("root").appendChild(big);for(let i=0;i<45;i++){const s=d.createElement("i");d.getElementById("root").appendChild(s)}

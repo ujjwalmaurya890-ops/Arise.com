@@ -127,7 +127,32 @@
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "base-uri 'self'"
+    # Every directive below is justified by what the app actually loads; see
+    # tests/test-csp-policy.cjs, which derives the source list from the repo and
+    # fails if the policy grants a host nothing calls, or if the app starts
+    # calling something the policy does not allow.
+    #
+    # The policy this replaces was `base-uri 'self'` alone - no fetch
+    # directives at all - so any injected <script src="//evil"> would load and
+    # run with full access to the user's study data.
+    #
+    # script-src: 'unsafe-inline' is still required because index.html ships six
+    #   inline bootstrap blocks (theme bootstrap, mount stubs, expedite loader).
+    #   What IS enforced now: no remote origin and no 'unsafe-eval', so the
+    #   attacker's usual payload - loading a script from their own host - is
+    #   blocked outright, and the app cannot be tricked into string-eval.
+    #   Migrating those blocks to nonces is the next step and is tracked in the
+    #   audit; it cannot be done from a static _headers file, which has no way
+    #   to generate a per-response nonce.
+    # style-src:  'unsafe-inline' is also required (inline <style> blocks and
+    #   widget style attributes); CSS is a far smaller privilege than JS.
+    # connect-src: same-origin /api/* proxies, Firebase Auth (identitytoolkit +
+    #   securetoken) and api.open-meteo.com (water reminder). A host the app does
+    #   not actually call must be removed rather than defaulting to a wildcard.
+    # worker-src blob: because widgets construct their workers from blobs.
+    # object-src 'none' + frame-ancestors 'none' because the dashboard embeds no
+    #   plugins and must not be framed.
+    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob: data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.open-meteo.com; worker-src 'self' blob:; manifest-src 'self'"
 
 [[headers]]
   for = "/assets/cloud-auth.js"

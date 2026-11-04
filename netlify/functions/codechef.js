@@ -28,17 +28,22 @@
 // ROUTE (matches what the widget already calls, just same-origin now):
 //   GET /api/codechef/handle/:handle
 
+const guard = require("./_proxy-guard");
 const MIRROR_BASE = "https://codechef-api.vercel.app";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 8000;
 
-const cache = new Map(); // handle (lowercased) -> { data, expiresAt }
+const cache = new guard.BoundedCache(); // handle (lowercased) -> { data, expiresAt }, LRU-bounded
 
 exports.handler = async function (event) {
-  const cors = corsHeaders();
+  const cors = corsHeaders(event);
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: cors, body: "" };
   }
+
+  // Bounded per-client budget + origin check, before any upstream work.
+  const refused = guard.rejected(event, cors);
+  if (refused) return refused;
   if (event.httpMethod !== "GET") {
     return respond(405, { error: "Method not allowed." }, cors);
   }
@@ -116,12 +121,8 @@ function retry(fn, retriesLeft, delayMs) {
   });
 }
 
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
-  };
+function corsHeaders(event) {
+  return guard.corsHeaders(event);
 }
 
 function respond(statusCode, bodyObj, extraHeaders) {

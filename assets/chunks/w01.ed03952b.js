@@ -10,13 +10,45 @@ try{
     if (!t || t.nodeType !== 1) return false;
     return typeof t.closest === "function" && !!t.closest(NOISE_SEL);
   }
+  // A subscriber that throws is a widget updater that silently stopped
+  // updating: 42 files subscribe here, and `catch {}` meant the failure left no
+  // trace at all - not in the console, not in __ariseMountErrors, nothing. The
+  // bus must stay fail-open (one broken updater may not stop the rest), but it
+  // now records what happened so the failure reporter can surface it.
+  var failures = [], MAX_FAILURES = 40;
+  function describe(fn) {
+    try {
+      return String(fn.__ariseSubscriber || fn.name || "").trim() || "anonymous updater";
+    } catch (_) { return "anonymous updater"; }
+  }
+  function recordFailure(fn, error) {
+    var name = describe(fn), entry = null;
+    for (var k = 0; k < failures.length; k++) {
+      if (failures[k].fn === fn) { entry = failures[k]; break; }
+    }
+    if (!entry) {
+      if (failures.length >= MAX_FAILURES) failures.shift();
+      entry = { fn: fn, name: name, count: 0, firstAt: new Date().toISOString() };
+      failures.push(entry);
+    }
+    entry.count += 1;
+    entry.lastAt = new Date().toISOString();
+    entry.message = (error && error.message) || String(error);
+    try {
+      if (typeof window.__ariseReportWidgetError === "function") {
+        window.__ariseReportWidgetError("updater:" + name, entry.message);
+      }
+    } catch (_) {}
+    try { console.error("[mutation-bus] subscriber threw: " + name, error); } catch (_) {}
+    return entry;
+  }
   function c() {
     if (i && (clearTimeout(i), i = 0), !!r.length) {
       var t = r;
       r = [];
       for (var e = n.slice(), o = 0; o < e.length; o++) {
         if (n.indexOf(e[o]) !== -1) {
-          try { e[o](t, u); } catch {}
+          try { e[o](t, u); } catch (err) { recordFailure(e[o], err); }
         }
       }
     }
@@ -33,6 +65,12 @@ try{
       return typeof t != "function" ? function () {} : (n.push(t), function () {
         var e = n.indexOf(t);
         e !== -1 && n.splice(e, 1);
+      });
+    },
+    // Diagnostics: which updaters have thrown, how often, and with what.
+    failures: function () {
+      return failures.map(function (entry) {
+        return { name: entry.name, count: entry.count, message: entry.message, firstAt: entry.firstAt, lastAt: entry.lastAt };
       });
     }
   };
@@ -163,12 +201,84 @@ try{
     }
   }
 
+  function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  /**
+   * Canonical "which day was this for the user" key: the LOCAL calendar date
+   * as YYYY-MM-DD.
+   *
+   * The previous implementation returned an unpadded string
+   * ("2026-1-9"). That is not a sortable or comparable day key: as a plain
+   * string "2026-1-9" sorts AFTER "2026-1-10" because "9" > "1", so every
+   * lexicographic sort/compare/bucket lookup on a day key was wrong for
+   * January-September, and any label rendered from it lost its alignment.
+   * Zero padding fixes that without changing the meaning of the key.
+   *
+   * Consumers that only ever use the key as an opaque map key are unaffected;
+   * consumers that compare, sort, or display it are corrected.
+   */
   function dayKey(d) {
-    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+    var date = d instanceof Date ? d : new Date(d);
+    if (!date || isNaN(date.getTime())) return "";
+    return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
+  }
+
+  /** UTC calendar date as YYYY-MM-DD. Needed to read legacy records that were
+   *  written with `toISOString().split("T")[0]` (which is UTC, not local). */
+  function utcDayKey(d) {
+    var date = d instanceof Date ? d : new Date(d);
+    if (!date || isNaN(date.getTime())) return "";
+    return date.toISOString().slice(0, 10);
+  }
+
+  /** Parse a YYYY-MM-DD key back to LOCAL midnight (never via `new Date("...")`,
+   *  which parses a bare date as UTC midnight and can shift the day backwards
+   *  in negative-offset timezones). Returns null for anything unparseable. */
+  function dayKeyToDate(key) {
+    if (typeof key !== "string") return null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+    if (!m) return null;
+    var y = Number(m[1]), mo = Number(m[2]), da = Number(m[3]);
+    var date = new Date(y, mo - 1, da);
+    date.setHours(0, 0, 0, 0);
+    if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== da) return null;
+    return date;
+  }
+
+  /** True when two timestamps/Date objects/keys fall on the same local day. */
+  function isSameLocalDay(a, b) {
+    var ka = typeof a === "string" ? a : dayKey(a);
+    var kb = typeof b === "string" ? b : dayKey(b);
+    return !!ka && ka === kb;
+  }
+
+  /** Whole local days from `from` to `to` (DST-safe: compares calendar days,
+   *  not elapsed milliseconds, so a 23h/25h clock-change day still counts as 1). */
+  function daysBetween(from, to) {
+    var a = new Date(startOfDay(from instanceof Date ? from : new Date(from)));
+    var b = new Date(startOfDay(to instanceof Date ? to : new Date(to)));
+    if (isNaN(a.getTime()) || isNaN(b.getTime())) return NaN;
+    var utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+    var utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+    return Math.round((utcB - utcA) / 86400000);
+  }
+
+  /** Short human label for a day, e.g. "9 Feb 2026". Widgets used to store a
+   *  raw day key as a *display* string ("2026-2-9"), which reads as machine
+   *  output in the UI. Storage keys and labels are now separate concerns. */
+  function weekLabel(d) {
+    var date = d instanceof Date ? d : new Date(d);
+    if (!date || isNaN(date.getTime())) return "";
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return date.getDate() + " " + months[date.getMonth()] + " " + date.getFullYear();
   }
 
   function startOfDay(d) {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    var date = d instanceof Date ? d : new Date(d);
+    if (!date || isNaN(date.getTime())) return NaN;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   }
 
   function highestCrossed(val, thresholds) {
@@ -362,6 +472,7 @@ try{
       for (var i = 0; i < registeredUpdaters.length; i++) {
         enqueueUpdater(registeredUpdaters[i]);
       }
+      if (updaterCoalescers.length) scheduleUpdaterCoalescers();
     });
     window.addEventListener("storage", function (ev) {
       if (ev && ev.__ariseRemote) {
@@ -376,8 +487,23 @@ try{
     });
   }
 
-  function bootUpdater(fn) {
-    function start() {
+  /**
+   * Wrap a full-document updater so many widgets running it for the same burst
+   * of mutations cost one pass, not one pass per widget.
+   *
+   * Measured before this helper existed (5 mounted widgets, 25 content
+   * mutations on a dashboard-sized DOM): 51 document-level querySelectorAll
+   * calls returning 25,092 elements, purely from widgets rescanning the whole
+   * document in response to each other's DOM writes. These updaters are
+   * idempotent (they rewrite a signature-checked section), so collapsing a
+   * burst into a single trailing run is behaviour-preserving - it only removes
+   * duplicated work inside the same ~80ms window.
+   *
+   * `bus.mute()` is deliberately NOT used here: mute() drains and discards the
+   * observer's pending records, which would swallow legitimate sibling widget
+   * updates. registerUpdaterCoalescer() stays purely timing based.
+   */
+  function bootUpdater(fn) {    function start() {
       fn();
       if (registeredUpdaters.indexOf(fn) === -1) registeredUpdaters.push(fn);
       ensureSharedSubscription();
@@ -387,6 +513,37 @@ try{
     } else {
       start();
     }
+  }
+
+  var updaterCoalescers = [];
+  var coalescerQueued = false;
+
+  /** See bootUpdater(): register a whole-document updater that several widgets
+   *  would otherwise each run for the same mutation burst. */
+  function registerUpdaterCoalescer(fn) {
+    if (typeof fn !== "function" || updaterCoalescers.indexOf(fn) !== -1) return;
+    updaterCoalescers.push(fn);
+  }
+
+  function runUpdaterCoalescers() {
+    coalescerQueued = false;
+    if (document.hidden) return;
+    var pending = updaterCoalescers.slice();
+    for (var i = 0; i < pending.length; i++) {
+      try {
+        pending[i]();
+      } catch (err) {
+        (function (ex) {
+          setTimeout(function () { throw ex; });
+        })(err);
+      }
+    }
+  }
+
+  function scheduleUpdaterCoalescers() {
+    if (coalescerQueued) return;
+    coalescerQueued = true;
+    setTimeout(runUpdaterCoalescers, 80);
   }
 
   function escapeText(str) {
@@ -595,9 +752,15 @@ try{
     showToast: showToast,
     readVersioned: readVersioned,
     dayKey: dayKey,
+    utcDayKey: utcDayKey,
+    weekLabel: weekLabel,
+    dayKeyToDate: dayKeyToDate,
+    isSameLocalDay: isSameLocalDay,
+    daysBetween: daysBetween,
     startOfDay: startOfDay,
     highestCrossed: highestCrossed,
     bootUpdater: bootUpdater,
+    registerUpdaterCoalescer: registerUpdaterCoalescer,
     safeURL: safeURL,
     prefersReducedMotion: prefersReducedMotion,
     smoothScroll: smoothScroll,

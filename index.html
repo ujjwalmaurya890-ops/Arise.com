@@ -1,6 +1,26 @@
 <!doctype html>
 <html lang="en" data-theme="cyberMidnightPro" data-theme-mode="dark">
   <head>
+    <!-- CSP: stylesheets are loaded non-blocking with media="print" and promoted
+         once fetched. This used to be an inline onload="" attribute, which a
+         Content-Security-Policy without 'unsafe-inline' for scripts would
+         silently ignore - the sheets would stay print-only and the page would
+         render unstyled. Doing it from a listener keeps that guarantee. -->
+    <script>
+      (function () {
+        function promote(link) {
+          if (link && link.tagName === "LINK") link.media = "all";
+        }
+        document.addEventListener("load", function (ev) { promote(ev.target); }, true);
+        document.addEventListener("DOMContentLoaded", function () {
+          var pending = document.querySelectorAll('link[data-promote-on-load]');
+          for (var i = 0; i < pending.length; i++) {
+            if (pending[i].sheet) promote(pending[i]);
+            else pending[i].addEventListener("load", function () { promote(this); });
+          }
+        });
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="theme-color" content="#090B10" />
     <meta name="description" content="Arise — Your complete local-first CSE & Software Engineering workspace for DSA mastery, academics, projects, competitive programming, and placement readiness." />
@@ -17,7 +37,7 @@
     <link rel="stylesheet" href="./styles/theme.css" />
     <link rel="stylesheet" crossorigin href="./assets/app-styles.css" />
     <link rel="stylesheet" href="./styles/saas-upgrade.css" />
-    <link rel="stylesheet" href="./assets/responsive-patch.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./assets/responsive-patch.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./assets/responsive-patch.css" /></noscript>
     <link rel="stylesheet" href="./styles/cloud-auth.css" />
     <script src="./src/cloud/storage-schema.js"></script>
@@ -325,14 +345,14 @@
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/learning-heatmap-widget.js"></script>
     <script type="application/x-arise-protected" data-arise-protected data-module="1" data-src="./assets/app-bundle.js"></script>
     <link rel="stylesheet" href="./styles/animation-upgrade.css" />
-    <link rel="stylesheet" href="./styles/typography-upgrade.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./styles/typography-upgrade.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/typography-upgrade.css" /></noscript>
     <link rel="stylesheet" href="./styles/design-system.css" />
-    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker.css" /></noscript>
-    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-dday.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-dday.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-dday.css" /></noscript>
-    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-analytics.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-analytics.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-analytics.css" /></noscript>
     <style id="perf-lite-css">
       /* v221 perf-lite, rewritten in the 2026-11 motion pass.
@@ -908,6 +928,8 @@ window.AriseBoot.ready.then(function () {
       './src/widget-reset.js',
       './src/a11y-toast-patch.js',
       './src/a11y-color-patch.js',
+      './src/a11y-label-patch.js',
+      './src/widget-failure-reporter.js',
       './src/attendance-tracker-widget.js',
       './src/competitive-programming-widget.js',
       './src/social-media-widget.js',
@@ -982,20 +1004,20 @@ window.AriseBoot.ready.then(function () {
     ];
     /*CHUNKS:START*/
     var CHUNKS = [
-      "./assets/chunks/w01.358ec9f9.js",
-      "./assets/chunks/w02.df8900ac.js",
-      "./assets/chunks/w03.583a4c77.js",
+      "./assets/chunks/w01.ed03952b.js",
+      "./assets/chunks/w02.a89778ae.js",
+      "./assets/chunks/w03.ec8efd00.js",
       "./assets/chunks/w04.184d5eb3.js",
       "./assets/chunks/w05.aba06fa4.js",
-      "./assets/chunks/w06.cdd8610b.js",
-      "./assets/chunks/w07.6cbba147.js",
-      "./assets/chunks/w08.293bd748.js",
-      "./assets/chunks/w09.737099e3.js",
-      "./assets/chunks/w10.cc83f0f2.js",
+      "./assets/chunks/w06.50ab4798.js",
+      "./assets/chunks/w07.3def584e.js",
+      "./assets/chunks/w08.004734af.js",
+      "./assets/chunks/w09.60cffb01.js",
+      "./assets/chunks/w10.7b87fb7c.js",
       "./assets/chunks/w11.d858d06b.js",
       "./assets/chunks/w12.40743912.js"
     ];
-    var CHUNK_FILES = {"./assets/chunks/w01.358ec9f9.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.df8900ac.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js"],"./assets/chunks/w03.583a4c77.js":["./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.184d5eb3.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.aba06fa4.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.cdd8610b.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.6cbba147.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js"],"./assets/chunks/w08.293bd748.js":["./src/dsa-mistake-journal-widget.js","./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js"],"./assets/chunks/w09.737099e3.js":["./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js","./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.cc83f0f2.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.d858d06b.js":["./src/expenses.js"],"./assets/chunks/w12.40743912.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js","./src/career-intelligence-dashboard.js"]};
+    var CHUNK_FILES = {"./assets/chunks/w01.ed03952b.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.a89778ae.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js"],"./assets/chunks/w03.ec8efd00.js":["./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/a11y-label-patch.js","./src/widget-failure-reporter.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.184d5eb3.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.aba06fa4.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.50ab4798.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.3def584e.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js","./src/dsa-mistake-journal-widget.js"],"./assets/chunks/w08.004734af.js":["./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js"],"./assets/chunks/w09.60cffb01.js":["./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js","./src/features/semester-risk/cse-syllabus-unified-widget.js"],"./assets/chunks/w10.7b87fb7c.js":["./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.d858d06b.js":["./src/expenses.js"],"./assets/chunks/w12.40743912.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js","./src/career-intelligence-dashboard.js"]};
     /*CHUNKS:END*/
 
     function loadCss() {

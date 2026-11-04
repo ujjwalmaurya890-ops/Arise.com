@@ -7,8 +7,26 @@
    - Unified spinners, determinate/indeterminate progress, empty/error states
    - Coordinated modal, drawer, menu, and route transitions
    - Strict prefers-reduced-motion & :focus-visible accessibility compliance
+
+   2026-11 motion pass (see docs/MOTION-AUDIT-2026-11-04.md):
+   - §0  single token source of truth + legacy aliases
+   - §10 shared interaction vocabulary (cards, buttons, nav, inputs, toasts)
+   - §11 theme-aware ambient atmosphere (grid + aurora, fully static by design)
+   - §12 scoped, opt-in decorative motion (replaces substring kill-switches)
+   Loaded after design-system.css so the tokens here are the effective ones;
+   design-system.css keeps its own names working through the aliases below.
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   0. Motion tokens — single source of truth
+   Duration ladder (kept compatible with every existing --motion-* consumer):
+     100–150ms  micro feedback        --motion-instant / --motion-fast
+     150–200ms  fast interaction      --motion-micro
+     200–300ms  standard transition  --motion-normal
+     250–350ms  modal / panel        --motion-panel
+     300–450ms  section / route      --motion-section
+     500–800ms  decorative only      --motion-decor
+   -------------------------------------------------------------------------- */
 :root {
   /* 1. Duration scale */
   --motion-instant: 90ms;
@@ -17,14 +35,24 @@
   --motion-normal: 200ms;
   --motion-panel: 220ms;
   --motion-section: 260ms;
+  --motion-enter: 320ms;
+  --motion-decor: 600ms;
   --motion-spinner: 720ms;
   --motion-skeleton: 1500ms;
+
+  /* Aliases for the pre-existing design-system.css names. Declared here (the
+     later-loaded sheet) so both vocabularies resolve to one value. */
+  --motion-standard: var(--motion-normal);
+  --motion-slow: var(--motion-enter);
 
   /* 2. Easing curves */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
   --ease-spring-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-emphasis: cubic-bezier(0.34, 1.2, 0.64, 1);
   --ease-linear: linear;
 
   /* 3. Loader sizing & spacing */
@@ -55,16 +83,47 @@
   --motion-distance-xs: 2px;
   --motion-distance-sm: 4px;
   --motion-distance-md: 8px;
+  --motion-distance-lg: 14px;
   --motion-scale-press: 0.985;
   --motion-scale-modal: 0.975;
   --overlay-scrim-opacity: 0.62;
   --overlay-scrim-bg: rgba(2, 6, 23, 0.62);
+
+  /* 6. Motion-only colour/geometry derivations. Every value is mixed from the
+     active theme, so no animation introduces a hardcoded palette colour. */
+  --motion-lift: -1.5px;
+  --motion-nav-lift: 1.5px;
+  --motion-hover-surface: color-mix(in srgb, var(--primary) 6%, var(--surface));
+  --motion-hover-border: color-mix(in srgb, var(--primary) 30%, var(--border));
+  --motion-focus-ring: 0 0 0 3px color-mix(in srgb, var(--primary) 26%, transparent);
+  --motion-glow-soft: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent),
+                      0 8px 28px color-mix(in srgb, var(--primary) 8%, transparent);
+  --motion-ambient-primary: color-mix(in srgb, var(--primary) 13%, transparent);
+  --motion-ambient-info: color-mix(in srgb, var(--info, var(--primary)) 9%, transparent);
+  --motion-ambient-grid: color-mix(in srgb, var(--border) 40%, transparent);
+  --motion-ambient-grid-fade: 46%;
+  --motion-ambient-opacity: 1;
+  --motion-stagger-step: 28ms;
+  --motion-stagger-max: 168ms;
 }
 
 html[data-theme-mode="light"] {
   --skeleton-base: color-mix(in srgb, var(--text-primary, #0f172a) 12%, var(--surface, #fff));
   --skeleton-highlight: color-mix(in srgb, var(--surface, #fff) 30%, transparent);
   --overlay-scrim-bg: rgba(15, 23, 42, 0.44);
+  --motion-hover-surface: color-mix(in srgb, var(--primary) 5%, var(--surface));
+  --motion-glow-soft: 0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent),
+                      0 6px 20px color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --motion-ambient-primary: color-mix(in srgb, var(--primary) 8%, transparent);
+  --motion-ambient-info: color-mix(in srgb, var(--info, var(--primary)) 6%, transparent);
+  --motion-ambient-grid: color-mix(in srgb, var(--border) 62%, transparent);
+}
+
+/* OLED-black themes must not wash out to grey from ambient glows. */
+html[data-theme="amoled"],
+html[data-theme="superhumanBlack"],
+html[data-theme="highContrastMono"] {
+  --motion-ambient-opacity: 0.55;
 }
 
 /* --------------------------------------------------------------------------
@@ -86,7 +145,42 @@ html[data-theme-mode="light"] {
 /* --------------------------------------------------------------------------
    1. Scroll / Viewport Card Reveal (progressive enhancement: never hides
       content if JS hasn't observed it yet)
+   - .uxa-reveal is only ever applied by JS (§src/motion-engine.js boot()),
+     which also applies .uxa-in or the fail-open .uxa-instant within one frame.
+   - A CSS animation entry (uxa-fade-up) is used for the initial paint so the
+     reveal costs one compositor animation and no transition chaining.
    -------------------------------------------------------------------------- */
+@keyframes uxa-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-distance-md), 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes uxa-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes uxa-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .uxa-reveal {
   opacity: 0;
   transform: translate3d(0, var(--motion-distance-md), 0);
@@ -99,6 +193,18 @@ html[data-theme-mode="light"] {
 .uxa-reveal.uxa-in {
   opacity: 1;
   transform: translate3d(0, 0, 0);
+}
+
+/* Entrance animations usable by JS/WAAPI-less paths (widgets, data views). */
+.uxa-anim-fade-up {
+  animation: uxa-fade-up var(--motion-enter) var(--ease-enter) both;
+  animation-delay: var(--uxa-stagger, 0ms);
+}
+.uxa-anim-fade-in {
+  animation: uxa-fade-in var(--motion-normal) var(--ease-standard) both;
+}
+.uxa-anim-scale-in {
+  animation: uxa-scale-in var(--motion-panel) var(--ease-enter) both;
 }
 
 /* Route / section transition on SPA navigation */
@@ -973,4 +1079,562 @@ img.uxa-img-fallback {
   .quick-action:active {
     transform: none !important;
   }
+}
+
+/* ==========================================================================
+   10. Shared Interaction Vocabulary (cards, buttons, nav, forms, toasts)
+   --------------------------------------------------------------------------
+   These rules intentionally use the SAME specificity layer as the existing
+   saas-upgrade.css overrides (html[data-theme] + !important) because that is
+   the layer that currently wins the cascade. Nothing here changes layout
+   geometry at rest — only the transition curve of properties that were
+   already transitioning, plus a compositor-only lift where the card is
+   genuinely interactive.
+   ========================================================================== */
+
+/* 10.1 Cards ------------------------------------------------------------- */
+/* Base cards transition colour + a single transform for the hover lift. The
+   old .glass-card:hover pushed a box-shadow (repaint) with no transition on
+   the shadow of the base rule; keeping the shadow list static and animating
+   only transform/opacity removes that mismatch. */
+html[data-theme] .glass-card,
+html[data-theme] .card-hover-glow {
+  transition:
+    transform var(--motion-panel) var(--ease-out-quart),
+    box-shadow var(--motion-panel) var(--ease-out-quart),
+    background-color var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard) !important;
+  will-change: auto;
+}
+
+/* Only cards the app makes interactive (cursor:pointer or role=button) lift.
+   Informational cards keep the original, colour-only hover. */
+html[data-theme] .glass-card[role="button"]:hover,
+html[data-theme] .glass-card.cursor-pointer:hover,
+html[data-theme] .card-hover-glow[role="button"]:hover {
+  transform: translate3d(0, var(--motion-lift), 0) !important;
+}
+html[data-theme] .glass-card[role="button"]:active,
+html[data-theme] .glass-card.cursor-pointer:active {
+  transform: translate3d(0, 0, 0) scale(0.995) !important;
+}
+
+/* Non-interactive cards keep a colour-only hover — no motion. */
+html[data-theme] .glass-card:not([role="button"]):not(.cursor-pointer):hover,
+html[data-theme] .card-hover-glow:not([role="button"]):hover {
+  transform: none !important;
+}
+
+@media (hover: none) {
+  html[data-theme] .glass-card:hover,
+  html[data-theme] .card-hover-glow:hover,
+  html[data-theme] .quick-action:hover {
+    transform: none !important;
+  }
+}
+
+/* 10.2 Buttons ----------------------------------------------------------- */
+html[data-theme] button:not(:disabled):not([data-uxa-busy="true"]):not(.upp-command-item):not(.arise-sb-toggle),
+html[data-theme] [role="button"]:not([aria-disabled="true"]) {
+  transition:
+    background-color var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard),
+    transform var(--motion-micro) var(--ease-out-quart),
+    opacity var(--motion-micro) var(--ease-standard) !important;
+}
+
+/* Press feedback: one shared scale, GPU only. Exemptions: modal chrome
+   (full-width rows / close buttons) and anything that already sets its own. */
+html[data-theme] .btn-premium:active,
+html[data-theme] .quick-action:active,
+html[data-theme] .arise-pwb-chip:active,
+html[data-theme] .uxa-btn-safe:active {
+  transform: scale(0.98) !important;
+}
+
+/* The pre-existing .btn-premium sheen animated a skew overlay on hover. It is
+   decorative: keep it, but bound it to the decorative layer so perf-lite and
+   reduced motion can drop it in one place. */
+html[data-theme] .btn-premium::before {
+  transition: transform var(--motion-decor) var(--ease-out-quart);
+}
+
+/* Success state for a button that has just completed an action. Applied by
+   src/motion-engine.js `flashSuccess(btn)`; non-colour cue via ::after check. */
+@keyframes uxa-success-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.uxa-success-flash {
+  animation: uxa-success-pop var(--motion-panel) var(--ease-emphasis) both;
+}
+
+button[data-uxa-success="true"] {
+  border-color: color-mix(in srgb, var(--success) 55%, var(--border)) !important;
+  color: color-mix(in srgb, var(--success) 80%, var(--text-primary)) !important;
+}
+
+button[data-uxa-success="true"]::after {
+  content: "✓";
+  margin-left: 0.35em;
+  font-weight: 700;
+  animation: uxa-success-pop var(--motion-panel) var(--ease-emphasis) both;
+}
+
+/* 10.3 Sidebar navigation ------------------------------------------------ */
+/* The active item gets one accent rail and one tinted surface, both mixed
+   from the theme. No new colours, no glow stacks. */
+html[data-theme] #arise-desktop-sidebar .nav-item,
+html[data-theme] #arise-mobile-drawer .nav-item {
+  position: relative;
+  transition:
+    background-color var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard),
+    transform var(--motion-micro) var(--ease-out-quart) !important;
+  will-change: auto;
+}
+
+html[data-theme] #arise-desktop-sidebar .nav-item::before,
+html[data-theme] #arise-mobile-drawer .nav-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary-fg, var(--primary));
+  opacity: 0;
+  transform: translate3d(-2px, -50%, 0);
+  transition:
+    height var(--motion-panel) var(--ease-enter),
+    opacity var(--motion-micro) var(--ease-standard),
+    transform var(--motion-panel) var(--ease-enter);
+  pointer-events: none;
+}
+
+html[data-theme] #arise-desktop-sidebar .nav-item.nav-active::before,
+html[data-theme] #arise-mobile-drawer .nav-item.nav-active::before {
+  height: 58%;
+  opacity: 1;
+  transform: translate3d(0, -50%, 0);
+}
+
+/* Icon reacts to the item state, not to a global hover that would also fire on
+   the active row. */
+html[data-theme] #arise-desktop-sidebar .nav-item > span:first-child,
+html[data-theme] #arise-mobile-drawer .nav-item > span:first-child {
+  transition: transform var(--motion-micro) var(--ease-out-quart), color var(--motion-micro) var(--ease-standard) !important;
+}
+html[data-theme] #arise-desktop-sidebar .nav-item:hover:not(.nav-active) > span:first-child,
+html[data-theme] #arise-mobile-drawer .nav-item:hover:not(.nav-active) > span:first-child {
+  transform: translate3d(var(--motion-nav-lift), 0, 0);
+}
+
+/* Group headers: the chevron already rotates; give the row a matching curve. */
+html[data-theme] .arise-nav-group-btn {
+  transition: background-color var(--motion-micro) var(--ease-standard), color var(--motion-micro) var(--ease-standard) !important;
+}
+html[data-theme] .arise-nav-group-chev {
+  transition: transform var(--motion-micro) var(--ease-out-quart) !important;
+}
+
+/* Collapsed rail: hide text without layout-thrashing opacity churn. */
+@media (min-width: 64rem) {
+  html[data-theme] #arise-desktop-sidebar[data-collapsed="true"] .nav-item > span:not(:first-child) {
+    opacity: 0;
+    transition: opacity var(--motion-fast) var(--ease-standard) !important;
+  }
+}
+
+/* 10.4 Forms, inputs, toggles -------------------------------------------- */
+@keyframes uxa-invalid-nudge {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(-2px, 0, 0); }
+  75% { transform: translate3d(2px, 0, 0); }
+}
+
+html[data-theme] main input,
+html[data-theme] main select,
+html[data-theme] main textarea {
+  transition:
+    border-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard),
+    background-color var(--motion-micro) var(--ease-standard) !important;
+}
+
+html[data-theme] [aria-invalid="true"]:not([type="hidden"]) {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent) !important;
+}
+
+/* Only nudge on the first flag, not on every re-render. */
+html[data-theme] [aria-invalid="true"][data-uxa-invalid-fresh="true"] {
+  animation: uxa-invalid-nudge var(--motion-panel) var(--ease-standard) both;
+}
+
+/* Switch-style toggles: the knob is the only animated part. */
+@keyframes uxa-knob-on {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(100%, 0, 0); }
+}
+
+[role="switch"]::after {
+  transition: transform var(--motion-panel) var(--ease-emphasis) !important;
+}
+
+[role="switch"]:focus-visible {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px;
+}
+
+/* Non-colour state cue for pressed toggles (WCAG 1.4.1): the left edge of any
+   pressed control gains a 2px accent rail. */
+html[data-theme] .arise-pwb-density[aria-pressed="true"] {
+  position: relative;
+}
+html[data-theme] .arise-pwb-density[aria-pressed="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 20% auto 20% 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--primary-fg, var(--primary));
+}
+
+/* 10.5 Toasts ------------------------------------------------------------ */
+/* One entrance, one exit, one stacking model, for every toast family that
+   already exists in the product (shared, habit, water, CP, exam, UPP). */
+@keyframes uxa-toast-in {
+  from { opacity: 0; transform: translate3d(0, var(--motion-distance-md), 0) scale(0.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes uxa-toast-out {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; transform: translate3d(0, 4px, 0) scale(0.99); }
+}
+
+.uxa-toast {
+  animation: uxa-toast-in var(--motion-panel) var(--ease-enter) both;
+}
+.uxa-toast[data-state="closing"] {
+  animation: uxa-toast-out var(--motion-fast) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+.htw-toast,
+.water-reminder-toast,
+.et-toast,
+#cp-toast,
+#upp-toast,
+#arise-xp-breakdown-toast,
+#arise-shared-toast {
+  animation: uxa-toast-in var(--motion-panel) var(--ease-enter) both;
+}
+
+/* #cp-toast and #arise-shared-toast are horizontally centred with
+   translateX(-50%); keep that centring when the shared keyframe applies by
+   wrapping the animation origin in the existing transform. */
+#cp-toast,
+#arise-shared-toast {
+  transform-origin: 50% 100%;
+}
+
+/* 10.6 Tooltips ---------------------------------------------------------- */
+@keyframes uxa-tooltip-in {
+  from { opacity: 0; transform: translate3d(0, 2px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+[data-tooltip] {
+  position: relative;
+}
+[data-tooltip]::after {
+  animation: uxa-tooltip-in var(--motion-fast) var(--ease-out-quart) 180ms both;
+}
+
+/* 10.7 Charts & data visualisation hooks -------------------------------- */
+/* JS (src/motion-engine.js) animates these with the Web Animations API from
+   the real start value to the real end value, once per value change. The CSS
+   here only guarantees a stable starting geometry and a calm hover state. */
+.uxa-bar,
+[data-uxa-bar] {
+  transform-origin: 50% 100%;
+}
+
+/* Progress bar fills inside widgets (width-based) become transform-based when
+   the engine can convert them; until then they get the non-bouncing curve. */
+html[data-theme] .progress-fill,
+html[data-theme] .ish-progress-fill,
+html[data-theme] .et-progress-fill,
+html[data-theme] .lpa50-row-bar > span,
+html[data-theme] .cr-metric-bar > span {
+  transition: width var(--motion-enter) var(--ease-out-quart) !important;
+}
+
+/* Heatmap cells: opacity/scale reveal, colour preserved. */
+@keyframes uxa-cell-in {
+  from { opacity: 0; transform: scale(0.55); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+html[data-theme] .arise-motion-cells .lh-cell,
+html[data-theme] .arise-motion-cells .hh-cell,
+html[data-theme] .arise-motion-cells .dmh-cell,
+html[data-theme] .arise-motion-cells .exwh-cell {
+  animation: uxa-cell-in var(--motion-micro) var(--ease-out-quart) both;
+  animation-delay: var(--uxa-stagger, 0ms);
+}
+
+/* Rings: the engine sets stroke-dashoffset directly; this only softens the
+   colour change so a theme switch does not flash the arc. */
+html[data-theme] .dmp-ring circle[data-dmp-progress],
+html[data-theme] .dvp-ring circle[data-dvp-progress],
+html[data-theme] .pcc-ring circle[data-pcc-progress],
+html[data-theme] .csu-rs-ring circle[data-csu-progress] {
+  transition:
+    stroke-dashoffset var(--motion-enter) var(--ease-out-quart),
+    stroke var(--motion-panel) var(--ease-standard) !important;
+}
+
+/* Counting statistics: avoid layout shift by reserving tabular width. */
+.uxa-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 10.8 Page-load composition -------------------------------------------- */
+/* The dashboard shell fades in as one composited layer; individual cards then
+   receive .uxa-reveal from the engine. The class is applied by JS *after* the
+   first paint, so a JS failure never hides the page. */
+@keyframes uxa-shell-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+html.uxa-booting #arise-main > header,
+html.uxa-booting #arise-main > .arise-page-widget-bar,
+html.uxa-booting #arise-main > .flex-1 {
+  animation: uxa-shell-in var(--motion-enter) var(--ease-out-quart) both;
+}
+
+html.uxa-booting #arise-main > .arise-page-widget-bar { animation-delay: 40ms; }
+html.uxa-booting #arise-main > .flex-1 { animation-delay: 80ms; }
+
+/* 10.9 Loading experience: brand mark ------------------------------------ */
+/* A 520ms logo entrance on the boot shell only (never on the dashboard). The
+   gate is already rendered by index.html, so this costs no extra network and
+   no blocking. */
+@keyframes uxa-brand-in {
+  from { opacity: 0; transform: scale(0.94) translate3d(0, 4px, 0); }
+  to { opacity: 1; transform: scale(1) translate3d(0, 0, 0); }
+}
+
+html[data-cloud-auth]:not([data-cloud-auth="ready"]) #cloud-gate .cloud-brand {
+  animation: uxa-brand-in 520ms var(--ease-enter) both;
+}
+html[data-cloud-auth]:not([data-cloud-auth="ready"]) #cloud-gate .cloud-card {
+  animation: cloud-enter 380ms var(--ease-enter) both;
+}
+
+/* ==========================================================================
+   11. Ambient atmosphere (static by design)
+   --------------------------------------------------------------------------
+   The grid and the two radial glows live on the existing .arise-saas-backdrop
+   element, which is already position:fixed/inset:0/pointer-events:none with
+   contain:strict. Nothing moves: a slow gradient drift on a full-viewport
+   layer is the single most expensive decoration to run, and the brief forbids
+   constant GPU work. The "life" comes from the aurora hues following the
+   active theme instead.
+   ========================================================================== */
+html[data-theme] .arise-saas-backdrop {
+  background-image:
+    radial-gradient(
+      64% 42% at 50% -6%,
+      var(--motion-ambient-primary),
+      transparent 72%
+    ),
+    radial-gradient(
+      38% 30% at 88% 8%,
+      var(--motion-ambient-info),
+      transparent 70%
+    ),
+    linear-gradient(to right, var(--motion-ambient-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--motion-ambient-grid) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+  opacity: var(--motion-ambient-opacity);
+  transition: opacity var(--motion-panel) var(--ease-standard);
+}
+
+/* A single, very slow breathing glow on the *dashboard hero* only — bounded in
+   size, one element, 12s cycle, disabled under reduced motion / perf-lite.
+   Marked with .uxa-decor so the opt-out rules in §12 apply. */
+@keyframes uxa-ambient-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.04); }
+}
+
+.uxa-ambient-glow {
+  position: absolute;
+  inset: auto auto -40% -10%;
+  width: 26rem;
+  height: 26rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--motion-ambient-primary), transparent 62%);
+  filter: blur(6px);
+  pointer-events: none;
+  animation: uxa-ambient-breathe 12s var(--ease-standard) infinite;
+  will-change: auto;
+}
+
+/* Cursor-responsive illumination, enabled by the engine only on fine pointers
+   with full motion. One variable write per animation frame, no layout read. */
+.uxa-cursor-glow {
+  --uxa-cursor-x: 50%;
+  --uxa-cursor-y: 0%;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html.uxa-cursor-active .uxa-cursor-glow::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      18rem 18rem at var(--uxa-cursor-x) var(--uxa-cursor-y),
+      color-mix(in srgb, var(--primary) 9%, transparent),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity var(--motion-panel) var(--ease-standard);
+    pointer-events: none;
+  }
+  html.uxa-cursor-active .uxa-cursor-glow:hover::after {
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   12. Decorative motion: scoped opt-in (replaces the substring kill-switch)
+   --------------------------------------------------------------------------
+   index.html used to disable animation for every element whose class name did
+   not contain "spin"/"load"/"skeleton"/... via `[class*="…"]` selectors. That
+   matched unrelated classes and could also silence essential state feedback.
+   Decorative loops are now explicitly marked `.uxa-decor` (and the legacy
+   Tailwind loops are listed once, below). The performance-lite and
+   reduced-motion rules only ever touch these marked elements.
+   ========================================================================== */
+.uxa-decor,
+.animate-float,
+.animate-ring-glow,
+.animate-ring-glow-purple,
+.animate-ring-glow-blue,
+.animate-ring-glow-orange,
+.animate-outer-glow,
+.animate-gradient-shift,
+.animate-breathe,
+.focus-ring-comet-pulse {
+  animation-play-state: running;
+}
+
+/* Performance-lite: keep the entrance/feedback animations, drop the loops and
+   the expensive filters. "Lite" means cheaper, never dead. */
+html.perf-lite .uxa-decor,
+html.perf-lite .animate-float,
+html.perf-lite .animate-ring-glow,
+html.perf-lite .animate-ring-glow-purple,
+html.perf-lite .animate-ring-glow-blue,
+html.perf-lite .animate-ring-glow-orange,
+html.perf-lite .animate-outer-glow,
+html.perf-lite .animate-gradient-shift,
+html.perf-lite .animate-breathe,
+html.perf-lite .focus-ring-comet-pulse,
+html.perf-lite .uxa-ambient-glow,
+html.perf-lite .timer-ring-container.active::before {
+  animation: none !important;
+}
+
+html.perf-lite .uxa-reveal {
+  transition-duration: var(--motion-fast);
+}
+
+html.perf-lite .uxa-cursor-glow::after {
+  display: none !important;
+}
+
+/* Reduced motion: no decorative movement, no entrance choreography, but
+   essential spinners/skeletons keep a calm pulse (already handled in §9). */
+@media (prefers-reduced-motion: reduce) {
+  .uxa-decor,
+  .animate-float,
+  .animate-ring-glow,
+  .animate-ring-glow-purple,
+  .animate-ring-glow-blue,
+  .animate-ring-glow-orange,
+  .animate-outer-glow,
+  .animate-gradient-shift,
+  .animate-breathe,
+  .focus-ring-comet-pulse,
+  .uxa-ambient-glow {
+    animation: none !important;
+  }
+
+  .uxa-anim-fade-up,
+  .uxa-anim-fade-in,
+  .uxa-anim-scale-in,
+  .uxa-toast,
+  .htw-toast,
+  .water-reminder-toast,
+  .et-toast,
+  #cp-toast,
+  #upp-toast,
+  #arise-xp-breakdown-toast,
+  #arise-shared-toast {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html.uxa-booting #arise-main > header,
+  html.uxa-booting #arise-main > .arise-page-widget-bar,
+  html.uxa-booting #arise-main > .flex-1,
+  html[data-cloud-auth]:not([data-cloud-auth="ready"]) #cloud-gate .cloud-brand {
+    animation: none !important;
+  }
+
+  html[data-theme] .glass-card[role="button"]:hover,
+  html[data-theme] .glass-card.cursor-pointer:hover,
+  html[data-theme] .card-hover-glow[role="button"]:hover,
+  html[data-theme] .nav-item:hover > span:first-child {
+    transform: none !important;
+  }
+
+  [data-tooltip]::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+
+  /* Keep the checkbox on the non-motion cue so state is still unambiguous. */
+  html[data-theme] [aria-invalid="true"][data-uxa-invalid-fresh="true"] {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   13. RTL / logical-property guards
+   ========================================================================== */
+html[dir="rtl"] #arise-desktop-sidebar .nav-item::before,
+html[dir="rtl"] #arise-mobile-drawer .nav-item::before {
+  left: auto;
+  right: 0;
+  border-radius: 3px 0 0 3px;
+}
+html[dir="rtl"] html[data-theme] .arise-pwb-density[aria-pressed="true"]::before {
+  inset: 20% 0 20% auto;
 }

@@ -14,3 +14,6 @@ config/approved-users.json
 *-firebase-adminsdk-*.json
 .firebase/
 .test-artifacts/
+
+# Local-only engineering probes (never published, never committed)
+.probe/

@@ -26,6 +26,7 @@
 // Response shapes are kept identical to what the widget already parses, so
 // no other client-side changes are needed beyond pointing at this path.
 
+const guard = require("./_proxy-guard");
 const LEETCODE_GRAPHQL = "https://leetcode.com/graphql";
 const MIRROR_BASE = "https://alfa-leetcode-api.onrender.com";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min server-side cache
@@ -34,13 +35,17 @@ const FETCH_TIMEOUT_MS = 8000;
 // Module-scope cache: persists across warm invocations of the same lambda
 // instance. Not shared across instances/regions, but that's fine — it just
 // needs to absorb bursts, not be a global source of truth.
-const cache = new Map(); // key -> { data, expiresAt }
+const cache = new guard.BoundedCache(); // key -> { data, expiresAt }, LRU-bounded
 
 exports.handler = async function (event) {
-  const cors = corsHeaders();
+  const cors = corsHeaders(event);
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: cors, body: "" };
   }
+
+  // Bounded per-client budget + origin check, before any upstream work.
+  const refused = guard.rejected(event, cors);
+  if (refused) return refused;
   if (event.httpMethod !== "GET") {
     return respond(405, { error: "Method not allowed." }, cors);
   }
@@ -309,12 +314,8 @@ function retry(fn, retriesLeft, delayMs) {
   });
 }
 
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
-  };
+function corsHeaders(event) {
+  return guard.corsHeaders(event);
 }
 
 function respond(statusCode, bodyObj, extraHeaders) {

@@ -335,14 +335,28 @@
     <link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-analytics.css" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="./styles/features/exam-tracker/exam-tracker-analytics.css" /></noscript>
     <style id="perf-lite-css">
-      /* v221: only active when <html class="perf-lite">. Decorative loops play a few times then rest;
-         spinners/skeletons/shimmers keep looping; blur on non-modal chrome is removed. */
-      .perf-lite *:not([class*="spin"]):not([class*="load"]):not([class*="skeleton"]):not([class*="shimmer"]):not([class*="pulse-dot"]):not([class*="boot"]),
-      .perf-lite *:not([class*="spin"]):not([class*="load"]):not([class*="skeleton"]):not([class*="shimmer"]):not([class*="boot"])::before,
-      .perf-lite *:not([class*="spin"]):not([class*="load"]):not([class*="skeleton"]):not([class*="shimmer"]):not([class*="boot"])::after { animation-iteration-count: 3 !important; }
+      /* v221 perf-lite, rewritten in the 2026-11 motion pass.
+         The old rule used `[class*="spin"]`-style substring matching across every
+         element to force `animation-iteration-count: 3`, which silently disabled
+         unrelated animations (and re-enabled others) depending on class names.
+         Decorative loops are now explicitly marked `.uxa-decor` (see
+         styles/animation-upgrade.css §12) and only those stop in lite mode; state
+         feedback (spinners, skeletons, busy buttons, toasts) keeps working.
+         Kept here, unlayered and before first paint, so the preference applies
+         without waiting for a stylesheet. */
+      .perf-lite .uxa-decor,
+      .perf-lite .animate-float,
+      .perf-lite .animate-ring-glow,
+      .perf-lite .animate-ring-glow-purple,
+      .perf-lite .animate-ring-glow-blue,
+      .perf-lite .animate-ring-glow-orange,
+      .perf-lite .animate-outer-glow,
+      .perf-lite .animate-gradient-shift,
+      .perf-lite .animate-breathe,
+      .perf-lite .focus-ring-comet-pulse,
+      .perf-lite .uxa-ambient-glow { animation: none !important; }
       .perf-lite .upp-bottom-nav, .perf-lite .upp-command-palette, .perf-lite [class*="upp-"] { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
       .perf-lite [class*="drop-shadow"], .perf-lite .ccc-ring { filter: none !important; }
-      .perf-lite * { will-change: auto !important; }
     </style>
   </head>
   <body>
@@ -489,6 +503,9 @@
   .arise-skip-link{position:fixed;top:.5rem;left:.5rem;z-index:12200;padding:.6rem 1rem;border-radius:.5rem;background:var(--surface);color:var(--text-primary);border:2px solid var(--info,#38bdf8);font-size:.875rem;font-weight:600;text-decoration:none;transform:translateY(-250%)}
   .arise-skip-link:focus,.arise-skip-link:focus-visible{transform:translateY(0)}
   html.reduce-motion *,html.reduce-motion *::before,html.reduce-motion *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  /* Essential busy feedback must survive reduced motion as a calm pulse, not a
+     frozen spinner. The engine and styles/animation-upgrade.css §9 own the rest. */
+  html.reduce-motion .uxa-spinner,html.reduce-motion .cloud-spinner,html.reduce-motion .crt-spinner,html.reduce-motion .hxp-pdf-spinner,html.reduce-motion .uxa-progress-indeterminate::after,html.reduce-motion .uxa-skeleton::after,html.reduce-motion .uxa-skeleton-group::after{animation-duration:1.8s!important;animation-iteration-count:infinite!important}
   #arise-main:focus{outline:none}
 
   /* Sidebar fullscreen fix: hide the fixed logo rail (and, defensively, the mobile off-canvas

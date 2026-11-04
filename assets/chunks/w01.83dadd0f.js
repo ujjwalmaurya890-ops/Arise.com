@@ -163,12 +163,84 @@ try{
     }
   }
 
+  function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  /**
+   * Canonical "which day was this for the user" key: the LOCAL calendar date
+   * as YYYY-MM-DD.
+   *
+   * The previous implementation returned an unpadded string
+   * ("2026-1-9"). That is not a sortable or comparable day key: as a plain
+   * string "2026-1-9" sorts AFTER "2026-1-10" because "9" > "1", so every
+   * lexicographic sort/compare/bucket lookup on a day key was wrong for
+   * January-September, and any label rendered from it lost its alignment.
+   * Zero padding fixes that without changing the meaning of the key.
+   *
+   * Consumers that only ever use the key as an opaque map key are unaffected;
+   * consumers that compare, sort, or display it are corrected.
+   */
   function dayKey(d) {
-    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+    var date = d instanceof Date ? d : new Date(d);
+    if (!date || isNaN(date.getTime())) return "";
+    return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
+  }
+
+  /** UTC calendar date as YYYY-MM-DD. Needed to read legacy records that were
+   *  written with `toISOString().split("T")[0]` (which is UTC, not local). */
+  function utcDayKey(d) {
+    var date = d instanceof Date ? d : new Date(d);
+    if (!date || isNaN(date.getTime())) return "";
+    return date.toISOString().slice(0, 10);
+  }
+
+  /** Parse a YYYY-MM-DD key back to LOCAL midnight (never via `new Date("...")`,
+   *  which parses a bare date as UTC midnight and can shift the day backwards
+   *  in negative-offset timezones). Returns null for anything unparseable. */
+  function dayKeyToDate(key) {
+    if (typeof key !== "string") return null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+    if (!m) return null;
+    var y = Number(m[1]), mo = Number(m[2]), da = Number(m[3]);
+    var date = new Date(y, mo - 1, da);
+    date.setHours(0, 0, 0, 0);
+    if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== da) return null;
+    return date;
+  }
+
+  /** True when two timestamps/Date objects/keys fall on the same local day. */
+  function isSameLocalDay(a, b) {
+    var ka = typeof a === "string" ? a : dayKey(a);
+    var kb = typeof b === "string" ? b : dayKey(b);
+    return !!ka && ka === kb;
+  }
+
+  /** Whole local days from `from` to `to` (DST-safe: compares calendar days,
+   *  not elapsed milliseconds, so a 23h/25h clock-change day still counts as 1). */
+  function daysBetween(from, to) {
+    var a = new Date(startOfDay(from instanceof Date ? from : new Date(from)));
+    var b = new Date(startOfDay(to instanceof Date ? to : new Date(to)));
+    if (isNaN(a.getTime()) || isNaN(b.getTime())) return NaN;
+    var utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+    var utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+    return Math.round((utcB - utcA) / 86400000);
+  }
+
+  /** Short human label for a day, e.g. "9 Feb 2026". Widgets used to store a
+   *  raw day key as a *display* string ("2026-2-9"), which reads as machine
+   *  output in the UI. Storage keys and labels are now separate concerns. */
+  function weekLabel(d) {
+    var date = d instanceof Date ? d : new Date(d);
+    if (!date || isNaN(date.getTime())) return "";
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return date.getDate() + " " + months[date.getMonth()] + " " + date.getFullYear();
   }
 
   function startOfDay(d) {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    var date = d instanceof Date ? d : new Date(d);
+    if (!date || isNaN(date.getTime())) return NaN;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   }
 
   function highestCrossed(val, thresholds) {
@@ -595,6 +667,11 @@ try{
     showToast: showToast,
     readVersioned: readVersioned,
     dayKey: dayKey,
+    utcDayKey: utcDayKey,
+    weekLabel: weekLabel,
+    dayKeyToDate: dayKeyToDate,
+    isSameLocalDay: isSameLocalDay,
+    daysBetween: daysBetween,
     startOfDay: startOfDay,
     highestCrossed: highestCrossed,
     bootUpdater: bootUpdater,

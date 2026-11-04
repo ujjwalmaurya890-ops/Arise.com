@@ -6,13 +6,45 @@
     if (!t || t.nodeType !== 1) return false;
     return typeof t.closest === "function" && !!t.closest(NOISE_SEL);
   }
+  // A subscriber that throws is a widget updater that silently stopped
+  // updating: 42 files subscribe here, and `catch {}` meant the failure left no
+  // trace at all - not in the console, not in __ariseMountErrors, nothing. The
+  // bus must stay fail-open (one broken updater may not stop the rest), but it
+  // now records what happened so the failure reporter can surface it.
+  var failures = [], MAX_FAILURES = 40;
+  function describe(fn) {
+    try {
+      return String(fn.__ariseSubscriber || fn.name || "").trim() || "anonymous updater";
+    } catch (_) { return "anonymous updater"; }
+  }
+  function recordFailure(fn, error) {
+    var name = describe(fn), entry = null;
+    for (var k = 0; k < failures.length; k++) {
+      if (failures[k].fn === fn) { entry = failures[k]; break; }
+    }
+    if (!entry) {
+      if (failures.length >= MAX_FAILURES) failures.shift();
+      entry = { fn: fn, name: name, count: 0, firstAt: new Date().toISOString() };
+      failures.push(entry);
+    }
+    entry.count += 1;
+    entry.lastAt = new Date().toISOString();
+    entry.message = (error && error.message) || String(error);
+    try {
+      if (typeof window.__ariseReportWidgetError === "function") {
+        window.__ariseReportWidgetError("updater:" + name, entry.message);
+      }
+    } catch (_) {}
+    try { console.error("[mutation-bus] subscriber threw: " + name, error); } catch (_) {}
+    return entry;
+  }
   function c() {
     if (i && (clearTimeout(i), i = 0), !!r.length) {
       var t = r;
       r = [];
       for (var e = n.slice(), o = 0; o < e.length; o++) {
         if (n.indexOf(e[o]) !== -1) {
-          try { e[o](t, u); } catch {}
+          try { e[o](t, u); } catch (err) { recordFailure(e[o], err); }
         }
       }
     }
@@ -29,6 +61,12 @@
       return typeof t != "function" ? function () {} : (n.push(t), function () {
         var e = n.indexOf(t);
         e !== -1 && n.splice(e, 1);
+      });
+    },
+    // Diagnostics: which updaters have thrown, how often, and with what.
+    failures: function () {
+      return failures.map(function (entry) {
+        return { name: entry.name, count: entry.count, message: entry.message, firstAt: entry.firstAt, lastAt: entry.lastAt };
       });
     }
   };

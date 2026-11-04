@@ -150,6 +150,15 @@
         if (Array.isArray(errors)) {
           for (var j = 0; j < errors.length; j++) remember("widget:" + errors[j].widget, errors[j].message);
         }
+        // mutation-bus failures are forwarded here through
+        // __ariseReportWidgetError as they happen; re-reading its own list
+        // covers the case where the bus recorded a failure before this file
+        // was evaluated.
+        var bus = window.__ARISE_MUTATION_BUS__;
+        if (bus && typeof bus.failures === "function") {
+          var updaters = bus.failures();
+          for (var k = 0; k < updaters.length; k++) remember("updater:" + updaters[k].name, updaters[k].message);
+        }
         render();
       } catch (_) {}
     }, 2000);

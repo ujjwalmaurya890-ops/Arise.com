@@ -159,6 +159,15 @@ async function main() {
     assert.ok(w.document.querySelector(BANNER), "a failure arriving later must still surface");
   });
 
+  await test("mutation-bus updater failures share the same line", async () => {
+    const w = boot();
+    w.__ARISE_MUTATION_BUS__ = { failures: () => [{ name: "learningHeatmapUpdater", count: 4, message: "r.filter is not a function" }] };
+    await new Promise((resolve) => setTimeout(resolve, 2300));
+    const banner = w.document.querySelector(BANNER);
+    assert.ok(banner, "a silently failing updater must surface like a load failure");
+    assert.match(banner.textContent, /saved progress is safe/i);
+  });
+
   await test("mount errors share the same line instead of being devtools-only", async () => {
     const w = boot();
     w.__ariseMountErrors.push({ widget: "__mountNotesApp", message: "boom", time: new Date().toISOString() });

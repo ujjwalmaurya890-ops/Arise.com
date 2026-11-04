@@ -859,6 +859,171 @@ try{
 
 }catch(__arise_e){setTimeout(function(){throw __arise_e})}
 
+/* ---- ./src/widget-failure-reporter.js ---- */
+try{
+/*
+ * Widget failure reporter (src/widget-failure-reporter.js)
+ * ---------------------------------------------------------------------------
+ * Two independent pieces of this app detect a broken widget and then have
+ * nowhere to put the result:
+ *
+ *   1. The widget loader in index.html records every script that 404s or times
+ *      out in `window.__ariseWidgetLoadFailures`. Nothing in src/ ever read it,
+ *      so a chunk that failed to deploy meant the user sat in front of an empty
+ *      tab with no way to know a reload would fix it.
+ *   2. mount-safety.js pushes render failures onto `window.__ariseMountErrors`
+ *      and draws a per-widget error state. The list was written for a human to
+ *      inspect in devtools - on a phone there is no devtools.
+ *
+ * The loader also calls `window.__ariseReportWidgetError(src)` on failure,
+ * documented in index.html as "if defined elsewhere". It was never defined
+ * anywhere in the repository, so that call was dead.
+ *
+ * This file defines it, and adds a single quiet, dismissible status line that
+ * appears only when something is actually wrong. It deliberately does not pop
+ * a modal or a toast per failure: with ~100 independently loaded chunks one bad
+ * deploy would otherwise produce a wall of interruptions.
+ */
+(function () {
+  "use strict";
+  if (window.__ARISE_WIDGET_FAILURE_REPORTER__) return;
+  window.__ARISE_WIDGET_FAILURE_REPORTER__ = true;
+
+  var BANNER_ID = "arise-widget-failure-banner";
+  var dismissed = false;
+  var failures = []; // { src, reason, at }
+
+  function humanName(src) {
+    return String(src || "")
+      .split("/")
+      .pop()
+      .replace(/\.js$/, "")
+      .replace(/-widget$/, "")
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, function (ch) { return ch.toUpperCase(); }) || "A module";
+  }
+
+  function remember(src, reason) {
+    var entry = { src: String(src || ""), reason: String(reason || "failed to load"), at: new Date().toISOString() };
+    for (var i = 0; i < failures.length; i++) {
+      if (failures[i].src === entry.src) { failures[i] = entry; return entry; }
+    }
+    failures.push(entry);
+    return entry;
+  }
+
+  function ensureStyle() {
+    if (document.getElementById(BANNER_ID + "-style")) return;
+    var style = document.createElement("style");
+    style.id = BANNER_ID + "-style";
+    style.textContent = [
+      "#" + BANNER_ID + "{position:fixed;inset-inline:12px;bottom:12px;z-index:2147483000;",
+      "display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;",
+      "background:var(--surface-elevated, #16181d);color:var(--text-primary, #f5f6f8);",
+      "border:1px solid var(--border-strong, rgba(255,255,255,.18));",
+      "box-shadow:0 12px 32px rgba(0,0,0,.35);font-size:13px;line-height:1.45;max-width:560px;margin-inline:auto}",
+      "#" + BANNER_ID + " p{margin:0}",
+      "#" + BANNER_ID + " .awf-actions{display:flex;gap:8px;margin-left:auto;flex:0 0 auto}",
+      "#" + BANNER_ID + " button{font:inherit;cursor:pointer;border-radius:8px;padding:4px 10px;",
+      "border:1px solid var(--border-strong, rgba(255,255,255,.24));",
+      "background:transparent;color:inherit}",
+      "#" + BANNER_ID + " button[data-awf-retry]{background:var(--accent, #6ea8fe);color:#0b0d12;border-color:transparent}",
+      "@media (prefers-reduced-motion:no-preference){#" + BANNER_ID + "{animation:awf-in 160ms ease-out}}",
+      "@keyframes awf-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}"
+    ].join("");
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function render() {
+    if (dismissed || !failures.length || !document.body) return;
+    ensureStyle();
+    var banner = document.getElementById(BANNER_ID);
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = BANNER_ID;
+      banner.setAttribute("role", "status");
+      banner.setAttribute("aria-live", "polite");
+      banner.setAttribute("data-awf-banner", "1");
+      banner.innerHTML =
+        '<p data-awf-message></p>' +
+        '<span class="awf-actions">' +
+        '<button type="button" data-awf-retry="1">Reload</button>' +
+        '<button type="button" data-awf-dismiss="1" aria-label="Dismiss this notice">Dismiss</button>' +
+        "</span>";
+      banner.querySelector("[data-awf-retry]").addEventListener("click", function () {
+        window.location.reload();
+      });
+      banner.querySelector("[data-awf-dismiss]").addEventListener("click", function () {
+        dismissed = true;
+        banner.remove();
+      });
+      document.body.appendChild(banner);
+    }
+    var names = failures.slice(0, 3).map(function (entry) { return humanName(entry.src); });
+    var message = failures.length === 1
+      ? names[0] + " could not be loaded."
+      : failures.length + " modules could not be loaded (" + names.join(", ") + (failures.length > 3 ? ", …" : "") + ").";
+    banner.querySelector("[data-awf-message]").textContent =
+      message + " Your saved progress is safe. Reloading usually fixes this.";
+  }
+
+  /* ---------------------------------------------------------------- public */
+
+  /**
+   * Documented extension point in index.html; it is what the widget loader
+   * calls when a chunk 404s or times out. Previous behaviour: nothing.
+   */
+  window.__ariseReportWidgetError = function (src, reason) {
+    try {
+      remember(src, reason);
+      render();
+    } catch (_) {
+      /* reporting a failure must never itself fail the boot */
+    }
+  };
+
+  /** Exposed for tests and for the loader to seed failures recorded earlier. */
+  window.__ariseWidgetFailureReport = {
+    report: window.__ariseReportWidgetError,
+    // Widgets that already failed before this file ran.
+    adopt: function (list) {
+      (Array.isArray(list) ? list : []).forEach(function (src) { remember(src, "failed to load"); });
+      render();
+    },
+    failures: function () { return failures.slice(); },
+    clear: function () { failures = []; var el = document.getElementById(BANNER_ID); if (el) el.remove(); }
+  };
+
+  function boot() {
+    // The loader starts injecting chunks before this file is evaluated, so
+    // adopt anything it has already recorded rather than waiting for new ones.
+    window.__ariseWidgetFailureReport.adopt(window.__ariseWidgetLoadFailures);
+    // The loader keeps appending to __ariseWidgetLoadFailures for as long as
+    // it is streaming chunks (which is most of a session), so the array has to
+    // be re-read rather than adopted once. A mount error is a different failure
+    // mode - the chunk loaded and the widget threw - but the consequence for
+    // the user is the same, so it shares the one status line.
+    setInterval(function () {
+      try {
+        var loaded = window.__ariseWidgetLoadFailures;
+        if (Array.isArray(loaded)) {
+          for (var i = 0; i < loaded.length; i++) remember(loaded[i], "failed to load");
+        }
+        var errors = window.__ariseMountErrors;
+        if (Array.isArray(errors)) {
+          for (var j = 0; j < errors.length; j++) remember("widget:" + errors[j].widget, errors[j].message);
+        }
+        render();
+      } catch (_) {}
+    }, 2000);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+}catch(__arise_e){setTimeout(function(){throw __arise_e})}
+
 /* ---- ./src/attendance-tracker-widget.js ---- */
 try{
 (function(){"use strict";if(window.__ARISE_ATTENDANCE_TRACKER__)return;window.__ARISE_ATTENDANCE_TRACKER__=!0;var ke="arise-attendance-tracker-v1",Qn=150,Nt=150,wt=["present","absent","holiday","cancelled","leave"],X={present:{label:"Present",tone:"cal-present"},absent:{label:"Absent",tone:"cal-absent"},holiday:{label:"Holiday",tone:"cal-holiday"},cancelled:{label:"Cancelled",tone:"cal-cancelled"},leave:{label:"Leave/Medical",tone:"cal-leave"},partial:{label:"Partial (mixed periods)",tone:"cal-partial"}},kt=["January","February","March","April","May","June","July","August","September","October","November","December"],oa=[{id:"first-present",icon:"🌱",label:"First Step",desc:"Mark your first Present day",check:function(t){return t.presentCount>=1}},{id:"streak-3",icon:"🔥",label:"3-Day Streak",desc:"Reach a 3-day present streak",check:function(t){return t.streak>=3}},{id:"streak-7",icon:"⚡",label:"Week Warrior",desc:"Reach a 7-day present streak",check:function(t){return t.streak>=7}},{id:"streak-30",icon:"🏆",label:"Consistency Champion",desc:"Reach a 30-day present streak",check:function(t){return t.longest>=30}},{id:"weekly-reward",icon:"🎁",label:"Weekly Achiever",desc:"Claim a Weekly Reward",check:function(t){return t.claimedWeeks>=1}},{id:"level-5",icon:"🎓",label:"Scholar",desc:"Reach Attendance Level 5",check:function(t){return t.level>=5}},{id:"perfect-week",icon:"🗓️",label:"Perfect Week",desc:"Finish a full week (5+ Present days) with zero Absents/Leaves",check:function(t){return t.perfectWeeks>=1}},{id:"perfect-month",icon:"🌟",label:"Perfect Month",desc:"Finish a full month (10+ Present days) with zero Absents/Leaves",check:function(t){return t.perfectMonths>=1}}],Z=["sun","mon","tue","wed","thu","fri","sat"],K={sun:"Sunday",mon:"Monday",tue:"Tuesday",wed:"Wednesday",thu:"Thursday",fri:"Friday",sat:"Saturday"},la={sun:"sun",sunday:"sun",mon:"mon",monday:"mon",tue:"tue",tues:"tue",tuesday:"tue",wed:"wed",weds:"wed",wednesday:"wed",thu:"thu",thur:"thu",thurs:"thu",thursday:"thu",fri:"fri",friday:"fri",sat:"sat",saturday:"sat"},$t=[{status:"present",label:"Present",icon:"✅",tone:"success",shortcut:"P"},{status:"absent",label:"Absent",icon:"❌",tone:"danger",shortcut:"A"},{status:"holiday",label:"Holiday",icon:"🎉",tone:"info",shortcut:"H"},{status:"cancelled",label:"Cancelled",icon:"🚫",tone:"cal-cancelled",hint:"Faculty called off class — not counted against you (unlike Absent)"},{status:"leave",label:"Leave/Medical",icon:"🏥",tone:"cal-leave",shortcut:"L",hint:"A held class you missed on leave — counted against you just like Absent"}],da=(function(){var t={};return $t.forEach(function(e){e.shortcut&&(t[e.shortcut.toLowerCase()]=e.status)}),t})(),vt=["var(--chart-1)","var(--chart-2)","var(--chart-3)","var(--chart-4)","var(--success)","var(--warning)","var(--info)","var(--danger)"],je=85,Rt=75,Et=["Medical","University-Sponsored Event","Government/NCC/NSS Duty","Other (attach proof)"],It=["draft","submitted","approved","rejected"],Se={draft:{label:"Draft",tone:"cal-cancelled"},submitted:{label:"Submitted",tone:"info"},approved:{label:"Approved",tone:"success"},rejected:{label:"Rejected",tone:"danger"}},te={safe:{label:"Safe (≥85%)",tone:"success"},condonation:{label:"Condonation Window (75–84%)",tone:"warning"},nsar:{label:"NSAR — Not Eligible (<75%)",tone:"danger"}},De=[{month:0,day:1,name:"New Year's Day"},{month:0,day:26,name:"Republic Day"},{month:4,day:1,name:"Labour Day"},{month:7,day:15,name:"Independence Day"},{month:9,day:2,name:"Gandhi Jayanti"},{month:11,day:25,name:"Christmas Day"}],ca=["Makar Sankranti","Republic Day","Maha Shivratri","Holi","Ugadi/Gudi Padwa","Ram Navami","Eid al-Fitr","Independence Day","Raksha Bandhan","Janmashtami","Ganesh Chaturthi","Onam","Eid al-Adha","Dussehra/Vijayadashami","Diwali","Guru Nanak Jayanti","Christmas"];function pt(){return"id_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8)}function ua(){var t=null;try{var e=localStorage.getItem(ke);if(e){var a=JSON.parse(e);a&&typeof a=="object"&&(t=a)}}catch{t=null}var r=t||{version:1,threshold:75,subjects:[{id:pt(),name:"Subject 1",attended:18,total:20},{id:pt(),name:"Subject 2",attended:12,total:18}]};return Array.isArray(r.subjects)||(r.subjects=[]),(typeof r.threshold!="number"||!isFinite(r.threshold)||r.threshold<=0||r.threshold>100)&&(r.threshold=75),(!r.calendarLog||typeof r.calendarLog!="object"||Array.isArray(r.calendarLog))&&(r.calendarLog={}),(!r.timetable||typeof r.timetable!="object"||Array.isArray(r.timetable))&&(r.timetable={}),(!r.calendarLedger||typeof r.calendarLedger!="object"||Array.isArray(r.calendarLedger))&&(r.calendarLedger={}),(!r.gamification||typeof r.gamification!="object"||Array.isArray(r.gamification))&&(r.gamification={totalXP:0,xpByDate:{},claimedWeeks:[]}),(typeof r.gamification.totalXP!="number"||!isFinite(r.gamification.totalXP)||r.gamification.totalXP<0)&&(r.gamification.totalXP=0),(!r.gamification.xpByDate||typeof r.gamification.xpByDate!="object"||Array.isArray(r.gamification.xpByDate))&&(r.gamification.xpByDate={}),Array.isArray(r.gamification.claimedWeeks)||(r.gamification.claimedWeeks=[]),typeof r.alertsDismissedDate!="string"&&(r.alertsDismissedDate=null),r.subjects.forEach(function(n){(typeof n.threshold!="number"||!isFinite(n.threshold)||n.threshold<=0||n.threshold>100)&&(n.threshold=null),(typeof n.examFreezeDate!="string"||!n.examFreezeDate)&&(n.examFreezeDate=null)}),Array.isArray(r.rules)||(r.rules=[]),Array.isArray(r.archives)||(r.archives=[]),typeof r.notifyEnabled!="boolean"&&(r.notifyEnabled=!1),typeof r.liveClassNudgeEnabled!="boolean"&&(r.liveClassNudgeEnabled=!0),typeof r.lastNotifiedDate!="string"&&(r.lastNotifiedDate=null),typeof r.semesterEndDate!="string"&&(r.semesterEndDate=null),typeof r.examFreezeDate!="string"&&(r.examFreezeDate=null),typeof r.reminderDismissedDate!="string"&&(r.reminderDismissedDate=null),(!r.periodLog||typeof r.periodLog!="object"||Array.isArray(r.periodLog))&&(r.periodLog={}),Array.isArray(r.holidayImports)||(r.holidayImports=[]),(typeof r.leaveQuota!="number"||!isFinite(r.leaveQuota)||r.leaveQuota<0)&&(r.leaveQuota=null),(!r.periodTimes||typeof r.periodTimes!="object"||Array.isArray(r.periodTimes))&&(r.periodTimes={}),Object.keys(r.periodTimes).forEach(function(n){if(!Array.isArray(r.periodTimes[n])){r.periodTimes[n]=[];return}r.periodTimes[n]=r.periodTimes[n].map(function(i){return!i||typeof i!="object"?{start:"",end:""}:{start:typeof i.start=="string"?i.start:"",end:typeof i.end=="string"?i.end:""}})}),(!r.notifyMuted||typeof r.notifyMuted!="object"||Array.isArray(r.notifyMuted))&&(r.notifyMuted={}),(!r.subjectWeeklyGoals||typeof r.subjectWeeklyGoals!="object"||Array.isArray(r.subjectWeeklyGoals))&&(r.subjectWeeklyGoals={}),Array.isArray(r.subjectWeeklyClaims)||(r.subjectWeeklyClaims=[]),(!r.festivalHolidays||typeof r.festivalHolidays!="object"||Array.isArray(r.festivalHolidays))&&(r.festivalHolidays={}),(!r.condonationLog||typeof r.condonationLog!="object"||Array.isArray(r.condonationLog))&&(r.condonationLog={}),Object.keys(r.condonationLog).forEach(function(n){if(!Array.isArray(r.condonationLog[n])){delete r.condonationLog[n];return}r.condonationLog[n]=r.condonationLog[n].filter(function(i){return i&&typeof i=="object"}).map(function(i){return{id:typeof i.id=="string"&&i.id?i.id:pt(),reason:Et.indexOf(i.reason)!==-1?i.reason:Et[0],note:typeof i.note=="string"?i.note.slice(0,120):"",status:It.indexOf(i.status)!==-1?i.status:"draft",createdAt:typeof i.createdAt=="string"?i.createdAt:""}})}),r.version=2,r}var s=ua(),k=null,v={importOpen:!1,lastImportMessage:null,lastImportOk:!1,bulkStatus:"holiday",lastBulkMessage:null,lastBulkOk:!1,ruleWeekday:"all",ruleAction:"holiday",lastRuleMessage:null,lastRuleOk:!1,subjectSearch:"",periodEditDate:null,lastHolidayMessage:null,lastHolidayOk:!1,festivalImportOpen:!1,lastFestivalMessage:null,lastFestivalOk:!1,lastShareMessage:null,lastShareOk:!1,timetableTimesOpen:!1,csvImportOpen:!1,lastCsvImportMessage:null,lastCsvImportOk:!1,heatmapYear:new Date().getFullYear(),subCalSubId:null,subCalYear:new Date().getFullYear(),subCalMonth:new Date().getMonth(),lastCriteria75Message:null,lastCriteria75Ok:!1},ee=5,$=[],mt=[],B={targetId:"overall",simN:1},Y=(function(){var t=new Date;return{year:t.getFullYear(),month:t.getMonth()}})();function A(){try{localStorage.setItem(ke,JSON.stringify(s))}catch{}}function it(t){try{$.push({label:t,data:JSON.stringify(s)})}catch{return}$.length>ee&&$.shift(),mt=[]}function va(){if($.length){var t=$.pop();try{mt.push({label:t.label,data:JSON.stringify(s)}),mt.length>ee&&mt.shift(),s=JSON.parse(t.data),A()}catch{}y()}}function pa(){if(mt.length){var t=mt.pop();try{$.push({label:t.label,data:JSON.stringify(s)}),$.length>ee&&$.shift(),s=JSON.parse(t.data),A()}catch{}y()}}function g(t){return Math.round(10*(Number(t)||0))/10}function D(t){return Math.max(0,Number(t)||0)}function O(t){return t===1?"class":"classes"}function b(t){return String(t??"").replace(/[&<>"']/g,function(e){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[e]})}function Q(t,e,a){a=a||{};var r=Math.min(100,D(e)),n="att-progress-track"+(a.sm?" att-progress-track-sm":"")+(a.extraClass?" "+a.extraClass:"");return"<div class='"+n+"'"+(a.style?" style='"+a.style+"'":"")+" role='progressbar' aria-valuemin='0' aria-valuemax='100' aria-valuenow='"+r.toFixed(0)+"'"+(a.label?" aria-label='"+a.label+"'":"")+"><div class='att-progress-fill' data-tone='"+t+"' style='width:"+r.toFixed(1)+"%'></div></div>"}function ft(t,e){return"<div class='att-zone-badge' data-tone='"+t+"'><span class='att-zone-dot' aria-hidden='true'></span>"+e+"</div>"}function z(t){var e=D(t.total),a=Math.min(D(t.attended),e);return e<=0?0:a/e*100}function q(t){var e=t&&Number(t.threshold);return e&&isFinite(e)&&e>0&&e<=100?e:Number(s.threshold)||75}function jt(t){var e=t&&Number(t.minCriteria);return e&&isFinite(e)&&e>0&&e<=100?e:Rt}function rt(t,e){var a=Number(e)||Number(s.threshold)||75;return t>=a?"success":t>=a-10?"warning":"danger"}function St(t){return rt(z(t),q(t))}function lt(t,e){var a=D(t.total),r=Math.max(0,Math.min(Number(t.attended)||0,a)),n=(Number(e??q(t))||75)/100;if(a<=0)return{type:"empty"};if(r/a>=n){if(n<=0)return{type:"bunk",count:1/0};var i=Math.floor(r/n-a);return{type:"bunk",count:Math.max(0,i)}}if(n>=1)return{type:"impossible"};var o=Math.ceil((n*a-r)/(1-n));return{type:"need",count:Math.max(0,o)}}function dt(t){if(D(t.total)<=0)return null;var e=z(t);return e>=je?"safe":e>=Rt?"condonation":"nsar"}function ma(t){var e=dt(t);if(!e)return"<span class='att-empty-sm'>Add classes to classify</span>";var a=te[e];return ft(a.tone,a.label)}function Me(t){return lt(t,je)}function Zn(t){var e=Me(t);return e.type==="empty"?"Add attended/total classes to calculate.":e.type==="impossible"?"85% can't be reached by attending alone from here.":e.type==="bunk"?e.count<=0?"Right at the edge of 85% — missing even one more class drops you into the condonation window.":"Clear of 85% — you can still miss "+e.count+" more "+O(e.count)+" and stay there.":e.count<=0?"You're right at 85% — attend the next class to stay clear of the condonation window.":"Attend the next "+e.count+" "+O(e.count)+" in a row to clear 85% and exit the condonation window."}function ga(t){var e=dt(t);if(!e)return"Add attended/total classes to calculate.";if(e==="nsar")return"Below 75% — already NSAR (No Standing to Appear). Condonation can't restore eligibility for this subject this term; focus on protecting the rest and resetting habits next semester.";var a=Me(t);return e==="condonation"?a.type==="impossible"?"85% can't be reached by attending alone from here — you'll need condonation approval (with documentation) to sit this exam.":a.type==="need"?a.count<=0?"Right at the edge of the window — attend the next class, or file a condonation application now as a backup.":"Attend the next "+a.count+" "+O(a.count)+" in a row to clear 85% and avoid needing condonation at all.":"In the condonation window — file an application below if you can't fully close the gap by attending.":a.type==="bunk"?a.count<=0?"Right at the edge of 85% — missing even one more class drops you into the condonation window.":"Safely clear of 85% — you can still miss "+a.count+" more "+O(a.count)+" before entering the condonation window.":"Safely above 85%."}function fa(t){var e=s.condonationLog[t];return Array.isArray(e)?e:[]}function ba(){var t={nsar:0,condonation:1,safe:2};return s.subjects.slice().sort(function(e,a){var r=dt(e),n=dt(a),i=r?t[r]:3,o=n?t[n]:3;return i!==o?i-o:z(e)-z(a)})}function ha(){var t={safe:0,condonation:0,nsar:0,none:0};return s.subjects.forEach(function(e){var a=dt(e);a?t[a]++:t.none++}),t}function bt(t){return D(t.total)<=0?null:z(t)>=jt(t)}function ya(t){var e=jt(t),a=g(e)+"%",r=lt(t,e);return r.type==="empty"?"Add attended/total classes to calculate.":r.type==="impossible"?a+" can't be reached by attending alone from here.":r.type==="bunk"?r.count<=0?"Right at "+a+" — missing even one more class drops you below the criteria.":"Meets the "+a+" criteria — you can still miss "+r.count+" more "+O(r.count)+" and stay at/above "+a+".":r.count<=0?"Right at "+a+" — attend the next class to hold the criteria.":"Attend the next "+r.count+" "+O(r.count)+" in a row to reach the "+a+" criteria."}function Ht(){return s.subjects.slice().sort(function(t,e){var a=bt(t),r=bt(e),n=a===null?2:a?1:0,i=r===null?2:r?1:0;return n!==i?n-i:z(t)-z(e)})}function ae(){var t={eligible:0,ineligible:0,none:0};return s.subjects.forEach(function(e){var a=bt(e);a===null?t.none++:a?t.eligible++:t.ineligible++}),t}function xa(){if(!s.subjects.length)return"<div class='att-card' style='margin-top:1rem'><div class='att-title att-section-title'>📋 Per-Subject 75% Attendance Criteria</div><div class='att-empty-sm'>Add a subject to see eligibility here.</div></div>";var t=ae(),e="<div class='att-alert-summary' style='margin:.5rem 0 .85rem'><span class='att-alert-chip' data-tone='success'>✅ Meets 75%: "+t.eligible+"</span><span class='att-alert-chip' data-tone='critical'>❌ Below 75%: "+t.ineligible+"</span>"+(t.none?"<span class='att-alert-chip'>No data: "+t.none+"</span>":"")+"</div>",a=t.eligible+t.ineligible,r=s.subjects.some(function(l){return l.minCriteria&&Number(l.minCriteria)!==Rt}),n="";if(a>0)if(t.ineligible>0){var i=Ht().filter(function(l){return bt(l)===!1}).map(function(l){return b(l.name)+" (<"+g(jt(l))+"%)"}).join(", ");n="<div class='att-alert-banner' data-tone='"+(t.ineligible===a?"critical":"warning")+"' role='status'><span class='att-alert-banner-icon' aria-hidden='true'>⚠️</span><span class='att-alert-banner-text'><strong>"+t.ineligible+" of "+a+" subject"+(a===1?"":"s")+" below "+(r?"its required minimum":"the 75% criteria")+"</strong> — exam eligibility at risk: "+i+".</span></div>"}else n="<div class='att-alert-banner' data-tone='success' role='status'><span class='att-alert-banner-icon' aria-hidden='true'>✅</span><span class='att-alert-banner-text'><strong>All "+a+" subject"+(a===1?"":"s")+" clear "+(r?"their required minimum":"the 75% criteria")+".</strong> Keep it that way — check the buffer on each below before skipping.</span></div>";var o=Ht().map(function(l){var c=bt(l),u=D(l.total)>0?g(z(l)):null,p=c===null?"":c?"success":"danger",m=jt(l),f=g(m),x=c===null?"<span class='att-empty-sm'>Add classes to classify</span>":ft(p,c?"✅ Eligible (≥"+f+"%)":"❌ Not Eligible (<"+f+"%)"),h=l.minCriteria&&Number(l.minCriteria)&&Number(l.minCriteria)!==Rt?Number(l.minCriteria):"",w="<div class='att-sub-threshold-row'><label for='att-min75-"+l.id+"'>Required minimum for this subject</label><input id='att-min75-"+l.id+"' class='att-input att-threshold-mini' type='number' min='1' max='100' step='1' placeholder='75' value='"+h+"' data-action='update-subject' data-field='minCriteria' data-sub='"+l.id+"' /></div>";return"<div class='att-goal-row' data-tone='"+p+"'><div class='att-goal-head'><span class='att-goal-name'>"+b(l.name)+"</span><span class='att-goal-meta'>"+(u==null?"—":u+"%")+"</span></div><div>"+x+"</div><div class='att-insight' data-tone='"+(p||"info")+"' style='margin-top:.5rem'><span class='att-insight-dot' aria-hidden='true'></span><span>"+b(ya(l))+"</span></div>"+w+"</div>"}).join(""),d=v.lastCriteria75Message?"<div class='att-insight' data-tone='"+(v.lastCriteria75Ok?"success":"danger")+"' style='margin-top:.75rem'><span class='att-insight-dot'></span><span>"+b(v.lastCriteria75Message)+"</span></div>":"";return"<div class='att-card' style='margin-top:1rem'>"+e+n+"<div class='att-title att-section-title' style='margin-top:"+(n?".85rem":"0")+"'>📋 Per-Subject 75% Attendance Criteria</div><div class='att-subtitle'>The flat 75% minimum most colleges require per subject to be eligible to sit the exam — no condonation nuance, just the plain cutoff. Some subjects (labs, electives, other departments) sometimes carry a different official minimum — override it per subject below; it defaults to 75%. Independent of your personal Target % and the 85%/condonation tracker in Planning.</div>"+o+"<div class='att-quick-row' style='margin-top:1rem'><button type='button' class='att-btn' data-action='copy-75-criteria'>📋 Copy Summary</button><button type='button' class='att-btn att-btn-primary' data-action='download-75-criteria'>⬇️ Download Report</button></div>"+d+"</div>"}function wa(){var t=ae(),e=t.eligible+t.ineligible,a=[];return a.push("Attendance Criteria — "+new Date().toLocaleDateString()),a.push(e>0?t.ineligible+" of "+e+" subject"+(e===1?"":"s")+" below its required minimum":"No attendance data yet"),a.push(""),Ht().forEach(function(r){var n=bt(r),i=D(r.total)>0?g(z(r)):null,o=g(jt(r)),d=n===null?"No data":n?"Eligible (≥"+o+"%)":"Not Eligible (<"+o+"%)";a.push("- "+r.name+": "+(i==null?"—":i+"%")+" — "+d)}),a.join(`

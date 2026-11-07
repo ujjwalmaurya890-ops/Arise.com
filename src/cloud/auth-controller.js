@@ -201,7 +201,12 @@ export function createController(adapter, { storage = window.AriseStorage, schem
       gate('Workspace ready', 'Your saved progress is restored.', true);
       document.documentElement.dataset.cloudAuth = 'ready';
       element('root').inert = false; element('root').removeAttribute('aria-hidden');
+      // The gate is gone from the accessibility tree at this point, but a hidden
+      // element must not keep a stale busy state either: clear it so no
+      // `[aria-busy="true"]` host survives the handshake.
       element('cloud-gate').hidden = true; element('cloud-account').hidden = false;
+      element('cloud-gate').dataset.busy = 'false'; element('cloud-gate').setAttribute('aria-busy', 'false');
+      element('cloud-message').setAttribute('aria-busy', 'false');
       started = true; window.AriseBoot.start(); publish();
       pollTimer = setInterval(() => { if (!document.hidden) sync.poll(); }, 20000);
     } catch (error) {

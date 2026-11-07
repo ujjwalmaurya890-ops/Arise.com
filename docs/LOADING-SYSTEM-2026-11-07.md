@@ -37,7 +37,7 @@ rather than replacing it:
   connectivity state;
 * targeted integration into the lazy mount queue, route navigation, the backup
   centre, AI insights, interview-sheet filtering and the secure boot screen;
-* a new regression suite (377 assertions) and three new browser-level probe
+* a new regression suite (380 assertions) and three new browser-level probe
   groups, plus screenshots of the real states.
 
 No existing feature, storage key, widget mount contract, chunk or service-worker
@@ -178,7 +178,7 @@ indicator, which is where time is actually spent.
 | --- | --- |
 | `styles/loading-system.css` | loading design layer (986 lines before this doc) |
 | `src/loading-system.js` | loading runtime / `window.AriseLoading` |
-| `tests/test-loading-system-v2.cjs` | 377-assertion jsdom regression suite |
+| `tests/test-loading-system-v2.cjs` | 380-assertion jsdom regression suite |
 | `scripts/capture-loading-states.cjs` | reproducible screenshot capture for docs |
 | `docs/screenshots/loading/01…07.png` | captured states (boot, skeleton kit dark/light, mobile, AI thinking, nav progress, offline) |
 | `docs/LOADING-SYSTEM-2026-11-07.md` | this document |
@@ -247,11 +247,12 @@ indicator, which is where time is actually spent.
 | Command | Result |
 | --- | --- |
 | `npm test` (build chunks → 69 test files → cloud suite) | **exit 0**; 0 failing files; cloud `node:test` 69/69 pass |
-| `node tests/test-loading-system-v2.cjs` | **377/377 assertions pass** (30 skeleton kinds, lifecycle, cloud-sync mapping, CP shared helper, announcement grouping) |
+| `node tests/test-loading-system-v2.cjs` | **380/380 assertions pass** (30 skeleton kinds, lifecycle, cloud-sync mapping, CP shared helper, announcement grouping) |
 | `npm run test:browser:ux` (real Chromium, mocked secure cloud) | **all checks pass** — 8 numbered passes + skeleton geometry (320/390/768/1440/1920 px × dark + light) |
 | `npm run test:browser` (secure cloud, storage, sync, ZIP, offline queue, logout) | **all 10 PASS lines** |
 | `npm run test:browser:engineering` (12 chunks, 20 routes × 8 viewports, PWA, failure/retry) | **all 8 PASS lines** |
 | `npm run build` | passes; 113 scripts → 12 chunks; `dist/` rebuilt |
+| `npm run test:browser:coverage` (per-route audit, mocked cloud) | **pass** — 20 routes × 2 viewports + 6 throttled routes; 0 leftover placeholders, 0 `aria-busy` leaks, 0 overflow, 0 loader-attributed CLS, 0 errors |
 | `node scripts/capture-loading-states.cjs` | 7 screenshots written |
 
 New browser assertions specifically verify: boot progress visibility and
@@ -326,6 +327,7 @@ npm run build && npm start       # serve dist/ for the browser suites
 npm run test:browser:ux
 npm run test:browser
 npm run test:browser:engineering
+npm run test:browser:coverage    # per-route measured coverage -> docs/loading-coverage.md
 node scripts/capture-loading-states.cjs
 ```
 
@@ -336,16 +338,60 @@ configured `.env` the app intentionally stays on the locked sign-in screen.
 
 ## 13. Coverage report
 
-| Application Area | Loader Implemented | Tested | Status |
+Two kinds of evidence are kept separate on purpose: **implemented** (what the
+code does, verified in jsdom) and **measured in a browser** (what actually
+happened when the route was opened). The measured per-route tables are generated
+by `node scripts/audit-loading-coverage.cjs --write` and live in
+[`docs/loading-coverage.md`](loading-coverage.md) (raw data in
+`loading-coverage.json`); regenerate them rather than editing.
+
+### Area coverage
+
+| Application Area | Loader Implemented | Measured in Chromium | Status |
 | --- | --- | --- | --- |
-| Dashboard | Yes — deferred mounts, stat/dashboard/chart shapes, global bar | Yes — jsdom + Chromium boot/CLS + route visits | Complete for async surfaces |
-| DSA | Yes — mount shapes, table/list, sheet coverage error/retry, topic charts | Yes — jsdom, Chromium route + sheet-coverage retry | Complete |
-| Placement | Yes — dashboard/progress shapes via mount queue; shared indicators | Yes — Chromium route visit, jsdom mount shapes | Complete for async surfaces |
-| CGPA | Yes — mount placeholder + shared indicators (data is local/sync) | Yes — Chromium route visit, jsdom kinds | Complete for async surfaces |
-| Attendance | Yes — same | Yes — Chromium route visit | Complete for async surfaces |
-| Exams | Yes — mount + analytics shapes | Yes — Chromium route visit | Complete for async surfaces |
-| Notes | Yes — notes/list shapes, image placeholders, preserved search | Yes — jsdom shapes, Chromium route visit | Partial (minified widget has no bespoke retry) |
-| Hackathons | Yes — cards/feed shapes | Yes — Chromium route visit | Complete for async surfaces |
-| Analytics | Yes — analytics/line/area/heatmap shapes, AI states | Yes — Chromium route + AI thinking/error/retry | Complete |
-| AI Features | Yes — AI skeleton, thinking status, indeterminate bar, announcements | Yes — Chromium 502 error + retry + thinking text | Complete (AI Real Insights); other AI widgets use shared/mount states |
-| Remaining Widgets | Yes — mount shape map + shared layer | Partially — route visits and shape tests, not per-widget async scenarios | Partial (see limitations) |
+| Dashboard | Yes — deferred mounts, stat/dashboard/chart shapes, global bar | Yes — boot skeleton, boot CLS, route visit, 0 leftover placeholders | Complete |
+| DSA | Yes — mount shapes, table/list, sheet coverage error/retry, topic charts | Yes — route visit + cold-chunk placeholder (`Loading Interview Sheets…`) | Complete |
+| Competitive Programming | Yes — dashboard shape, shared indeterminate bar via `setIndeterminateBar()` | Yes — route visit + cold-chunk placeholder, alternative-platform sync bar | Complete |
+| Placement | Yes — dashboard/progress shapes via mount queue; shared indicators | Yes — route visit + cold-chunk placeholder | Complete |
+| CGPA | Yes — mount placeholder + shared indicators (data is local/sync) | Yes — route visit, aria-busy cleared | Complete for async surfaces |
+| Attendance | Yes — same | Yes — route visit + cold-chunk placeholder | Complete for async surfaces |
+| Exams | Yes — mount + analytics shapes | Yes — route visit, no stuck state | Complete for async surfaces |
+| Notes | Yes — notes/list shapes, image placeholders, preserved search | Yes — route visit + cold-chunk placeholder | Partial (minified widget has no bespoke retry) |
+| Hackathons | Yes — cards/feed shapes | Yes — route visit, no stuck state | Complete for async surfaces |
+| Analytics | Yes — analytics/line/area/heatmap shapes, AI states | Yes — route visit + shell route placeholder (`role=status`) | Complete |
+| AI Features | Yes — AI skeleton, thinking status, indeterminate bar, announcements | Yes — 502 error + retry + thinking text (browser suite) | Complete (AI Real Insights); other AI widgets use shared/mount states |
+| Remaining Widgets | Yes — mount shape map + shared layer | Yes — all 20 top-level routes audited at 1440 and 390 px | Partial (per-widget bespoke retry, see limitations) |
+
+### What the audit measures, per route
+
+For each of the 20 top-level routes at 1440 px and 390 px it records: whether a
+placeholder or the global progress line appeared, settle time, leftover
+placeholders, leftover `aria-busy` hosts, document/main overflow, and layout
+shift split into **loading-layer shift** (a shift whose moved node is placeholder,
+progress or state geometry) versus the application's own route re-render.
+
+Last measured run (real Chromium, mocked cloud transport):
+
+* 20/20 routes × 2 viewports rendered content, with **0 leftover placeholders,
+  0 `aria-busy` leaks, 0 overflow and 0 loading-layer layout shift**.
+* 6/6 throttled routes rendered a placeholder while their chunk was in flight
+  and removed it after mount — five through the v2 runtime
+  (`role="progressbar"`, e.g. `Loading Attendance Tracker…`), one (Analytics)
+  through the prebuilt React shell's own route placeholder
+  (`role="status"` / "Loading section…"), which uses the same skeleton tokens.
+* 0 page or console errors across the whole audit.
+* Route-transition CLS is reported for transparency but not asserted: replacing
+  one route's content with another (and the minified widgets re-rendering
+  asynchronously afterwards) moves content by design on mobile. The loading
+  layer's own contribution measured 0 on every route. Boot CLS is asserted
+  separately at < 0.1.
+
+### Found by the audit and fixed
+
+The gate kept `aria-busy="true"` after a successful handshake: `gate('Workspace
+ready', …, true)` set the busy state, then hid the gate without clearing it, so a
+hidden `#cloud-gate` and `#cloud-message` stayed marked busy for the life of the
+session. The success path now clears both, which is why the audit reports zero
+busy hosts at rest.
+
+---

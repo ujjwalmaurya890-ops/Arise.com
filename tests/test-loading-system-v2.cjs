@@ -523,7 +523,19 @@ function makeDom(html) {
       "sheet coverage keeps explicit loading, error and retry states");
   }
 
-  console.log("\nLoading system v2: " + passed + " assertions passed.");
+  // --- The success path must not leave the hidden gate marked busy -----------
+{
+  const controller = read("src/cloud/auth-controller.js");
+  ok(controller.includes("element('cloud-gate').dataset.busy = 'false'"),
+    "the success path clears data-busy on the hidden gate");
+  ok(controller.includes("element('cloud-message').setAttribute('aria-busy', 'false')"),
+    "the success path clears aria-busy on the gate message");
+  ok(controller.indexOf("element('cloud-gate').hidden = true") <
+    controller.indexOf("element('cloud-gate').dataset.busy = 'false'"),
+    "the busy state is cleared when the gate is hidden");
+}
+
+console.log("\nLoading system v2: " + passed + " assertions passed.");
 })().catch((error) => {
   console.error("\nLoading system v2 FAILED:");
   console.error(error);

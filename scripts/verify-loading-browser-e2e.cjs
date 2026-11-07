@@ -235,6 +235,12 @@ const bundle = buildSync({
         runningAnimationsAtIdle: runningAnims.length
       };
     });
+    // A hidden gate must not keep a stale busy state after the handshake: this is
+    // the leak the per-route audit (scripts/audit-loading-coverage.cjs) found.
+    const staleBusy = await page.evaluate(() =>
+      [...document.querySelectorAll('[aria-busy="true"]')].map((node) => node.id || String(node.className).slice(0, 60))
+    );
+    assert.deepEqual(staleBusy, [], 'no host keeps aria-busy="true" once boot has settled');
     metricsReport.boot = bootPerf;
     assert.ok(bootPerf.bootCls < 0.1, `Boot CLS must stay below 0.1 (Good); measured ${bootPerf.bootCls}`);
     console.log(

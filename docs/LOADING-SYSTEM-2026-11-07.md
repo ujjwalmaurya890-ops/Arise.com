@@ -37,7 +37,7 @@ rather than replacing it:
   connectivity state;
 * targeted integration into the lazy mount queue, route navigation, the backup
   centre, AI insights, interview-sheet filtering and the secure boot screen;
-* a new regression suite (294 assertions) and three new browser-level probe
+* a new regression suite (377 assertions) and three new browser-level probe
   groups, plus screenshots of the real states.
 
 No existing feature, storage key, widget mount contract, chunk or service-worker
@@ -117,9 +117,16 @@ exported across accounts).
 `chart-radar`, `chart-heatmap`, `chart-progress`, `calendar`, `timeline`, `form`,
 `settings`, `search`, `notes`, `dsa`, `ai`, `modal`.
 
-Each root is a single `role="status"` with one visually hidden label; its
-geometry is `aria-hidden`, so a screen reader hears "Loading <area>…" once, not
-30 rectangles.
+Each root is a single `role="progressbar"` with an accessible name
+(`aria-label="Loading <area>…"`) and `aria-busy="true"`; its geometry is
+`aria-hidden`, so nothing announces 30 rectangles. `progressbar` is deliberately
+used instead of `role="status"`: status/alert roles are *live regions*, and a
+page that mounts a dozen placeholders at once would otherwise create a dozen
+competing announcements. Instead the runtime groups announcements through
+`announceLoading()`, which announces the first pending area immediately and
+coalesces the rest inside a 900 ms window, so simultaneous mounts produce one
+"Loading dashboard…" utterance rather than a queue of them, followed by the
+single completion announcement from `announce()`.
 
 ---
 
@@ -171,7 +178,7 @@ indicator, which is where time is actually spent.
 | --- | --- |
 | `styles/loading-system.css` | loading design layer (986 lines before this doc) |
 | `src/loading-system.js` | loading runtime / `window.AriseLoading` |
-| `tests/test-loading-system-v2.cjs` | 294-assertion jsdom regression suite |
+| `tests/test-loading-system-v2.cjs` | 377-assertion jsdom regression suite |
 | `scripts/capture-loading-states.cjs` | reproducible screenshot capture for docs |
 | `docs/screenshots/loading/01…07.png` | captured states (boot, skeleton kit dark/light, mobile, AI thinking, nav progress, offline) |
 | `docs/LOADING-SYSTEM-2026-11-07.md` | this document |
@@ -212,12 +219,18 @@ indicator, which is where time is actually spent.
 
 ## 9. Accessibility
 
-* One `role="status"` per placeholder with a single hidden label; geometry is
-  `aria-hidden` so nothing announces 30 rectangles.
+* Placeholders expose `role="progressbar"` + `aria-label` + `aria-busy="true"`
+  and keep their geometry `aria-hidden`; they are **not** live regions, so 30
+  rectangles never become 30 announcements.
+* Announcements are grouped by `announceLoading()` (900 ms window): the first
+  mount announces immediately, concurrent mounts are coalesced, and the
+  per-region `announce()` keeps its own 700 ms de-duplication. Completion and
+  failure are announced once per region (`state("ready")` also clears a
+  placeholder left behind by a navigation race).
 * `aria-busy` is set while a host is loading and always cleared — including on
   failure, stale results and retries (covered by tests).
-* Two shared live regions (polite + assertive), de-duplicated within 700 ms;
-  errors use `role="alert"` and assertive announcements.
+* Two shared live regions (polite + assertive); errors use `role="alert"` and
+  assertive announcements.
 * Retry controls are native buttons; keyboard focus is untouched, and the
   existing modal focus trap continues to run.
 * Reduced motion: no shimmer, no sliding bar, calm pulse for spinners; tested in
@@ -234,7 +247,7 @@ indicator, which is where time is actually spent.
 | Command | Result |
 | --- | --- |
 | `npm test` (build chunks → 69 test files → cloud suite) | **exit 0**; 0 failing files; cloud `node:test` 69/69 pass |
-| `node tests/test-loading-system-v2.cjs` | **294/294 assertions pass** |
+| `node tests/test-loading-system-v2.cjs` | **377/377 assertions pass** (30 skeleton kinds, lifecycle, cloud-sync mapping, CP shared helper, announcement grouping) |
 | `npm run test:browser:ux` (real Chromium, mocked secure cloud) | **all checks pass** — 8 numbered passes + skeleton geometry (320/390/768/1440/1920 px × dark + light) |
 | `npm run test:browser` (secure cloud, storage, sync, ZIP, offline queue, logout) | **all 10 PASS lines** |
 | `npm run test:browser:engineering` (12 chunks, 20 routes × 8 viewports, PWA, failure/retry) | **all 8 PASS lines** |
@@ -248,6 +261,13 @@ name in full-performance mode and static in perf-lite, image pending→loaded an
 pending→error, guarded button disabled + spinner + single call + restore,
 offline banner appear/clear with content still visible, and v2 reduced-motion
 behaviour (`animation: none` for shimmer, `ars-reduced-pulse` for spinners).
+
+The unit suite additionally pins the sync contract (idle → saving → real 40%
+attachment fraction → done; failure; repeated events do not double-start the
+bar; a real value clears the synthetic creep timer), the shared
+`setIndeterminateBar()` helper (one idempotent `.ars-progress` element, removed
+on `false`, host `aria-busy` never touched, legacy fallback when `AriseLoading`
+is absent), and the grouped-announcement behaviour described in §9.
 
 ### Screenshots
 
@@ -269,10 +289,13 @@ behaviour (`animation: none` for shimmer, `ars-reduced-pulse` for spinners).
   local storage in one tick; adding fake waits would be dishonest and slower.
   Their loading coverage is the deferred-mount placeholder and the shared
   indicator.
-* **No real numeric progress source exists today.** `progress.set()` is wired and
-  tested, but no current operation reports a truthful fraction (ZIP/JSON export,
-  import and cloud sync expose none), so every in-app operation uses an
-  indeterminate indicator rather than an invented percentage.
+* **Numeric progress is sparse and honest.** `AriseLoading.cloudStatus()` maps
+  the sync engine's real statuses onto the shared indicator (saving/retrying →
+  indeterminate, attachment upload → `progress.set(pct/100)` because the engine
+  reports a true fraction, saved → done, failed/conflict → fail, offline →
+  quiet end; a refcount guard prevents repeated events from leaking starts, and
+  real values clear the synthetic creep timer). ZIP/JSON export and import still
+  expose no fraction, so they stay indeterminate — no invented percentages.
 * **Most widget files are minified single-line bundles.** Integration was done
   where source is readable (backup, AI insights, interview sheets, sheet
   coverage, widget nav) and generically through the mount queue, live regions

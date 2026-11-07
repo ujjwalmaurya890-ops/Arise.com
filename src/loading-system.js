@@ -641,8 +641,11 @@
     if (o.className) classes.push(String(o.className));
     var style = o.height ? ' style="min-height:' + escapeHtml(o.height) + '"' : "";
     var body = (o.header === false ? "" : "") + bodyFor(name, o);
+    // One indeterminate progressbar (not a live region): a dashboard can mount
+    // six placeholders at once, and six polite regions would announce six times.
+    // Loading is announced once through announceLoading() instead.
     return (
-      '<div class="' + classes.join(" ") + '" role="status" aria-live="polite" aria-busy="true" data-ars-skeleton="1"' + style + ">" +
+      '<div class="' + classes.join(" ") + '" role="progressbar" aria-label="' + escapeHtml(label) + '" aria-busy="true" data-ars-skeleton="1"' + style + ">" +
       '<span class="ars-sr">' + escapeHtml(label) + "</span>" +
       '<div class="ars-sk-body" aria-hidden="true">' + body + "</div>" +
       "</div>"
@@ -694,11 +697,24 @@
   }
 
   /* ------------------------------------------------------------------ mount */
+  var lastLoadingAnnounceAt = -Infinity;
+
+  /** At most one "loading" announcement per 900ms window, even when several
+   * widgets mount together. Each host still carries aria-busy for AT. */
+  function announceLoading(label) {
+    var stamp = now();
+    if (stamp - lastLoadingAnnounceAt < 900) return;
+    lastLoadingAnnounceAt = stamp;
+    announce(label);
+  }
+
   function mount(target, kind, opts) {
     var el = resolveTarget(target);
     if (!el) return null;
+    var o = opts || {};
     el.setAttribute("aria-busy", "true");
-    el.innerHTML = skeleton(kind, opts);
+    el.innerHTML = skeleton(kind, o);
+    announceLoading(o.label || "Loading content…");
     return el.firstElementChild;
   }
 
@@ -756,7 +772,12 @@
     if (name === "loading") return mount(el, o.kind || "widget", o);
     el.removeAttribute("data-ars-skeleton");
     el.removeAttribute("aria-busy");
-    if (name === "ready") return el;
+    if (name === "ready") {
+      if (el.firstElementChild && el.firstElementChild.getAttribute("data-ars-skeleton") === "1" && el.children.length === 1) {
+        el.innerHTML = "";
+      }
+      return el;
+    }
     if (name === "empty") el.innerHTML = emptyState(o);
     else if (name === "error") {
       el.innerHTML = errorState(o);
@@ -832,11 +853,13 @@
     } else if (!hadContent) {
       target.innerHTML = skeleton(kind, { label: label, rows: s.rows, stats: s.stats, type: s.type, height: s.height, subtle: s.subtle });
       skeletonShownAt = now();
+      announceLoading(label);
     } else {
       skeletonTimer = setTimeout(function () {
         if (!live()) return;
         target.innerHTML = skeleton(kind, { label: label, rows: s.rows, stats: s.stats, type: s.type, height: s.height, subtle: s.subtle });
         skeletonShownAt = now();
+        announceLoading(label);
       }, startDelay);
     }
 
@@ -1101,6 +1124,12 @@
       progressState.determinate = true;
       var el = ensureTopbar();
       if (!el) return progress;
+      // A real fraction supersedes the synthetic creep; otherwise a timer would
+      // overwrite the measured value on the next tick.
+      progressState.timers.forEach(function (t) {
+        clearTimeout(t);
+      });
+      progressState.timers = [];
       el.removeAttribute("data-mode");
       el.setAttribute("data-state", "active");
       setBar(Math.max(0.02, Math.min(0.98, v)));
@@ -1189,6 +1218,37 @@
     window.addEventListener("popstate", function () {
       progress.pulse();
     });
+  }
+
+  /* ------------------------------------------------------- cloud sync state -- */
+  /**
+   * Maps the sync engine's real status stream (onStatus) to the shared
+   * indicator. Attachment uploads report a true percentage, so that step uses
+   * determinate progress; queued store writes have no measurable fraction and
+   * stay indeterminate. Waiting for a user decision is not progress, so
+   * `conflict`/`offline` terminate the indicator instead of leaving it running.
+   */
+  var cloudProgressActive = false;
+
+  function cloudStatus(info) {
+    if (!info || typeof info !== "object") return "idle";
+    var status = String(info.status || "");
+    var busy = status === "saving" || status === "retrying";
+    if (busy) {
+      if (!cloudProgressActive) {
+        cloudProgressActive = true;
+        progress.start();
+      }
+      var pct = Number(info.attachmentProgress);
+      if (isFinite(pct)) progress.set(pct / 100);
+      return "busy";
+    }
+    if (cloudProgressActive) {
+      cloudProgressActive = false;
+      if (status === "failed" || status === "conflict") progress.fail();
+      else progress.done();
+    }
+    return status || "idle";
   }
 
   /* ------------------------------------------------------------ live region */
@@ -1436,6 +1496,7 @@
     offlineState: offlineState,
     run: run,
     progress: progress,
+    cloudStatus: cloudStatus,
     button: button,
     showButtonLoading: showButtonLoading,
     hideButtonLoading: hideButtonLoading,

@@ -45,6 +45,13 @@ export function createController(adapter, { storage = window.AriseStorage, schem
   };
   const publish = () => window.dispatchEvent(new Event('arise:auth-state'));
   const status = info => {
+    // Shared global indicator: determinate for attachment uploads, indeterminate
+    // for queued writes, terminated on saved/failed/conflict/offline.
+    try {
+      if (window.AriseLoading && typeof window.AriseLoading.cloudStatus === 'function') {
+        window.AriseLoading.cloudStatus(info);
+      }
+    } catch (_) {}
     const account = element('cloud-account'); account.dataset.status = info.status;
     element('cloud-sync-label').textContent = labels[info.status] || info.status;
     element('cloud-sync-detail').textContent = info.message || (info.status === 'saved' ? 'Confirmed by the cloud database. Pending offline changes are never labelled saved.' :

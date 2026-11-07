@@ -93,11 +93,14 @@ function makeDom(html) {
       const host = win.document.createElement("div");
       host.innerHTML = api.skeleton(kind, { label: "Loading " + kind });
       const root = host.firstElementChild;
-      ok(root.getAttribute("role") === "status", kind + " skeleton is a single polite status");
-      ok(root.getAttribute("aria-busy") === "true", kind + " skeleton announces busy state");
+      ok(root.getAttribute("role") === "progressbar", kind + " skeleton is one indeterminate progressbar");
+      ok(root.getAttribute("aria-label") === "Loading " + kind, kind + " skeleton carries an accessible name");
+      ok(root.getAttribute("aria-busy") === "true", kind + " skeleton reports busy state to its host");
       ok(root.querySelector(".ars-sk-body").getAttribute("aria-hidden") === "true",
         kind + " skeleton geometry is hidden from assistive technology");
-      ok(host.querySelectorAll("[role='status']").length === 1, kind + " skeleton does not nest live regions");
+      ok(host.querySelectorAll("[role='status']").length === 0,
+        kind + " skeleton is not a live region (many can mount at once)");
+      ok(host.querySelectorAll("[role='progressbar']").length === 1, kind + " skeleton nests no second progressbar");
       ok(host.textContent.trim() === "Loading " + kind, kind + " skeleton exposes only its label text");
       ok(root.getAttribute("data-ars-skeleton") === "1", kind + " skeleton is removable by the loader");
     }
@@ -133,6 +136,26 @@ function makeDom(html) {
     ok(page.classList.contains("ars-page-loader") && page.querySelector(".ars-page-loader__bar"),
       "full-page loader is branded and provides an indeterminate bar");
     ok(!/%/.test(page.textContent), "full-page loader never invents a percentage");
+    d.window.close();
+  }
+
+  /* ----------------------------------- grouped announcements for many mounts */
+  {
+    const d = makeDom('<!doctype html><html><body><div id="a"></div><div id="b"></div><div id="c"></div></body></html>');
+    const win = d.window;
+    const api = win.AriseLoading;
+    const polite = win.document.querySelector('[data-ars-live="polite"]');
+    api.mount(win.document.getElementById("a"), "widget", { label: "Loading attendance tracker…" });
+    api.mount(win.document.getElementById("b"), "cards", { label: "Loading hackathons…" });
+    api.mount(win.document.getElementById("c"), "table", { label: "Loading interview sheets…" });
+    ok(polite.textContent === "Loading attendance tracker…",
+      "simultaneous placeholders produce one loading announcement, not one each");
+    ok(win.document.querySelectorAll("[data-ars-skeleton][aria-busy='true']").length === 3,
+      "each host still reports its own busy state without extra live regions");
+    await tick(950);
+    api.mount(win.document.getElementById("a"), "widget", { label: "Loading development tasks…" });
+    ok(polite.textContent === "Loading development tasks…",
+      "a later mount is announced again once the grouping window has passed");
     d.window.close();
   }
 
@@ -405,6 +428,70 @@ function makeDom(html) {
       "the placeholder and busy flag are cleared after mounting");
   }
 
+  /* ------------------------------------------- cloud sync -> progress mapping */
+  {
+    const d = makeDom();
+    const win = d.window;
+    const api = win.AriseLoading;
+    const bar = win.document.querySelector("[data-ars-topbar]");
+
+    ok(api.cloudStatus({ status: "saved", pending: 0 }) === "saved",
+      "a settled sync with nothing running leaves the indicator alone");
+    ok(bar.getAttribute("data-state") === "idle", "no progress bar is shown for an idle account");
+
+    ok(api.cloudStatus({ status: "saving" }) === "busy", "a queued write reports busy");
+    ok(bar.getAttribute("data-state") === "active", "a queued write shows the global indicator");
+    api.cloudStatus({ status: "saving" });
+    api.cloudStatus({ status: "saving", attachmentProgress: 40 });
+    ok(bar.getAttribute("data-mode") === null &&
+      Math.abs(Number(bar.style.getPropertyValue("--ars-progress")) - 0.4) < 0.001,
+      "attachment uploads use the real percentage as determinate progress");
+    await tick(200);
+    ok(Math.abs(Number(bar.style.getPropertyValue("--ars-progress")) - 0.4) < 0.001,
+      "the synthetic creep does not overwrite measured progress");
+
+    api.cloudStatus({ status: "saved" });
+    ok(bar.getAttribute("data-state") === "done",
+      "repeated saving events do not leak progress refcounts (one saved closes it)");
+
+    await tick(api.config.progressDone + 40);
+    ok(bar.getAttribute("data-state") === "idle", "the cloud indicator hides after a successful save");
+
+    api.cloudStatus({ status: "saving" });
+    api.cloudStatus({ status: "failed", message: "quota" });
+    ok(bar.getAttribute("data-state") === "error", "a failed sync marks the indicator as an error");
+    api.cloudStatus({ status: "saved" });
+    await tick(api.config.progressError + 40);
+    ok(bar.getAttribute("data-state") === "idle", "the failed indicator does not stay on screen");
+    d.window.close();
+  }
+
+  /* ------------------------------- shared widget helper integration (CP sync) */
+  {
+    const d = makeDom('<!doctype html><html><body><div id="cp"><div class="cp-header">Sync</div></div></body></html>');
+    const win = d.window;
+    win.eval(read("src/widget-shared-utils.js"));
+    const utils = win.__ARISE_WIDGET_UTILS__;
+    ok(!!utils && typeof utils.setIndeterminateBar === "function",
+      "widget-shared-utils still exposes setIndeterminateBar");
+    const host = win.document.getElementById("cp");
+    const after = host.querySelector(".cp-header");
+    utils.setIndeterminateBar(host, true, { after, label: "Syncing all platforms" });
+    const bar = host.querySelector("[data-uxa-indeterminate-bar]");
+    ok(!!bar && bar.classList.contains("ars-progress"), "the shared helper renders the v2 progress component");
+    ok(bar.getAttribute("role") === "progressbar", "the shared helper exposes a progressbar");
+    ok(bar.getAttribute("aria-label") === "Syncing all platforms", "the shared helper keeps its label");
+    ok(host.children[1] === bar, "the bar is still inserted after the requested anchor");
+    utils.setIndeterminateBar(host, true, { after, label: "Syncing all platforms" });
+    ok(host.querySelectorAll("[data-uxa-indeterminate-bar]").length === 1,
+      "repeated sync starts do not stack progress bars");
+    ok(host.getAttribute("aria-busy") === null,
+      "the shared helper never marks a re-rendering widget as permanently busy");
+    utils.setIndeterminateBar(host, false);
+    ok(!host.querySelector("[data-uxa-indeterminate-bar]"), "the bar is removed when the sync finishes");
+    d.window.close();
+  }
+
   /* -------------------------------- source integration sanity (no dead code) */
   {
     const aiSource = read("src/ai-real-insights-widget.js");
@@ -416,6 +503,12 @@ function makeDom(html) {
     ok(backup.includes("Loading.button.busy") && backup.includes("Loading.progress.start"),
       "backup/restore operations use shared button and progress states");
     ok(backup.includes("data-cloud-busy"), "backup actions guard against duplicate submissions");
+
+    const authController = read("src/cloud/auth-controller.js");
+    ok(authController.includes("AriseLoading.cloudStatus"),
+      "cloud sync status drives the shared progress indicator");
+    ok(!/AriseLoading\.cloudStatus[\s\S]{0,80}attachmentProgress\s*\+\s*'%'/.test(authController),
+      "the sync indicator does not invent its own percentage");
 
     const nav = read("src/widget-nav.js");
     ok(nav.includes("AriseLoading.progress") && nav.includes("pulse"),

@@ -665,19 +665,39 @@ try{
     }
   }
 
+  /**
+   * Inline indeterminate bar for widget-level operations (Competitive
+   * Programming "sync all platforms" is the current consumer). When the shared
+   * loading system is present it renders the v2 progress component — same
+   * lifecycle, same insertion rules, but an accessible progressbar instead of a
+   * bare strip. It never sets aria-busy on the host: widgets that re-render over
+   * themselves would otherwise be left permanently busy.
+   */
   function setIndeterminateBar(host, isActive, opts) {
     if (!host) return;
     opts = opts || {};
-    var cls = "uxa-progress-track";
-    var cur = host.querySelector("." + cls);
+    var loading = window.AriseLoading;
+    var useV2 = !!(loading && typeof loading.createInlineLoader === "function");
+    var cur = host.querySelector("[data-uxa-indeterminate-bar]");
     if (isActive) {
       if (cur) return;
       var bar = document.createElement("div");
-      bar.className = cls;
-      bar.setAttribute("role", "status");
-      bar.setAttribute("aria-live", "polite");
-      bar.setAttribute("aria-label", opts.label || "Working");
-      bar.innerHTML = '<span class="uxa-sr-only">' + escapeText(opts.label || "Working") + '</span><div class="uxa-progress-fill-indeterminate" aria-hidden="true"></div>';
+      bar.setAttribute("data-uxa-indeterminate-bar", "1");
+      if (useV2) {
+        bar.className = "ars-progress";
+        bar.setAttribute("data-mode", "indeterminate");
+        bar.setAttribute("role", "progressbar");
+        bar.setAttribute("aria-label", opts.label || "Working");
+        bar.innerHTML =
+          '<div class="ars-progress-track"><div class="ars-progress-fill"></div></div>';
+      } else {
+        bar.className = "uxa-progress-track";
+        bar.setAttribute("role", "status");
+        bar.setAttribute("aria-live", "polite");
+        bar.setAttribute("aria-label", opts.label || "Working");
+        bar.innerHTML =
+          '<span class="uxa-sr-only">' + escapeText(opts.label || "Working") + '</span><div class="uxa-progress-fill-indeterminate" aria-hidden="true"></div>';
+      }
       if (opts.after && opts.after.parentNode === host) {
         opts.after.insertAdjacentElement("afterend", bar);
       } else {

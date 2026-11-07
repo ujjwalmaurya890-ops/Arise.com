@@ -440,7 +440,7 @@ const bundle = buildSync({
         hasProgressBar: !!card.querySelector('.uxa-progress-indeterminate'),
         hasThinkingStatus: !!card.querySelector('.ars-ai-thinking[role="status"]'),
         thinkingText: (card.querySelector('.ars-ai-thinking') || {}).textContent || '',
-        hasSkeletonCard: !!card.querySelector('[data-ars-skeleton="1"][role="status"][aria-busy="true"]')
+        hasSkeletonCard: !!card.querySelector('[data-ars-skeleton="1"][role="progressbar"][aria-busy="true"]')
       };
     });
     assert.equal(inFlightAi.disabled, true, 'Generate button disables immediately on click');

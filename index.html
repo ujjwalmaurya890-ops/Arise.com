@@ -107,27 +107,41 @@
         var queue = window.__ariseMountQueue = [];
         var failedQueue = window.__ariseFailedMounts = [];
         var flushing = false;
+        // Content-shaped placeholders from the shared loading design system.
         var MOUNT_SHAPES = {
           __mountAttendanceTracker: 'dashboard', __mountCGPATracker: 'dashboard',
           __mountCompetitiveProgramming: 'dashboard', __mountExamTracker: 'dashboard',
-          __mountExpenses: 'dashboard', __mountHackathonTracker: 'dashboard',
-          __mountPlacementTracker: 'dashboard', __mountSemesterMastery: 'chart',
-          __mountCareerCommandCenter: 'chart', __mountDevMasteryHeatmap: 'chart',
-          __mountHabitHeatmap: 'chart', __mountInterviewSheets: 'table',
-          __mountCertificates: 'table', __mountProjectsWidget: 'table',
-          __mountLocalFiles: 'list', __mountNotesApp: 'list', __mountPersonalWiki: 'list',
-          __mountSocialMedia: 'list', __mountBackupCenter: 'form'
+          __mountExpenses: 'dashboard', __mountHackathonTracker: 'cards',
+          __mountPlacementTracker: 'dashboard', __mountSemesterMastery: 'chart-progress',
+          __mountCareerCommandCenter: 'chart-area', __mountDevMasteryHeatmap: 'chart-heatmap',
+          __mountHabitHeatmap: 'chart-heatmap', __mountInterviewSheets: 'table',
+          __mountCertificates: 'table', __mountProjectsWidget: 'cards',
+          __mountLocalFiles: 'list', __mountNotesApp: 'notes', __mountPersonalWiki: 'notes',
+          __mountSocialMedia: 'feed', __mountBackupCenter: 'form',
+          __mountSkillsTimeline: 'timeline', __mountRevisionSystem: 'calendar',
+          __mountBattlePlan: 'cards', __mountBurnoutDetector: 'analytics',
+          __mountSmartLearningPath: 'timeline', __mountExamTrackerDashboard: 'analytics'
         };
         // These optional hooks have no implementation in the checked-in build.
         var UNAVAILABLE_MOUNTS = { __mountCSEPlacementCritical: 1, __mountSemesterMastery: 1 };
         function renderMountSkeleton(el, isFullSection, name) {
           if (!el || el.nodeType !== 1 || el.children.length) return;
           var label = (name || 'Widget').replace(/^__mount/, '').replace(/([a-z])([A-Z])/g, '$1 $2');
+          var loading = window.AriseLoading;
           var system = window.AriseAnimationUpgrade;
+          var kind = MOUNT_SHAPES[name] || (isFullSection ? 'dashboard' : 'widget');
           el.setAttribute('aria-busy', 'true');
-          if (system && typeof system.renderSkeleton === 'function') {
+          if (loading && typeof loading.skeleton === 'function') {
+            el.innerHTML = loading.skeleton(kind, {
+              label: 'Loading ' + label + '…',
+              height: isFullSection ? '280px' : null
+            });
+            el.firstElementChild.setAttribute('data-arise-skeleton', '1');
+          } else if (system && typeof system.renderSkeleton === 'function') {
+            var legacy = { dashboard: 'dashboard', table: 'table', list: 'list', form: 'form', widget: 'widget' };
+            var legacyVariant = legacy[kind] || (kind.indexOf('chart') === 0 ? 'chart' : (isFullSection ? 'dashboard' : 'widget'));
             el.innerHTML = system.renderSkeleton({
-              variant: MOUNT_SHAPES[name] || (isFullSection ? 'dashboard' : 'widget'),
+              variant: legacyVariant,
               label: 'Loading ' + label + '…',
               minHeight: isFullSection ? '280px' : null
             });
@@ -337,6 +351,7 @@
       }
     </style>
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/animation-upgrade.js"></script>
+    <script type="application/x-arise-protected" data-arise-protected data-src="./src/loading-system.js"></script>
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/readiness-scoring-config.js"></script>
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/readiness-engine.js"></script>
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/placement-engine.js"></script>
@@ -345,6 +360,7 @@
     <script type="application/x-arise-protected" data-arise-protected data-src="./src/learning-heatmap-widget.js"></script>
     <script type="application/x-arise-protected" data-arise-protected data-module="1" data-src="./assets/app-bundle.js"></script>
     <link rel="stylesheet" href="./styles/animation-upgrade.css" />
+    <link rel="stylesheet" href="./styles/loading-system.css" />
     <link rel="stylesheet" href="./styles/typography-upgrade.css" media="print" data-promote-on-load />
     <noscript><link rel="stylesheet" href="./styles/typography-upgrade.css" /></noscript>
     <link rel="stylesheet" href="./styles/design-system.css" />
@@ -386,6 +402,11 @@
         <div class="cloud-eyebrow">Your private CSE workspace</div>
         <h1 id="cloud-title">Your progress.<br />Every device.</h1>
         <p id="cloud-message" role="status" aria-live="polite">Connecting securely and checking your saved session…</p>
+        <div class="ars-gate-progress" data-ars-gate-progress>
+          <div class="ars-progress" data-mode="indeterminate" role="progressbar" aria-label="Preparing your workspace">
+            <div class="ars-progress-track"><div class="ars-progress-fill"></div></div>
+          </div>
+        </div>
         <button id="cloud-google" class="cloud-button" type="button" disabled>
           <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285f4" d="M43.6 24.5c0-1.5-.1-2.9-.4-4.3H24v8.1h11a9.4 9.4 0 0 1-4.1 6.2v5.2h6.7c3.9-3.6 6-8.9 6-15.2Z"/><path fill="#34a853" d="M24 44c5.4 0 10-1.8 13.4-4.9l-6.7-5.2c-1.8 1.2-4.1 1.9-6.7 1.9-5.2 0-9.7-3.5-11.3-8.3H5.8v5.4A20.2 20.2 0 0 0 24 44Z"/><path fill="#fbbc05" d="M12.7 27.5a12 12 0 0 1 0-7.6v-5.4H5.8a20 20 0 0 0 0 18.4Z"/><path fill="#ea4335" d="M24 11.6c3 0 5.7 1 7.8 3l5.8-5.8A19.5 19.5 0 0 0 24 3.6 20.2 20.2 0 0 0 5.8 14.5l6.9 5.4A11.9 11.9 0 0 1 24 11.6Z"/></svg>
           Continue with Google
@@ -1004,20 +1025,20 @@ window.AriseBoot.ready.then(function () {
     ];
     /*CHUNKS:START*/
     var CHUNKS = [
-      "./assets/chunks/w01.ed03952b.js",
+      "./assets/chunks/w01.81ee74a1.js",
       "./assets/chunks/w02.a89778ae.js",
-      "./assets/chunks/w03.ec8efd00.js",
+      "./assets/chunks/w03.73b2c2e0.js",
       "./assets/chunks/w04.184d5eb3.js",
       "./assets/chunks/w05.aba06fa4.js",
-      "./assets/chunks/w06.50ab4798.js",
+      "./assets/chunks/w06.0b14ba51.js",
       "./assets/chunks/w07.3def584e.js",
-      "./assets/chunks/w08.004734af.js",
+      "./assets/chunks/w08.ea6aa31c.js",
       "./assets/chunks/w09.60cffb01.js",
       "./assets/chunks/w10.7b87fb7c.js",
       "./assets/chunks/w11.d858d06b.js",
       "./assets/chunks/w12.40743912.js"
     ];
-    var CHUNK_FILES = {"./assets/chunks/w01.ed03952b.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.a89778ae.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js"],"./assets/chunks/w03.ec8efd00.js":["./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/a11y-label-patch.js","./src/widget-failure-reporter.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.184d5eb3.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.aba06fa4.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.50ab4798.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.3def584e.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js","./src/dsa-mistake-journal-widget.js"],"./assets/chunks/w08.004734af.js":["./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js"],"./assets/chunks/w09.60cffb01.js":["./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js","./src/features/semester-risk/cse-syllabus-unified-widget.js"],"./assets/chunks/w10.7b87fb7c.js":["./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.d858d06b.js":["./src/expenses.js"],"./assets/chunks/w12.40743912.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js","./src/career-intelligence-dashboard.js"]};
+    var CHUNK_FILES = {"./assets/chunks/w01.81ee74a1.js":["./src/mutation-bus.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.a89778ae.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js"],"./assets/chunks/w03.73b2c2e0.js":["./src/weekly-ai-report-widget.js","./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/a11y-label-patch.js","./src/widget-failure-reporter.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.184d5eb3.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.aba06fa4.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js"],"./assets/chunks/w06.0b14ba51.js":["./src/skills-timeline-widget.js","./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js"],"./assets/chunks/w07.3def584e.js":["./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js","./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js","./src/dsa-mistake-journal-widget.js"],"./assets/chunks/w08.ea6aa31c.js":["./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js","./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js"],"./assets/chunks/w09.60cffb01.js":["./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js","./src/features/semester-risk/cse-syllabus-unified-widget.js"],"./assets/chunks/w10.7b87fb7c.js":["./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.d858d06b.js":["./src/expenses.js"],"./assets/chunks/w12.40743912.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js","./src/career-intelligence-dashboard.js"]};
     /*CHUNKS:END*/
 
     function loadCss() {

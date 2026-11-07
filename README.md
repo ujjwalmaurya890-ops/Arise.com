@@ -19,6 +19,11 @@ Google sign-in, a **server-controlled exactly-five-account policy**, and UID-iso
 - [Actual test results and remaining provider/emulator verification](docs/SECURE-SYNC-TESTS.md)
 - [Exact changed-file list](docs/SECURE-SYNC-CHANGES.md)
 
+The unified loading and skeleton system (`window.AriseLoading`) is documented in
+[the loading experience report](docs/LOADING-SYSTEM-2026-11-07.md), including the
+component skeleton kit, async lifecycle, accessibility rules, executed test
+results and remaining limitations.
+
 Node 22.22+: `npm ci`, configure `.env` from `.env.example`, then `npm run dev`.
 `npm test` runs the checked-in feature regression files plus the cloud/auth/sync tests. `npm run test:rules` requires a local Firestore emulator; without one, the rules test reports a skip. `npm run build` produces a safe **`dist/`** site. **Netlify must publish `dist`, never `.`.** The old shared-code `/api/sync` is retired (HTTP 410); never redeploy its unauthenticated implementation.
 
@@ -100,7 +105,7 @@ The project uses modern web technologies to deliver an interactive student-focus
 - `tests/` — Node/jsdom feature regressions, cloud/auth/sync tests, and opt-in real Firestore rules tests.
 - `scripts/` — local server, build helpers, and test runner.
 - `assets/` — images, fonts, generated widget chunks, sound files, and static data.
-- `docs/` — upgrade notes and project documentation.
+- `docs/` — upgrade notes and project documentation (see [the loading system report](docs/LOADING-SYSTEM-2026-11-07.md)).
 - Root-level `index.html`, `service-worker.js`, `netlify.toml`, and package manifests remain at the site root because static hosting, service-worker scope, and Netlify publish paths rely on those entry points.
 
 Use `npm run dev` to build and serve the site/API locally, `npm run build` for production, and `npm test` for regressions and auth/sync tests. See the secure setup guide before deployment.

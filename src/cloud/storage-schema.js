@@ -184,7 +184,7 @@
   "xpEngineDailyLog"
 ];
   var databases = { 'arise-local-files-db-v1': 'files', 'arise-certificates-files-db-v1': 'certFiles' };
-  function isLocalOnly(key) { return /^(backupCenter:|userSession$|cloudSyncState$|arise-perf-mode$|arise-chunks$|__arise_.*_test__$)/.test(key); }
+  function isLocalOnly(key) { return /^(backupCenter:|userSession$|cloudSyncState$|arise-perf-mode$|arise-chunks$|arise-loading-config$|__arise_.*_test__$)/.test(key); }
   function isLocalKey(key) { return keys.indexOf(key) >= 0 || /^arise-widget-nav-[a-z0-9-]{1,60}$/.test(key); }
   function isAttachmentKey(key) { return /^idb:(arise-local-files-db-v1|arise-certificates-files-db-v1):[A-Za-z0-9_-]{1,400}$/.test(key); }
   function isKey(key) { return typeof key === 'string' && (isLocalKey(key) || isAttachmentKey(key)); }

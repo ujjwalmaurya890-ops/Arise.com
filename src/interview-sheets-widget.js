@@ -374,6 +374,15 @@
               d.setSelectionRange(s, s);
             } catch {}
           }
+          // Polite result feedback: filtering is synchronous, so a skeleton
+          // would be dishonest — a status line tells screen-reader users what
+          // changed without replacing the visible list.
+          if (window.AriseLoading && window.AriseLoading.announce && n) {
+            var rows = n.querySelectorAll(".ish-row").length;
+            window.AriseLoading.announce(
+              rows ? rows + (rows === 1 ? " question matches your filters." : " questions match your filters.") : "No questions match your filters."
+            );
+          }
         }, 120);
       });
     var g = n.querySelector(".ish-topic-select");

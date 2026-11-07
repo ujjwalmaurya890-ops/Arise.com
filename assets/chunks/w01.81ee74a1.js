@@ -1204,6 +1204,10 @@ try{
 
     function setActive(id, host, setOpts) {
       if (!sections.some(function (s) { return s.id === id; }) || id === activeId) return;
+      // Shared top progress line: one short transition, never a fake percentage.
+      if (window.AriseLoading && window.AriseLoading.progress) {
+        window.AriseLoading.progress.pulse();
+      }
       activeId = id;
       lastWiredActiveId = id;
       writeSaved(storageKey, id);

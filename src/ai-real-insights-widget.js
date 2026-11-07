@@ -101,6 +101,9 @@
         activeHost = null;
         lastErr = "";
         s(e);
+        if (window.AriseLoading && window.AriseLoading.announce) {
+          window.AriseLoading.announce("AI insights are ready.");
+        }
       })
       .catch(function (f) {
         if (mySeq !== reqSeq) return;
@@ -152,8 +155,13 @@
       ">" +
       btnContent +
       '</button><button type="button" class="air-btn" data-air-action="toggle-settings">Model</button></div></div>';
+    var thinking = o
+      ? '<div class="ars-ai-thinking" role="status" aria-live="polite"><span class="ars-ai-dots" aria-hidden="true"><span></span><span></span><span></span></span><span>' +
+        (r ? 'Refreshing with your latest stats — waiting for the model\'s response…' : 'Sending your stats to the model and waiting for its response…') +
+        '</span></div>'
+      : "";
     var bar = o
-      ? '<div class="uxa-progress-indeterminate" role="status" aria-live="polite" aria-label="Generating AI insights"><span class="uxa-sr-only">' + (r ? 'Refreshing' : 'Generating') + ' AI insights…</span></div>'
+      ? '<div class="uxa-progress-indeterminate" aria-hidden="true"></div>'
       : "";
     var errHtml = lastErr
       ? '<div class="air-error" role="alert"><span>' +
@@ -184,14 +192,17 @@
         a;
     } else if (o) {
       var system = window.AriseAnimationUpgrade;
-      var skeleton = system && typeof system.renderSkeleton === "function"
+      var loading = window.AriseLoading;
+      var skeleton = loading && typeof loading.skeleton === "function"
+        ? loading.skeleton("ai", { label: "Generating personalized AI insights…", delayed: false })
+        : system && typeof system.renderSkeleton === "function"
         ? system.renderSkeleton({ variant: "widget", header: false, lines: 4, label: "Generating personalized AI insights…" })
         : '<div class="uxa-skeleton-card" role="status" aria-live="polite"><span class="uxa-sr-only">Generating personalized AI insights…</span><div class="uxa-skeleton-group" aria-hidden="true"><div class="uxa-skeleton uxa-skeleton-line" style="width:92%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:84%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:76%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:62%"></div></div></div>';
       n = '<div class="air-skeleton" aria-hidden="true">' + skeleton + '</div>' + errHtml + a;
     } else {
       n = '<div class="air-empty">No AI insights generated yet. Click "Generate AI Insights" above.</div>' + errHtml + a;
     }
-    return t + bar + n;
+    return t + bar + thinking + n;
   }
 
   function s(e) {

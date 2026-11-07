@@ -198,13 +198,24 @@ const bundle = buildSync({
         busy: gate ? gate.getAttribute('data-busy') : null,
         ariaBusy: gate ? gate.getAttribute('aria-busy') : null,
         beforeContent: before ? before.content : null,
-        beforeWidth: before ? before.width : null
+        beforeWidth: before ? before.width : null,
+        hasBootBar: !!document.querySelector('#cloud-gate .ars-gate-progress .ars-progress[role="progressbar"]'),
+        bootBarVisible: (() => {
+          const bar = document.querySelector('#cloud-gate .ars-gate-progress');
+          return bar ? getComputedStyle(bar).display !== 'none' : false;
+        })(),
+        bootBarAccessibleName: (document.querySelector('#cloud-gate .ars-gate-progress .ars-progress') || {}).getAttribute
+          ? document.querySelector('#cloud-gate .ars-gate-progress .ars-progress').getAttribute('aria-label')
+          : null
       };
     });
     assert.equal(gateBusySnapshot.busy, 'true', '#cloud-gate sets data-busy="true" during cloud handshake');
     assert.equal(gateBusySnapshot.ariaBusy, 'true', '#cloud-gate sets aria-busy="true" during cloud handshake');
     assert.equal(gateBusySnapshot.beforeWidth, '16px', '#cloud-message::before renders 16px (--loader-size-md) CSS spinner');
-    console.log('PASS [1/7]: Cloud Gate displays accessible CSS spinner during initial auth/sync handshake.');
+    assert.equal(gateBusySnapshot.hasBootBar, true, 'the full-page boot screen exposes a progressbar');
+    assert.equal(gateBusySnapshot.bootBarVisible, true, 'the boot progress bar is visible during the handshake');
+    assert.match(String(gateBusySnapshot.bootBarAccessibleName), /workspace/i, 'the boot bar exposes an accessible name');
+    console.log('PASS [1/8]: Cloud Gate displays accessible CSS spinner and boot progress during the auth/sync handshake.');
 
     await page.locator('#arise-main').waitFor({ timeout: 30000 });
     await page.evaluate(() => window.__ariseExpedite?.());
@@ -224,10 +235,16 @@ const bundle = buildSync({
         runningAnimationsAtIdle: runningAnims.length
       };
     });
+    // A hidden gate must not keep a stale busy state after the handshake: this is
+    // the leak the per-route audit (scripts/audit-loading-coverage.cjs) found.
+    const staleBusy = await page.evaluate(() =>
+      [...document.querySelectorAll('[aria-busy="true"]')].map((node) => node.id || String(node.className).slice(0, 60))
+    );
+    assert.deepEqual(staleBusy, [], 'no host keeps aria-busy="true" once boot has settled');
     metricsReport.boot = bootPerf;
     assert.ok(bootPerf.bootCls < 0.1, `Boot CLS must stay below 0.1 (Good); measured ${bootPerf.bootCls}`);
     console.log(
-      `PASS [2/7]: Dashboard boot settled cleanly (FCP=${bootPerf.paints['first-contentful-paint']}ms, DCL=${bootPerf.domContentLoadedMs}ms, CLS=${bootPerf.bootCls}, idleAnimations=${bootPerf.runningAnimationsAtIdle}).`
+      `PASS [2/8]: Dashboard boot settled cleanly (FCP=${bootPerf.paints['first-contentful-paint']}ms, DCL=${bootPerf.domContentLoadedMs}ms, CLS=${bootPerf.bootCls}, idleAnimations=${bootPerf.runningAnimationsAtIdle}).`
     );
 
     // Exercise actual shared skeleton geometry across viewport sizes and both
@@ -248,18 +265,44 @@ const bundle = buildSync({
           document.body.appendChild(host);
           const cards = [...host.querySelectorAll('.uxa-skeleton-layout')];
           const base = getComputedStyle(host.querySelector('.uxa-skeleton')).backgroundColor;
-          const result = { mode, width: innerWidth, cards: cards.length, fits: cards.every(card => card.scrollWidth <= card.clientWidth + 1), base };
-          host.remove(); window.AriseThemeSystem.applyTheme(oldTheme, false, { isPreview: true });
+
+          // Loading system v2: content-shaped kit must fit the same viewports.
+          const v2 = document.createElement('div');
+          v2.style.cssText = 'position:fixed;inset:0 auto auto 0;width:100%;padding:12px;z-index:-1;box-sizing:border-box';
+          const v2Kinds = ['dashboard', 'table', 'chart-pie', 'chart-heatmap', 'chart-progress', 'profile', 'calendar', 'timeline', 'settings', 'search', 'notes', 'dsa', 'ai', 'modal', 'sidebar'];
+          v2.innerHTML = v2Kinds.map(kind => window.AriseLoading.skeleton(kind, { kind, delayed: false, label: 'Loading ' + kind })).join('');
+          document.body.appendChild(v2);
+          const v2Roots = [...v2.querySelectorAll('[data-ars-skeleton]')];
+          v2.querySelectorAll('.ars-skel').forEach(el => { el.classList.add('ars-skel--static'); });
+          const v2Fits = v2Roots.every(el => el.scrollWidth <= el.clientWidth + 1) &&
+            v2.scrollWidth <= v2.clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 2;
+          const v2Base = getComputedStyle(v2.querySelector('.ars-skel')).backgroundColor;
+          const v2Shimmer = getComputedStyle(v2.querySelector('.ars-skel-group'), '::after').animationName;
+
+          const result = {
+            mode, width: innerWidth, cards: cards.length,
+            fits: cards.every(card => card.scrollWidth <= card.clientWidth + 1),
+            base, v2Count: v2Roots.length, v2Kinds: v2Kinds.length, v2Fits, v2Base, v2Shimmer,
+            perfLite: document.documentElement.classList.contains('perf-lite')
+          };
+          host.remove(); v2.remove(); window.AriseThemeSystem.applyTheme(oldTheme, false, { isPreview: true });
           return result;
         }, { theme, mode });
         assert.equal(probe.cards, 5); assert.ok(probe.fits, `${mode} skeleton overflow at ${width}px`);
+        assert.equal(probe.v2Count, probe.v2Kinds, `every v2 skeleton kind rendered at ${width}px (${mode})`);
+        assert.ok(probe.v2Fits, `v2 skeleton kit overflows at ${width}px (${mode})`);
+        // The sandboxed browser reports a low core count, so the app's own
+        // perf-lite mode is expected here: placeholders must then be static.
+        assert.equal(probe.v2Shimmer, probe.perfLite ? 'none' : 'ars-shimmer-slide',
+          `v2 shimmer matches the active performance mode at ${width}px (${mode})`);
         skeletonProbes.push(probe);
       }
     }
     assert.notEqual(skeletonProbes[0].base, skeletonProbes[1].base, 'light and dark skeleton surfaces resolve differently');
+    assert.notEqual(skeletonProbes[0].v2Base, skeletonProbes[1].v2Base, 'v2 skeleton surfaces also resolve per theme');
     metricsReport.skeletonProbes = skeletonProbes;
     await page.setViewportSize({ width: 1440, height: 900 });
-    console.log('PASS: shared skeleton variants fit 320–1920px in light and dark themes.');
+    console.log('PASS: shared and v2 skeleton kits fit 320–1920px in light and dark themes.');
 
     // -----------------------------------------------------------------------
     // 2. Key Route Navigation, Non-Blank Screens & Route Transition Stability
@@ -301,7 +344,58 @@ const bundle = buildSync({
     metricsReport.postRouteNavigationCls = postNavCls;
     metricsReport.clsEntries = await page.evaluate(() => window.__uxClsEntries.filter((e) => e.value > 0.01));
     metricsReport.visitedRoutes = visitedRoutes;
-    console.log(`PASS [3/7]: Navigated ${visitedRoutes.length} routes (${visitedRoutes.join(', ')}) with zero blank screens (cumulative CLS=${postNavCls}).`);
+    console.log(`PASS [3/8]: Navigated ${visitedRoutes.length} routes (${visitedRoutes.join(', ')}) with zero blank screens (cumulative CLS=${postNavCls}).`);
+
+    // Global navigation progress line: one short transition, then it hides.
+    const navBtn = page.getByRole('button', { name: 'DSA Tracker', exact: true }).first();
+    await navBtn.click();
+    const navProgressState = await page.evaluate(() => {
+      const bar = document.querySelector('[data-ars-topbar]');
+      return bar ? { state: bar.getAttribute('data-state'), progress: Number(bar.style.getPropertyValue('--ars-progress')) } : null;
+    });
+    assert.ok(navProgressState && ['active', 'done'].includes(navProgressState.state),
+      'widget navigation starts the shared top progress line');
+    await page.waitForTimeout(900);
+    const navProgressIdle = await page.evaluate(() => document.querySelector('[data-ars-topbar]').getAttribute('data-state'));
+    assert.equal(navProgressIdle, 'idle', 'the navigation progress line hides itself after the transition');
+    assert.equal(await page.locator('[data-ars-topbar]').count(), 1, 'only one global progress line exists');
+
+    // Lazy image placeholders + button loading guard, verified in a real browser.
+    const imageAndButton = await page.evaluate(async () => {
+      const good = document.createElement('img');
+      good.src = './assets/arise-logo-32.png';
+      good.alt = 'Probe avatar';
+      const bad = document.createElement('img');
+      bad.src = 'data:image/png;base64,AAAA';
+      bad.alt = 'Broken probe';
+      document.body.append(good, bad);
+      window.AriseLoading.enhanceImages(document.body);
+      const pending = good.classList.contains('ars-img-loading');
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const loaded = good.getAttribute('data-ars-img');
+      const failed = bad.getAttribute('data-ars-img');
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Sync';
+      document.body.appendChild(btn);
+      let calls = 0;
+      const p1 = window.AriseLoading.button.guard(btn, () => new Promise((resolve) => { calls++; setTimeout(resolve, 150); }));
+      const p2 = window.AriseLoading.button.guard(btn, () => { calls++; });
+      const busy = { disabled: btn.disabled, spinner: !!btn.querySelector('.uxa-spinner, .ars-spinner'), label: btn.textContent.trim() };
+      await Promise.all([p1, p2]);
+      const restored = { disabled: btn.disabled, label: btn.textContent.trim() };
+      good.remove(); bad.remove(); btn.remove();
+      return { pending, loaded, failed, busy, restored, calls };
+    });
+    assert.equal(imageAndButton.pending, true, 'a newly added image starts in the loading placeholder state');
+    assert.equal(imageAndButton.loaded, 'loaded', 'a decoded image clears its placeholder');
+    assert.equal(imageAndButton.failed, 'error', 'a broken image shows the error fallback');
+    assert.equal(imageAndButton.busy.disabled, true, 'a guarded button disables while the action runs');
+    assert.equal(imageAndButton.busy.spinner, true, 'a guarded button shows an inline spinner');
+    assert.equal(imageAndButton.calls, 1, 'duplicate browser clicks are blocked by the guard');
+    assert.equal(imageAndButton.restored.disabled, false, 'the guarded button is restored afterwards');
+    assert.equal(imageAndButton.restored.label, 'Sync', 'the guarded button restores its original label');
 
     // -----------------------------------------------------------------------
     // 3. Delayed API, Duplicate-Click Prevention, Error Alert & Retry Recovery
@@ -349,14 +443,18 @@ const bundle = buildSync({
       return {
         disabled: btn ? btn.disabled : false,
         ariaBusy: btn ? btn.getAttribute('aria-busy') : null,
-        hasProgressBar: !!card.querySelector('.uxa-progress-indeterminate[role="status"]'),
-        hasSkeletonCard: !!card.querySelector('.uxa-skeleton-card[role="status"][aria-busy="true"]')
+        hasProgressBar: !!card.querySelector('.uxa-progress-indeterminate'),
+        hasThinkingStatus: !!card.querySelector('.ars-ai-thinking[role="status"]'),
+        thinkingText: (card.querySelector('.ars-ai-thinking') || {}).textContent || '',
+        hasSkeletonCard: !!card.querySelector('[data-ars-skeleton="1"][role="progressbar"][aria-busy="true"]')
       };
     });
     assert.equal(inFlightAi.disabled, true, 'Generate button disables immediately on click');
     assert.equal(inFlightAi.ariaBusy, 'true', 'Generate button sets aria-busy="true" while pending');
-    assert.equal(inFlightAi.hasProgressBar, true, 'Real AI Insights shows accessible indeterminate bar while waiting');
-    assert.equal(inFlightAi.hasSkeletonCard, true, 'Real AI Insights shows accessible skeleton card on initial generation');
+    assert.equal(inFlightAi.hasProgressBar, true, 'Real AI Insights shows an indeterminate bar while waiting');
+    assert.equal(inFlightAi.hasThinkingStatus, true, 'Real AI Insights exposes one accessible AI thinking status');
+    assert.match(inFlightAi.thinkingText, /waiting for (the model|its response)/i, 'AI thinking text describes the real in-flight request');
+    assert.equal(inFlightAi.hasSkeletonCard, true, 'Real AI Insights shows the AI-shaped skeleton on initial generation');
     assert.equal(aiCallCount, 1, 'Duplicate clicks were blocked — exactly 1 network request fired');
 
     await page.locator('#ai-real-insights-card .air-error[role="alert"]').waitFor({ timeout: 5000 });
@@ -371,7 +469,7 @@ const bundle = buildSync({
           ?.innerText.includes('Verified live AI coaching summary after retry.'),
       { timeout: 5000 }
     );
-    console.log('PASS [4/7]: Delayed API, duplicate-click prevention, 502 error alert, and Retry recovery verified in Chromium.');
+    console.log('PASS [4/8]: Delayed API, duplicate-click prevention, 502 error alert, and Retry recovery verified in Chromium.');
 
     // -----------------------------------------------------------------------
     // 4. Modal Open/Close Transitions, ARIA Dialog Semantics, Escape & Focus Return
@@ -412,7 +510,7 @@ const bundle = buildSync({
       () => document.getElementById('upp-shortcuts-overlay')?.getAttribute('data-open') === 'false',
       { timeout: 5000 }
     );
-    console.log('PASS [5/7]: Modal ARIA semantics, Escape dismissal, and focus restoration verified.');
+    console.log('PASS [5/8]: Modal ARIA semantics, Escape dismissal, and focus restoration verified.');
 
     // -----------------------------------------------------------------------
     // 5. Interview Sheets Delayed Skeleton + Failed Fetch + Retry in Fresh Context
@@ -461,7 +559,7 @@ const bundle = buildSync({
       () => document.getElementById('dmt-sheet-coverage')?.innerText.includes('Blind 75'),
       { timeout: 10000 }
     );
-    console.log('PASS [6/7]: Tablet (768x1024) layout + Sheet Coverage 503 error state & live Retry recovery verified.');
+    console.log('PASS [6/8]: Tablet (768x1024) layout + Sheet Coverage 503 error state & live Retry recovery verified.');
 
     // -----------------------------------------------------------------------
     // 6. Reduced Motion (prefers-reduced-motion: reduce) + Mobile (390x844)
@@ -484,25 +582,41 @@ const bundle = buildSync({
       probeGroup.className = 'uxa-skeleton-group';
       const probeSpin = document.createElement('span');
       probeSpin.className = 'uxa-spinner';
-      document.body.append(probeBtn, probeSkel, probeGroup, probeSpin);
+      const v2Skel = document.createElement('div');
+      v2Skel.className = 'ars-skel';
+      const v2Group = document.createElement('div');
+      v2Group.className = 'ars-skel-group';
+      const v2Spin = document.createElement('span');
+      v2Spin.className = 'ars-spinner';
+      document.body.append(probeBtn, probeSkel, probeGroup, probeSpin, v2Skel, v2Group, v2Spin);
 
       const btnTransition = parseFloat(getComputedStyle(probeBtn).transitionDuration) || 0;
       const skelAnimName = getComputedStyle(probeSkel, '::after').animationName;
       const groupAnimName = getComputedStyle(probeGroup, '::after').animationName;
       const spinAnimName = getComputedStyle(probeSpin).animationName;
+      const v2AnimName = getComputedStyle(v2Skel, '::after').animationName;
+      const v2GroupAnimName = getComputedStyle(v2Group, '::after').animationName;
+      const v2SpinAnimName = getComputedStyle(v2Spin).animationName;
 
       probeBtn.remove();
       probeSkel.remove();
       probeGroup.remove();
       probeSpin.remove();
+      v2Skel.remove();
+      v2Group.remove();
+      v2Spin.remove();
 
       return {
         sharedReduced: window.__ariseShared?.prefersReducedMotion?.() === true,
         uxaReduced: window.AriseAnimationUpgrade?.prefersReducedMotion?.() === true,
+        loadingReduced: window.AriseLoading?.prefersReducedMotion?.() === true,
         btnTransition,
         skelAnimName,
         groupAnimName,
         spinAnimName,
+        v2AnimName,
+        v2GroupAnimName,
+        v2SpinAnimName,
         mobileNoOverflow: document.documentElement.scrollWidth <= window.innerWidth + 2
       };
     });
@@ -513,8 +627,62 @@ const bundle = buildSync({
     assert.equal(rmAudit.skelAnimName, 'none', 'Skeleton shimmer animation is disabled under reduced motion');
     assert.equal(rmAudit.groupAnimName, 'none', 'Grouped shimmer is disabled under reduced motion');
     assert.equal(rmAudit.spinAnimName, 'uxa-reduced-pulse', 'Active spinner uses calm opacity pulse instead of continuous spin under reduced motion');
+    assert.equal(rmAudit.loadingReduced, true, 'AriseLoading agrees reduced motion is active');
+    assert.equal(rmAudit.v2AnimName, 'none', 'v2 single-shape shimmer is static under reduced motion');
+    assert.equal(rmAudit.v2GroupAnimName, 'none', 'v2 grouped shimmer is static under reduced motion');
+    assert.equal(rmAudit.v2SpinAnimName, 'ars-reduced-pulse', 'v2 spinner degrades to a calm opacity pulse');
     assert.equal(rmAudit.mobileNoOverflow, true, 'Mobile viewport (390x844) has zero horizontal overflow');
-    console.log('PASS [7/7]: prefers-reduced-motion: reduce + Mobile (390x844) responsive checks verified.');
+    console.log('PASS [7/8]: prefers-reduced-motion: reduce + Mobile (390x844) responsive checks verified.');
+
+    // -----------------------------------------------------------------------
+    // 7. Full-performance mode: shimmer animates, static when perf-lite
+    // -----------------------------------------------------------------------
+    const fullCtx = await makeAuthContext({ viewport: { width: 1440, height: 900 } });
+    await fullCtx.context.addInitScript(() => {
+      try { localStorage.setItem('arise-perf-mode', 'full'); } catch (_) {}
+    });
+    await fullCtx.page.goto(origin);
+    await fullCtx.page.locator('#arise-main').waitFor({ timeout: 30000 });
+    const shimmerMode = await fullCtx.page.evaluate(() => {
+      const host = document.createElement('div');
+      host.innerHTML = window.AriseLoading.skeleton('table', { label: 'Loading table', delayed: false });
+      document.body.appendChild(host);
+      const name = getComputedStyle(host.querySelector('.ars-skel-group'), '::after').animationName;
+      const duration = getComputedStyle(host.querySelector('.ars-skel-group'), '::after').animationDuration;
+      host.remove();
+      return { perfLite: document.documentElement.classList.contains('perf-lite'), name, duration };
+    });
+    assert.equal(shimmerMode.perfLite, false, 'arise-perf-mode=full is honoured');
+    assert.equal(shimmerMode.name, 'ars-shimmer-slide', 'the v2 shimmer animates in full-performance mode');
+    assert.equal(shimmerMode.duration, '1.5s', 'one shared shimmer speed is used (--motion-skeleton)');
+    console.log('PASS: Shimmer runs at one speed in full mode and stays static in perf-lite.');
+
+    // -----------------------------------------------------------------------
+    // 8. Connectivity state: offline banner appears and clears without hiding content
+    // -----------------------------------------------------------------------
+    const offlineCtx = await makeAuthContext({ viewport: { width: 390, height: 844 } });
+    await offlineCtx.page.goto(origin);
+    await offlineCtx.page.locator('#arise-main').waitFor({ timeout: 30000 });
+    await offlineCtx.page.evaluate(() => window.__ariseExpedite?.());
+    await offlineCtx.page.waitForFunction(() => window.__ariseWidgetsReady === true, { timeout: 30000 });
+    await offlineCtx.context.setOffline(true);
+    await offlineCtx.page.waitForTimeout(250);
+    const offlineVisible = await offlineCtx.page.evaluate(() => {
+      const banner = document.querySelector('.ars-offline');
+      return {
+        visible: !!banner && !banner.hidden && getComputedStyle(banner).display !== 'none',
+        text: banner ? banner.textContent.trim() : '',
+        contentVisible: (document.getElementById('arise-main')?.innerText.trim().length || 0) > 20
+      };
+    });
+    assert.equal(offlineVisible.visible, true, 'going offline shows the connectivity banner');
+    assert.match(offlineVisible.text, /offline/i, 'the offline banner explains the state');
+    assert.equal(offlineVisible.contentVisible, true, 'offline mode keeps saved content visible');
+    await offlineCtx.context.setOffline(false);
+    await offlineCtx.page.waitForTimeout(250);
+    const offlineHidden = await offlineCtx.page.evaluate(() => document.querySelector('.ars-offline')?.hidden === true);
+    assert.equal(offlineHidden, true, 'reconnecting hides the offline banner');
+    console.log('PASS [8/8]: Offline banner appears and clears while saved content stays visible.');
 
     assert.deepEqual(pageErrors, [], 'Uncaught page errors: ' + pageErrors.join('; '));
     assert.deepEqual(consoleErrors, [], 'Unexpected console errors: ' + consoleErrors.join('; '));

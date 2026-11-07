@@ -16,7 +16,8 @@
     "test:browser:ux": "node scripts/verify-loading-browser-e2e.cjs",
     "audit:storage": "node scripts/tools/audit-storage.cjs",
     "test:browser:engineering": "node scripts/verify-engineering-browser.cjs",
-    "test:performance": "node scripts/measure-dashboard.cjs"
+    "test:performance": "node scripts/measure-dashboard.cjs",
+    "test:browser:coverage": "node scripts/audit-loading-coverage.cjs"
   },
   "dependencies": {
     "fflate": "0.8.3",

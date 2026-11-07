@@ -13,40 +13,74 @@
     card.appendChild(node('p', 'Progress saves automatically to your approved Google account. Backups include this account’s audited stores and both attachment databases, with file bodies preserved. Firebase sessions, credentials and other users’ caches are never exported.'));
     var status = node('p', '', 'cloud-note'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); card.appendChild(status);
     var actions = node('div'); actions.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin:16px 0'; card.appendChild(actions);
-    function setBusy(control, busy) {
+    // Shared loading system (optional: the widget still works without it).
+    var Loading = window.AriseLoading;
+    var opProgress = node('div', '', 'ars-progress');
+    opProgress.setAttribute('data-mode', 'indeterminate');
+    opProgress.setAttribute('role', 'progressbar');
+    opProgress.setAttribute('aria-label', 'Backup operation in progress');
+    opProgress.innerHTML = '<div class="ars-progress-track"><div class="ars-progress-fill"></div></div><div class="ars-progress-label"></div>';
+    opProgress.hidden = true;
+    card.appendChild(opProgress);
+    var opLabel = opProgress.querySelector('.ars-progress-label');
+    function setBusy(control, busy, label) {
       if (!control) return;
-      control.disabled = !!busy;
-      if (busy) control.setAttribute('aria-busy', 'true');
-      else control.removeAttribute('aria-busy');
+      if (Loading && Loading.button) {
+        if (busy) Loading.button.busy(control, true, label || 'Working…');
+        else Loading.button.busy(control, false);
+      } else {
+        control.disabled = !!busy;
+        if (busy) control.setAttribute('aria-busy', 'true');
+        else control.removeAttribute('aria-busy');
+      }
+      if (busy) {
+        opProgress.hidden = false;
+        if (opLabel) opLabel.textContent = label || 'Working…';
+        status.setAttribute('aria-busy', 'true');
+        if (Loading && Loading.progress) Loading.progress.start();
+      } else {
+        opProgress.hidden = true;
+        if (opLabel) opLabel.textContent = '';
+        status.removeAttribute('aria-busy');
+        if (Loading && Loading.progress) Loading.progress.done();
+      }
     }
-    function button(text, fn) {
+    function button(text, fn, busyLabel) {
       var control = node('button', text, 'cloud-button'); control.type = 'button';
       control.addEventListener('click', async function () {
-        if (control.disabled) return;
-        setBusy(control, true);
-        try { await fn(); } catch (error) { status.textContent = error.message || 'Backup operation paused. Existing data is retained; do not clear this browser.'; }
-        finally { setBusy(control, false); }
+        if (control.disabled || control.getAttribute('data-cloud-busy') === 'true') return;
+        control.setAttribute('data-cloud-busy', 'true');
+        setBusy(control, true, busyLabel || 'Working…');
+        try {
+          await fn();
+        } catch (error) {
+          status.textContent = error.message || 'Backup operation paused. Existing data is retained; do not clear this browser.';
+          if (Loading && Loading.announce) Loading.announce('Backup operation failed. Existing data is retained.', { assertive: true });
+        } finally {
+          control.removeAttribute('data-cloud-busy');
+          setBusy(control, false);
+        }
       }); actions.appendChild(control);
       return control;
     }
     function auth() { if (!window.AriseAuth || !window.AriseAuth.snapshot().isAuthenticated) throw new Error('Sign in with an approved Google account first.'); return window.AriseAuth; }
-    button('Export Backup (JSON)', async function () { await auth().exportBackup(); status.textContent = 'Account backup exported. Keep this file private.'; });
+    button('Export Backup (JSON)', async function () { await auth().exportBackup(); status.textContent = 'Account backup exported. Keep this file private.'; }, 'Exporting backup…');
     button('Export ZIP', async function () {
       auth();
       await window.AriseBackupCodec.downloadZip(await window.AriseStorage.snapshot(false));
       status.textContent = 'Lossless ZIP backup exported. JSON and ZIP use the same ownership-checked restore.';
-    });
+    }, 'Building ZIP…');
     var recovery = node('select'); recovery.setAttribute('aria-label', 'Device recovery snapshot'); recovery.className = 'cloud-button'; recovery.hidden = true; actions.appendChild(recovery);
     if (window.AriseAuth && window.AriseAuth.recoveryCopies) window.AriseAuth.recoveryCopies().then(function (entries) {
       entries.slice().reverse().forEach(function (entry) { var option = node('option', new Date(entry.capturedAt).toLocaleString() + ' · ' + entry.localKeys + ' stores'); option.value = entry.key; recovery.appendChild(option); });
       recovery.hidden = !entries.length;
     }).catch(function () {});
-    button('Download previous device snapshot', async function () { await auth().exportRecovery(recovery.value || undefined); });
+    button('Download previous device snapshot', async function () { await auth().exportRecovery(recovery.value || undefined); }, 'Preparing snapshot…');
     var input = node('input'); input.type = 'file'; input.accept = '.json,.zip,application/json,application/zip'; input.hidden = true; card.appendChild(input);
-    var importBtn = button('Import & Restore', async function () { auth(); input.click(); });
+    var importBtn = button('Import & Restore', async function () { auth(); input.click(); }, 'Choose a file…');
     input.addEventListener('change', async function () {
       if (!input.files[0] || importBtn.disabled) return;
-      setBusy(importBtn, true);
+      setBusy(importBtn, true, 'Restoring backup…');
       status.setAttribute('aria-busy', 'true');
       try {
         status.textContent = 'Reading backup. Ownership confirmation and a before-restore copy are required.';
@@ -61,8 +95,8 @@
     button('Save now / Retry', async function () {
       auth(); var ok = await window.AriseCloudSync.push();
       status.textContent = ok ? 'Cloud database confirmed the pending writes.' : 'Not yet saved. Check the sync indicator; pending changes remain on this device.';
-    });
-    button('Check other devices', async function () { auth(); await window.AriseCloudSync.pull(); });
+    }, 'Saving…');
+    button('Check other devices', async function () { auth(); await window.AriseCloudSync.pull(); }, 'Checking…');
     card.appendChild(node('p', 'Recovery: the pre-migration browser data is never deleted. Download its recovery copy from the account menu. Interrupted imports resume for the same account; never clear site data while changes are pending. Shared-code and browser-token Gist sync have been retired for security. Existing remote copies are not deleted; the owner can archive them with trusted provider tools.'));
     host.appendChild(card);
     var snapshot = window.AriseAuth && window.AriseAuth.snapshot();

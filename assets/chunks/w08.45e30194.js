@@ -559,12 +559,12 @@ try{
       return control;
     }
     function auth() { if (!window.AriseAuth || !window.AriseAuth.snapshot().isAuthenticated) throw new Error('Sign in with an approved Google account first.'); return window.AriseAuth; }
-    button('Export Backup (JSON)', async function (options) { await auth().exportBackup(options); status.textContent = 'Account backup exported. Keep this file private.'; }, 'Encoding backup…', true);
+    button('Export Backup (JSON)', async function (options) { await auth().exportBackup(options); status.textContent = 'Account backup exported. Keep this file private.'; }, 'Preparing backup…', true);
     button('Export ZIP', async function (options) {
       auth();
       await window.AriseBackupCodec.downloadZip(await window.AriseStorage.snapshot(false), options);
       status.textContent = 'Lossless ZIP backup exported. JSON and ZIP use the same ownership-checked restore.';
-    }, 'Encoding backup…', true);
+}, 'Preparing backup…', true);
     var recovery = node('select'); recovery.setAttribute('aria-label', 'Device recovery snapshot'); recovery.className = 'cloud-button'; recovery.hidden = true; actions.appendChild(recovery);
     if (window.AriseAuth && window.AriseAuth.recoveryCopies) window.AriseAuth.recoveryCopies().then(function (entries) {
       entries.slice().reverse().forEach(function (entry) { var option = node('option', new Date(entry.capturedAt).toLocaleString() + ' · ' + entry.localKeys + ' stores'); option.value = entry.key; recovery.appendChild(option); });

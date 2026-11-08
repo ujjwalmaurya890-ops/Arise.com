@@ -95,6 +95,24 @@ const measure = (host) => {
 };
 
 (async function main() {
+  /* -------------------------------------------- pre-encode snapshot phase */
+  {
+    const env = makeWidget({
+      onZip: async (snapshot, options) => {
+        await tick(20);
+        if (options.signal?.aborted) throw abortError();
+        options.onProgress?.({ phase: 'encode', done: 1, total: 1, fraction: 1 });
+      }
+    });
+    env.zipButton.click();
+    ok(env.label.textContent === 'Preparing backup…', 'snapshot collection is labeled as preparation, not encoding');
+    ok(env.bar.getAttribute('data-mode') === 'indeterminate', 'snapshot collection has no invented fraction');
+    ok(env.bar.getAttribute('aria-valuenow') === null, 'snapshot collection omits aria-valuenow');
+    await tick(40);
+    ok(env.bar.hidden === true, 'the preparation phase completes and clears');
+    env.dom.window.close();
+  }
+
   /* ------------------------------------------------------- determinate run */
   {
     const env = makeWidget({

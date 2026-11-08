@@ -295,7 +295,7 @@ is absent), and the grouped-announcement behaviour described in §9.
   indeterminate, attachment upload → `progress.set(pct/100)` because the engine
   reports a true fraction, saved → done, failed/conflict → fail, offline →
   quiet end; a refcount guard prevents repeated events from leaking starts, and
-  real values clear the synthetic creep timer). Backup JSON/ZIP report the measured fraction of encoded values (empty containers count as one encoding unit); import reports bytes read against the selected file size. Synchronous JSON serialization/UTF-8 conversion, fflate compression, ZIP unpack and JSON parse remain labeled indeterminate phases. Cancellation is limited to pre-restore encoding and file reading; restore itself is not cancellable.
+  real values clear the synthetic creep timer). Backup JSON/ZIP report the measured fraction of encoded values (empty containers count as one encoding unit); import reports bytes read against the selected file size. Snapshot collection, synchronous JSON serialization/UTF-8 conversion, fflate compression, ZIP unpack and JSON parse remain labeled indeterminate phases. Cancellation is limited to pre-restore encoding and file reading; restore itself is not cancellable.
 * **Most widget files are minified single-line bundles.** Integration was done
   where source is readable (backup, AI insights, interview sheets, sheet
   coverage, widget nav) and generically through the mount queue, live regions

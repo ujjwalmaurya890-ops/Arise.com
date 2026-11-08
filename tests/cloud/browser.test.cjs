@@ -164,6 +164,60 @@ test('JSON and ZIP backups share a lossless ownership-checked format, including 
   b.close();
 });
 
+test('backup encode/read report measured progress and abort only reversible phases', async () => {
+  const f = fixture(), b = browser(f);
+  const code = buildSync({ entryPoints: [path.join(root, 'src/cloud/backup-codec.js')], bundle: true, platform: 'browser', format: 'iife', globalName: 'CodecProgress', write: false }).outputFiles[0].text;
+  b.w.eval(code);
+  const C = b.w.CodecProgress;
+  const snapshot = { meta: { ownerUid: 'uid-1' }, localStorage: { notes: '[1]', extra: 'x'.repeat(64) }, indexedDB: [
+    { name: 'arise-local-files-db-v1', stores: { files: { records: [{ key: 'f1', value: { id: 'f1', blob: new b.w.Blob(['bytes-here']), size: 10 } }] } } }
+  ] };
+  const units = C.countBackupUnits(snapshot);
+  assert.ok(units >= 5, 'leaf units are counted for a real denominator: ' + units);
+  const seen = [];
+  const encoded = await C.encodeBackup(snapshot, { onProgress: info => seen.push(info) });
+  assert.ok(seen.length >= 2, 'progress is reported more than once');
+  assert.equal(seen.at(-1).fraction, 1);
+  assert.equal(seen.at(-1).done, seen.at(-1).total);
+  for (let i = 1; i < seen.length; i += 1) assert.ok(seen[i].fraction >= seen[i - 1].fraction, 'progress is monotonic');
+  assert.ok(seen.every(info => info.phase === 'encode' && info.fraction >= 0 && info.fraction <= 1));
+  assert.equal(encoded.indexedDB[0].stores.files.records[0].value.blob.$ariseBlob, 1, 'encoding is unchanged');
+
+  // Cancelling during encode leaves nothing written and surfaces an AbortError.
+  const preAborted = new b.w.AbortController();
+  preAborted.abort();
+  await assert.rejects(C.encodeBackup(snapshot, { signal: preAborted.signal }), error => error.name === 'AbortError');
+  const wide = { localStorage: Object.fromEntries(Array.from({ length: 40 }, (_, index) => ['key' + index, 'value' + index])), indexedDB: [] };
+  const midAbort = new b.w.AbortController();
+  await assert.rejects(
+    C.encodeBackup(wide, { signal: midAbort.signal, onProgress: info => { if (info.fraction < 0.5) midAbort.abort(); } }),
+    error => error.name === 'AbortError'
+  );
+
+  const archive = await C.backupZip(snapshot, { onProgress: info => seen.push(Object.assign({ zip: true }, info)) });
+  const zipSeen = seen.filter(info => info.zip).map(info => info.phase).filter((phase, index, all) => phase !== all[index - 1]);
+  assert.deepEqual(zipSeen, ['encode', 'serialize', 'compress', 'done'], 'ZIP export reports measured encode and honest serialization/compression phases');
+  assert.equal(seen.filter(info => info.zip && info.phase === 'compress')[0].fraction, null, 'compression reports no invented fraction');
+
+  const readSeen = [];
+  const raw = await C.readBackupFile(archive, { onProgress: info => readSeen.push(info) });
+  const phases = readSeen.map(info => info.phase);
+  assert.ok(phases.includes('read'), 'reading reports byte progress');
+  assert.deepEqual(phases.slice(-2), ['parse', 'done'], 'decode phases end with done');
+  for (const info of readSeen) if (info.phase === 'read') assert.ok(info.fraction >= 0 && info.fraction <= 1 && info.loaded <= info.total);
+  assert.equal(raw.meta.ownerUid, 'uid-1');
+
+  const readAbort = new b.w.AbortController();
+  await assert.rejects(
+    C.readBackupFile(archive, { signal: readAbort.signal, onProgress: () => readAbort.abort() }),
+    error => error.name === 'AbortError'
+  );
+  const readPreAborted = new b.w.AbortController();
+  readPreAborted.abort();
+  await assert.rejects(C.readBackupFile(archive, { signal: readPreAborted.signal }), error => error.name === 'AbortError');
+  b.close();
+});
+
 test('invalid legacy attachment backups are rejected before any progress is changed', async () => {
   const f = fixture(), b = browser(f); await b.login(); await b.api.sync.flush();
   for (const bad of [{}, null, undefined]) {

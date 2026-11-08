@@ -308,12 +308,12 @@ export function createController(adapter, { storage = window.AriseStorage, schem
       const token = await currentUser.getIdToken();
       return fetcher(url, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + token }, cache: 'no-store' });
     },
-    exportBackup: async () => downloadBackup(await storage.snapshot(false)),
+    exportBackup: async (options = {}) => downloadBackup(await storage.snapshot(false), 'arise-secure-backup', options),
     recoveryCopies: async () => {
       if (!sync?.active || !storage.uid) throw new Error('Sign in first.');
       return await storage.load('recovery-index:' + storage.uid) || [];
     },
-    exportRecovery: async (selectedKey) => {
+    exportRecovery: async (selectedKey, options = {}) => {
       if (!sync?.active || !storage.uid) throw new Error('Sign in first.');
       const index = await storage.load('recovery-index:' + storage.uid) || [];
       if (!index.length) throw new Error('No previous device snapshot exists yet.');
@@ -321,7 +321,7 @@ export function createController(adapter, { storage = window.AriseStorage, schem
       if (!selected) throw new Error('Recovery copy is unavailable for this account.');
       const backup = await storage.load(selected.key);
       if (!backup || backup.meta?.ownerUid && backup.meta.ownerUid !== storage.uid) throw new Error('Recovery copy is unavailable for this account.');
-      await downloadBackup(backup, 'arise-previous-device');
+      await downloadBackup(backup, 'arise-previous-device', options);
     },
     get sync() { return sync; }, startUser
   };

@@ -8,6 +8,7 @@
     "start": "node --env-file-if-exists=.env scripts/serve.mjs",
     "build:chunks": "node scripts/tools/build-widget-chunks.cjs",
     "test": "npm run build:chunks && node scripts/_run-test.cjs --all && npm run test:cloud",
+    "test:backup-progress": "node tests/test-backup-progress.cjs",
     "build": "node scripts/build.mjs",
     "test:cloud": "node --test tests/cloud/*.test.cjs",
     "test:rules": "node --test tests/emulator/firestore-rules.test.cjs",

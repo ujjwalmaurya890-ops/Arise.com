@@ -145,7 +145,7 @@ single completion announcement from `announce()`.
 | I. Images/avatars | pending shimmer class, decoded reveal, error hatch fallback, mutation-bus + observer scanning, no layout shift |
 | J. Search/filter | preserved content + polite result-count announcements (interview sheets) instead of fake skeletons for synchronous filtering |
 | K. AI | AI-shaped skeleton, thinking dots with an honest in-flight message, indeterminate bar, streaming caret style available, completion/failure announcements |
-| L. File/data | backup export/import/ZIP/pull/push: indeterminate progress, per-operation busy labels, guaranteed restore, error text + alert |
+| L. File/data | backup export/import/ZIP: measured determinate fractions while encoding leaf values and reading file bytes; indeterminate labeled compression/unpack/parse phases where no honest fraction exists; pull/push remain indeterminate; per-operation busy labels, guaranteed restore, error text + alert |
 
 States are explicit: **loading**, **success with data**, **success with no
 data**, **failed with retry**, **offline**. Empty is never shown while loading.
@@ -159,7 +159,7 @@ data**, **failed with retry**, **offline**. Empty is never shown while loading.
 | Secure boot (`#cloud-gate`) | static accessible boot progress bar, shown only while `data-busy="true"`; label mirrors the real bootstrap message; no fake percentage |
 | Lazy widget mounts | mount-specific shapes (`notes`, `feed`, `cards`, `chart-heatmap`, `chart-area`, `chart-progress`, `calendar`, `timeline`, `analytics`, …) via `AriseLoading.skeleton`, legacy `renderSkeleton` kept as fallback; cleanup/retry unchanged |
 | Navigation | `data-nav-id` route clicks and `popstate` drive the global progress line; widget tab rails pulse the same line (`widget-nav.js`) |
-| Backup centre | every async action uses the shared busy button + indeterminate bar + `aria-busy` status; duplicate clicks blocked; failure always restores the control |
+| Backup centre | export/import actions use the shared busy button + phase-aware progress + `aria-busy` status; measured encode/read fractions are determinate, while compression/unpack/parse stay indeterminate; reversible encode/read phases can be cancelled, restore cannot; duplicate clicks blocked; success/failure/cancel restore the controls |
 | AI Real Insights | AI skeleton, thinking status with honest copy, completion announcement |
 | Interview Sheets | result-count polite announcement after the search debounce; existing loading/error/retry behaviour untouched |
 | Every image/avatar | placeholder → loaded/failed states |
@@ -295,8 +295,7 @@ is absent), and the grouped-announcement behaviour described in §9.
   indeterminate, attachment upload → `progress.set(pct/100)` because the engine
   reports a true fraction, saved → done, failed/conflict → fail, offline →
   quiet end; a refcount guard prevents repeated events from leaking starts, and
-  real values clear the synthetic creep timer). ZIP/JSON export and import still
-  expose no fraction, so they stay indeterminate — no invented percentages.
+  real values clear the synthetic creep timer). Backup JSON/ZIP report the measured fraction of encoded values (empty containers count as one encoding unit); import reports bytes read against the selected file size. Synchronous JSON serialization/UTF-8 conversion, fflate compression, ZIP unpack and JSON parse remain labeled indeterminate phases. Cancellation is limited to pre-restore encoding and file reading; restore itself is not cancellable.
 * **Most widget files are minified single-line bundles.** Integration was done
   where source is readable (backup, AI insights, interview sheets, sheet
   coverage, widget nav) and generically through the mount queue, live regions

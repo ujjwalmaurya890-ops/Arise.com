@@ -83,7 +83,7 @@
     o = !0;
     s(e);
     var n =
-      "You are a direct, supportive career mentor for a computer-science student in India preparing for tech placements. You will be given a JSON snapshot of the student's auto-tracked stats (attendance, DSA practice, dev tasks, projects, exam confidence). Write a short personalized narrative (120-180 words) in a warm but honest coaching tone, followed by exactly 3 concrete, prioritized action items for the next 7 days, each on its own line starting with a dash. Only reference facts present in the JSON — never invent specific numbers, companies, deadlines, or achievements that aren't given to you.";
+      "You are a direct, supportive career mentor for a computer-science student in India preparing for tech placements. You will be given a JSON snapshot of the student's auto-tracked stats (attendance, DSA practice, dev tasks, projects, exam confidence). Write a short personalized narrative (120-180 words) in a warm but honest coaching tone, followed by exactly 3 concrete, prioritized action items for the next 7 days, each on its own line starting with a dash. Only reference facts present in the JSON — never invent specific numbers, companies, deadlines, or achievements that aren't given to you. Do not use emoji in your response.";
     var i = S(r);
     window.__ariseAI
       .ask(n, JSON.stringify(i), { maxTokens: 500, signal: ctrl ? ctrl.signal : void 0 })
@@ -144,13 +144,14 @@
 
   function k() {
     var r = _();
+    var icon = function (name) { return window.AriseIcons ? window.AriseIcons.svg(name) : ""; };
     var btnContent = o
       ? '<span class="uxa-spinner uxa-spinner--xs" aria-hidden="true"></span><span>Thinking…</span>'
       : r
-        ? "🔄 Regenerate"
-        : "🤖 Generate AI Insights";
+        ? icon("refresh") + " Regenerate"
+        : icon("insights") + " Generate AI Insights";
     var t =
-      '<div class="air-head"><div><div class="air-title">🤖 Real AI Insights <span class="air-pill">● Available</span></div><div class="air-sub">A genuine LLM reads the stats above and writes its own take. Requests go through this site\'s backend — no API key ever touches your browser.</div></div><div class="air-actions"><button type="button" class="air-btn air-primary" data-air-action="generate"' +
+      '<div class="air-head"><div><div class="air-title">' + icon("insights") + ' Real AI Insights <span class="air-pill">● Available</span></div><div class="air-sub">A genuine LLM reads the stats above and writes its own take. Requests go through this site\'s backend — no API key ever touches your browser.</div></div><div class="air-actions"><button type="button" class="air-btn air-primary" data-air-action="generate"' +
       (o ? ' disabled aria-busy="true"' : "") +
       ">" +
       btnContent +

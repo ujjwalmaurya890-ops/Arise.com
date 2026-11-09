@@ -8,12 +8,12 @@
   var CLS_BURST = "arise-tv-burst";
   var DAY_MS = 86400000;
   var CAT_ICONS = {
-    DSA: "🧩",
-    Project: "💻",
-    College: "🎓",
-    Notes: "📝",
-    "Interview Prep": "🎯",
-    Other: "📚"
+    DSA: "puzzle",
+    Project: "code",
+    College: "graduation",
+    Notes: "pencil",
+    "Interview Prep": "target",
+    Other: "book"
   };
 
   var cachedRawSessions = null;
@@ -153,7 +153,7 @@
     if (state.lastIcon !== icon) {
       state.lastIcon = icon;
       if (icon) {
-        state.icon.textContent = icon;
+        state.icon.innerHTML = window.AriseIcons ? window.AriseIcons.svg(icon) : "";
         state.icon.style.display = "";
       } else {
         state.icon.style.display = "none";
@@ -165,6 +165,7 @@
       state.lastStreak = streakVal;
       if (streakVal > 0) {
         state.streakCount.textContent = String(streakVal);
+        state.streak.setAttribute("aria-label", "Study streak: " + streakVal + (streakVal === 1 ? " day" : " days"));
         state.streak.style.display = "";
       } else {
         state.streak.style.display = "none";
@@ -204,7 +205,7 @@
     var streak = document.createElement("div");
     streak.className = CLS_STREAK;
     streak.style.display = "none";
-    streak.appendChild(document.createTextNode("🔥"));
+    streak.innerHTML = window.AriseIcons ? window.AriseIcons.svg("flame") : "";
     var streakCount = document.createElement("span");
     streak.appendChild(streakCount);
     ringEl.appendChild(streak);

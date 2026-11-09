@@ -9,7 +9,7 @@ let passed = 0, failed = 0;
 function ok(c, m) { if (c) { passed++; console.log('  ✓', m); } else { failed++; console.error('  ✗ FAIL:', m); } }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const KEY = 'arise-daily-learning-tasks-v1';
-const FILES = ['src/widget-shared-utils.js', 'src/daily-learning-tasks-widget.js'];
+const FILES = ['src/app-icons.js', 'src/widget-shared-utils.js', 'src/daily-learning-tasks-widget.js'];
 
 function makeDOM(seed) {
   const vc = new VirtualConsole(); const errs = [];
@@ -105,6 +105,7 @@ function addTask(w, d, text, priority, tag) {
   const chipTexts = Array.from(tagChips).map(c => c.textContent);
   ok(chipTexts.some(t => t.includes('DSA')), 'DSA tag chip visible');
   ok(chipTexts.some(t => t.includes('Dev')), 'Dev tag chip visible');
+  ok(!!d.querySelector('.dlt-task-pri [role="img"][aria-label$=" priority"] svg[aria-hidden="true"]'), 'task priority has an accessible label and decorative icon');
 
   /* ── 6. heatmap updates on task completion ── */
   console.log('\n── 6. heatmap on completion ──');
@@ -163,7 +164,7 @@ function addTask(w, d, text, priority, tag) {
 
   const pomoBtn = d.querySelector('.pomo-btn');
   ok(pomoBtn !== null, 'pomodoro button rendered on task');
-  ok(pomoBtn.textContent.includes('🍅'), 'pomo button shows tomato emoji');
+  ok(pomoBtn.getAttribute('aria-label') === 'Start 25-min focus' && !!pomoBtn.querySelector('svg[aria-hidden="true"]'), 'pomo button has an accessible label and decorative SVG');
   click(w, pomoBtn);
   await sleep(30);
 
@@ -180,7 +181,7 @@ function addTask(w, d, text, priority, tag) {
   click(w, pauseBtn);
   await sleep(30);
   const pauseBtn2 = d.querySelector('.dlt-pomo-pause');
-  ok(pauseBtn2 && (pauseBtn2.textContent === '▶' || pauseBtn2.textContent.includes('▶')), 'pause becomes resume icon');
+  ok(pauseBtn2 && pauseBtn2.getAttribute('aria-label') === 'Resume timer' && !!pauseBtn2.querySelector('svg[aria-hidden="true"]'), 'pause becomes accessible resume control');
 
   // stop
   const stopBtn = d.querySelector('.dlt-pomo-stop');

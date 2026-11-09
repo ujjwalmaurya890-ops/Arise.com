@@ -438,14 +438,7 @@
 
       var hasTimerTab = false;
       for (var up = host, d = 0; up && d < 4; d++, up = up.parentElement) {
-        var btns = up.querySelectorAll("button");
-        for (var b = 0; b < btns.length; b++) {
-          var txt = btns[b].textContent || "";
-          if (txt.indexOf("⏱") !== -1 && /Timer/.test(txt)) {
-            hasTimerTab = true;
-            break;
-          }
-        }
+        if (up.querySelector("[data-arise-timer-tab]")) hasTimerTab = true;
         if (hasTimerTab) break;
       }
       if (!hasTimerTab) continue;

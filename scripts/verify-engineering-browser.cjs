@@ -46,7 +46,11 @@ const routes = ['Dashboard', 'DSA Tracker', 'Development', 'Competitive Programm
       await page.setViewportSize({ width, height: 900 });
       for (const route of routes) {
         await page.evaluate(label => { const button = [...document.querySelectorAll('aside button')].find(button => button.textContent.trim() === label); if (!button) throw new Error('Missing navigation: ' + label); button.click(); }, route);
-        if (route === 'Analytics') await page.waitForFunction(() => !!window.__ARISE_ANALYTICS_MODULE__);
+        if (route === 'Analytics') {
+          await page.waitForFunction(() => !!window.__ARISE_ANALYTICS_MODULE__);
+          // Loading the module and committing React's view are separate steps.
+          await page.waitForFunction(() => (document.getElementById('arise-main')?.innerText.trim().length || 0) > 30, null, { timeout: 10000 });
+        }
         await page.waitForTimeout(220);
         const result = await page.evaluate(() => {
           const main = document.getElementById('arise-main');

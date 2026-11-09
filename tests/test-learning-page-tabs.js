@@ -39,7 +39,7 @@ function panelOf(marker) {
   return owner;
 }
 const expect = {
-  "Focus Timer": "focus", "\uD83D\uDCCB Tasks": "focus", "ref:battlePlanRef": "focus", "Enter Focus Mode": "focus", "ref:focusModeRef": "focus",
+  "Focus Timer": "focus", "ariseReactIcon(\"clipboard\"),\" Tasks\"": "focus", "ref:battlePlanRef": "focus", "Enter Focus Mode": "focus", "ref:focusModeRef": "focus",
   "ref:careerCommandCenterRef})": "career", "ref:smartLearningPathRef})": "path", "ref:revisionSystemRef})": "revision",
   "Study Statistics": "stats", "Recent Stopwatch Sessions": "stats",
   "Water Reminder": "wellness", "ref:waterReminderRef": "wellness", "ref:burnoutRef})": "wellness"

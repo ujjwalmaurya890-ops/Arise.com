@@ -1,0 +1,26 @@
+const {JSDOM}=require('jsdom');const fs=require('fs');
+const dom=new JSDOM('<!doctype html><html><body><div id="arise-main"><header><h1>Dashboard</h1><div></div></header><div class="max-w-7xl"></div></div><div id="arise-desktop-nav"><button class="nav-item">Dashboard</button><button class="nav-item">Notes</button></div></body></html>',{url:'https://arise.test/',runScripts:'outside-only',pretendToBeVisual:true});
+const w=dom.window;
+w.AriseIcons={svg:()=>''};
+w.localStorage.setItem('notes',JSON.stringify([{title:'React hooks',body:'useEffect notes'}]));
+w.localStorage.setItem('arise-command-recents-v1',JSON.stringify(['section:notes & personal wiki','note:react hooks']));
+w.eval(fs.readFileSync('src/premium-productivity-features.js','utf8'));
+w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+const ov=w.document.getElementById('upp-command-overlay');
+ov.setAttribute('data-open','true');ov.setAttribute('aria-hidden','false');
+const input=w.document.getElementById('upp-command-input');
+input.value=''; input.dispatchEvent(new w.Event('input'));
+const list=w.document.getElementById('upp-command-list');
+console.log('role', list.getAttribute('role'));
+console.log('sections', [...list.querySelectorAll('.upp-command-section-title')].map(e=>e.textContent).slice(0,3));
+console.log('first item', list.querySelector('.upp-command-item')?.textContent.trim().slice(0,60));
+console.log('activedesc', input.getAttribute('aria-activedescendant'));
+input.value='note'; input.dispatchEvent(new w.Event('input'));
+console.log('hit marks', list.querySelectorAll('mark.upp-command-hit').length, JSON.stringify(list.querySelector('mark.upp-command-hit')?.textContent));
+console.log('foot', !!w.document.querySelector('.upp-command-foot'));
+console.log('kbd hint', list.querySelector('.upp-command-key')?.textContent);
+// keyboard Alt+2 selects second item
+const ev=new w.KeyboardEvent('keydown',{key:'2',altKey:true,bubbles:true,cancelable:true});
+input.dispatchEvent(ev);
+console.log('recents after select', w.localStorage.getItem('arise-command-recents-v1'));
+w.close();process.exit(0);

@@ -9,6 +9,7 @@
   "appSettings",
   "arise-ai-career-mentor-ai-cache-v1",
   "arise-ai-career-mentor-snapshots-v1",
+  "arise-widget-retry-v1",
   "arise-ai-connect-v2",
   "arise-aptitude-log-v1",
   "arise-aptitude-summary-v1",

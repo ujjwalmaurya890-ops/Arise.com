@@ -132,6 +132,7 @@
 "./src/a11y-audit.js",
 "./src/pwa-status.js",
 "./src/backup-integrity.js",
+"./src/reliability-watch.js",
 "./src/features/certificates/certificates-storage.js",
 "./src/features/certificates/certificates-widget.js",
 "./assets/sounds/rain.mp3",

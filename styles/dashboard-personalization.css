@@ -1,0 +1,131 @@
+/* ==========================================================================
+   Dashboard personalization panel (styles/dashboard-personalization.css)
+   Additive. Every color is mixed from the active theme tokens so the panel
+   works in all built-in light and dark palettes without a hardcoded surface.
+   ========================================================================== */
+
+.adl-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.adl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  display: none;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--overlay, #000) 72%, transparent);
+}
+.adl-overlay[data-open="true"] { display: grid; }
+
+.adl-dialog {
+  width: min(560px, 100%);
+  max-height: min(86dvh, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: .85rem;
+  padding: 1.1rem 1.15rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 24px 70px color-mix(in srgb, #000 45%, transparent);
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+}
+
+.adl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.adl-head h2 { margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -.01em; }
+.adl-status { margin: .2rem 0 0; font-size: .74rem; color: var(--text-tertiary); }
+.adl-hint { margin: 0; font-size: .76rem; line-height: 1.6; color: var(--text-secondary); }
+
+.adl-list {
+  list-style: none;
+  margin: 0;
+  padding: .15rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  scrollbar-gutter: stable;
+}
+.adl-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .5rem .6rem;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-muted);
+}
+.adl-row[data-hidden="true"] { opacity: .62; border-style: dashed; }
+.adl-row-main { display: inline-flex; align-items: center; gap: .45rem; min-width: 0; }
+.adl-row-title { font-size: .8rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 15rem; }
+.adl-badge {
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .16rem .42rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary-ink, var(--text-primary));
+}
+.adl-badge-muted { border-color: var(--border); background: transparent; color: var(--text-tertiary); }
+.adl-row-actions { display: inline-flex; gap: .3rem; flex-wrap: wrap; }
+
+.adl-btn {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: .34rem .6rem;
+  font: 600 .72rem/1.2 var(--font-body, Inter, system-ui, sans-serif);
+  cursor: pointer;
+  transition: background-color .12s, border-color .12s, color .12s;
+}
+.adl-btn:hover { background: var(--surface-hover); border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.adl-btn[aria-pressed="true"] { border-color: color-mix(in srgb, var(--primary) 55%, transparent); color: var(--primary-ink, var(--text-primary)); }
+.adl-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.adl-primary { background: color-mix(in srgb, var(--primary) 20%, var(--surface)); border-color: color-mix(in srgb, var(--primary) 55%, transparent); }
+.adl-close { padding: .3rem .55rem; }
+
+.adl-foot { display: flex; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--border); padding-top: .7rem; }
+.adl-empty { margin: 0; padding: 1rem .5rem; text-align: center; font-size: .8rem; color: var(--text-tertiary); }
+
+/* A pinned card keeps a subtle marker so the user can see why it moved. */
+[data-arise-card-pinned="true"] { position: relative; }
+[data-arise-card-pinned="true"]::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: .75;
+  pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .adl-row { align-items: flex-start; }
+  .adl-row-title { max-width: 11rem; }
+  .adl-row-actions { width: 100%; }
+  .adl-row-actions .adl-btn { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-btn { transition: none; }
+}

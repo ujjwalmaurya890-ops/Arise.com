@@ -109,6 +109,7 @@
 "./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js",
 "./src/features/semester-risk/cse-syllabus-unified-widget.js",
 "./styles/features/certificates/certificates.css",
+"./styles/dashboard-personalization.css",
 "./src/features/certificates/certificates-storage.js",
 "./src/features/certificates/certificates-widget.js",
 "./assets/sounds/rain.mp3",

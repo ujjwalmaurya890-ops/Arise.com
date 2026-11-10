@@ -36,6 +36,7 @@
   "arise-cp-tracker-v1",
   "arise-daily-learning-tasks-v1",
   "arise-dashboard-accent-override",
+  "arise-dashboard-layout-v1",
   "arise-dashboard-custom-themes",
   "arise-dashboard-theme",
   "arise-dashboard-theme-mode",

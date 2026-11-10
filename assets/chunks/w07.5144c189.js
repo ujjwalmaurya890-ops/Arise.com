@@ -984,6 +984,25 @@ try{
       try {
         status.textContent = 'Reading backup. Ownership confirmation and a before-restore copy are required.';
         var raw = await window.AriseBackupCodec.readBackupFile(input.files[0], options);
+        // Inspect what is about to replace this account's stores *before* asking
+        // for confirmation: a truncated or hand-edited file used to look exactly
+        // like a valid one until the restore had already begun. This only reads.
+        if (window.AriseBackupIntegrity) {
+          var report = window.AriseBackupIntegrity.inspect(raw);
+          window.AriseBackupIntegrity.show(report, input.files[0].name);
+          if (report.blocking.length) {
+            var stop = new Error(report.blocking[0]);
+            stop.name = 'BackupIntegrityError';
+            throw stop;
+          }
+          if (report.warnings.length && !window.confirm('This backup has ' + report.warnings.length + ' caveat' + (report.warnings.length === 1 ? '' : 's') + ':\n\n' +
+            window.AriseBackupIntegrity.summarise(report).join('\n') + '\n\nContinue to the ownership confirmation?')) {
+            var aborted = new Error('Restore cancelled after reviewing the backup check.');
+            aborted.name = 'AbortError';
+            throw aborted;
+          }
+          if (window.AriseLoading && window.AriseLoading.announce) window.AriseLoading.announce('Backup checked. Ownership confirmation is next.');
+        }
         // Restoring is not cancellable: the signal is deliberately not forwarded.
         cancelBtn.hidden = true;
         showPhase('restore', 'Restoring backup…');

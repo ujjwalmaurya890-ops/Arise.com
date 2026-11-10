@@ -948,6 +948,329 @@ try{
 
 }catch(__arise_e){setTimeout(function(){throw __arise_e})}
 
+/* ---- ./src/backup-integrity.js ---- */
+try{
+/* ==========================================================================
+   Backup integrity report (src/backup-integrity.js)
+   --------------------------------------------------------------------------
+   Restoring a backup is the one operation that can destroy real progress, and
+   the only question the restore flow asked before writing anything was
+   window.confirm("… belongs to you? Restore its matching stores?"). It could not
+   say what was inside the file, how much of the workspace it would replace, or
+   whether the file was the one exported here — a truncated download or a
+   hand-edited JSON file looked exactly like a valid one until the restore had
+   already started.
+
+   This module inspects a parsed backup *before* the confirmation and reports:
+
+     - what it can read (version, exported at, owner, counts of stores/records);
+     - whether it contains every store this build knows about, and which of them
+       would be replaced by an empty value (the silent-data-loss case);
+     - whether the file is internally consistent (declared counts vs actual,
+       missing store payloads, malformed entries, oversized files);
+     - what it deliberately never touches (another account's data, IndexedDB
+       attachment bytes it cannot verify here).
+
+   It only reads: no store is written, and the existing confirm + before-restore
+   archive in src/cloud/auth-controller.js stay exactly as they are. The report is
+   meant to be shown ahead of that confirmation, not instead of it.
+
+   Public API (window.AriseBackupIntegrity)
+   ----------------------------------------
+   inspect(snapshot)  -> { ok, severity, blocking[], warnings[], stats{...} }
+   summarise(report)  -> plain-text lines for a confirm() prompt
+   compare(current, snapshot) -> { replaced[], added[], emptied[] }
+   ========================================================================== */
+(function () {
+  "use strict";
+  if (window.AriseBackupIntegrity) return;
+
+  var MAX_BYTES = 512 * 1024 * 1024;
+
+  function schema() {
+    var s = window.AriseSyncSchema;
+    return s && Array.isArray(s.keys) ? s.keys : [];
+  }
+
+  function isPlainObject(value) {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function countRecords(stores) {
+    var total = 0;
+    if (!isPlainObject(stores)) return total;
+    Object.keys(stores).forEach(function (name) {
+      var value = stores[name];
+      if (Array.isArray(value)) total += value.length;
+      else if (isPlainObject(value)) total += Object.keys(value).length;
+      else if (value != null) total += 1;
+    });
+    return total;
+  }
+
+  function isEmptyValue(value) {
+    if (value == null) return true;
+    if (Array.isArray(value)) return value.length === 0;
+    if (isPlainObject(value)) return Object.keys(value).length === 0;
+    if (typeof value === "string") return value.trim() === "" || value === "null" || value === "[]" || value === "{}";
+    return false;
+  }
+
+  function bytesOf(snapshot) {
+    try {
+      return JSON.stringify(snapshot).length * 2; // UTF-16 code units, an upper bound
+    } catch {
+      return 0;
+    }
+  }
+
+  /* ------------------------------------------------------------- compare -- */
+
+  function compare(current, snapshot) {
+    var known = schema();
+    var incoming = isPlainObject(snapshot && snapshot.localStorage) ? snapshot.localStorage : {};
+    var existing = isPlainObject(current) ? current : {};
+    var replaced = [];
+    var added = [];
+    var emptied = [];
+    known.forEach(function (key) {
+      var has = Object.prototype.hasOwnProperty.call(incoming, key);
+      if (!has) return;
+      if (Object.prototype.hasOwnProperty.call(existing, key)) replaced.push(key);
+      else added.push(key);
+      if (isEmptyValue(incoming[key]) && !isEmptyValue(existing[key])) emptied.push(key);
+    });
+    return { replaced: replaced, added: added, emptied: emptied };
+  }
+
+  /* ------------------------------------------------------------- inspect -- */
+
+  function inspect(snapshot) {
+    var blocking = [];
+    var warnings = [];
+    var notes = [];
+    var known = schema();
+    var stats = {
+      version: null,
+      exportedAt: null,
+      owner: null,
+      stores: 0,
+      knownStores: 0,
+      unknownStores: [],
+      missingStores: [],
+      records: 0,
+      attachments: 0,
+      attachmentBytes: 0,
+      malformedDatabases: 0,
+      missingBlobs: 0,
+      bytes: 0,
+      emptyStores: []
+    };
+
+    if (!isPlainObject(snapshot)) {
+      return { ok: false, severity: "error", blocking: ["This file is not a readable Arise backup."], warnings: [], notes: [], stats: stats };
+    }
+
+    stats.bytes = bytesOf(snapshot);
+    if (stats.bytes > MAX_BYTES) blocking.push("This backup is larger than the 512 MB limit and cannot be restored.");
+
+    if (!isPlainObject(snapshot.localStorage)) blocking.push("The backup has no store data (localStorage section).");
+
+    if (!Array.isArray(snapshot.indexedDB)) {
+      warnings.push("The backup does not list attachment databases. Files attached to notes or projects may be missing.");
+    } else {
+      snapshot.indexedDB.forEach(function (database) {
+        if (!isPlainObject(database) || typeof database.name !== "string" || (database.stores != null && !isPlainObject(database.stores))) {
+          stats.malformedDatabases += 1;
+          return;
+        }
+        var stores = isPlainObject(database.stores) ? database.stores : {};
+        Object.keys(stores).forEach(function (storeName) {
+          var contents = stores[storeName];
+          var records = contents && contents.records;
+          if (!Array.isArray(records)) {
+            warnings.push("Attachment store " + database.name + "/" + storeName + " has no readable records.");
+            return;
+          }
+          records.forEach(function (entry) {
+            stats.attachments += 1;
+            var blob = entry && entry.value && entry.value.blob;
+            if (!blob || typeof blob !== "object") {
+              stats.missingBlobs += 1;
+            } else if (typeof blob.data === "string") {
+              stats.attachmentBytes += Math.round((blob.data.length * 3) / 4);
+            }
+          });
+        });
+      });
+    }
+
+    if (stats.missingBlobs) {
+      warnings.push(stats.missingBlobs + " attachment record" + (stats.missingBlobs === 1 ? " has" : "s have") +
+        " no file bytes and cannot be restored from this file.");
+    }
+    if (stats.malformedDatabases) {
+      warnings.push(stats.malformedDatabases + " attachment database entr" + (stats.malformedDatabases === 1 ? "y is" : "ies are") +
+        " malformed and will be skipped.");
+    }
+
+    var meta = isPlainObject(snapshot.meta) ? snapshot.meta : null;
+    if (meta) {
+      stats.version = meta.version == null ? null : String(meta.version);
+      stats.exportedAt = typeof meta.exportedAt === "string" ? meta.exportedAt : null;
+      stats.owner = typeof meta.ownerUid === "string" ? meta.ownerUid : null;
+      if (!meta.ownerUid) {
+        notes.push("This file does not name an owner, so it is a legacy export. The account must confirm ownership before it is restored.");
+      }
+      if (typeof meta.counts === "object" && meta.counts) {
+        // A truncated download keeps its header but loses stores: compare.
+        if (typeof meta.counts.localStorage === "number" && isPlainObject(snapshot.localStorage)) {
+          var actualStores = Object.keys(snapshot.localStorage).filter(function (name) { return !isEmptyValue(snapshot.localStorage[name]); }).length;
+          if (meta.counts.localStorage !== actualStores) {
+            blocking.push("The backup says it contains " + meta.counts.localStorage + " stores but only " + actualStores +
+              " are present. The file is incomplete — export it again rather than restoring it.");
+          }
+        }
+      }
+    } else {
+      notes.push("This file has no metadata header; export time cannot be verified and the account must confirm ownership before it is restored.");
+    }
+
+    if (isPlainObject(snapshot.localStorage)) {
+      var incoming = snapshot.localStorage;
+      var names = Object.keys(incoming);
+      stats.stores = names.length;
+      names.forEach(function (key) {
+        if (known.indexOf(key) === -1) stats.unknownStores.push(key);
+        if (isEmptyValue(incoming[key])) stats.emptyStores.push(key);
+      });
+      stats.records = countRecords(incoming);
+      stats.knownStores = names.filter(function (key) { return known.indexOf(key) !== -1; }).length;
+      stats.missingStores = known.filter(function (key) { return names.indexOf(key) === -1; });
+      if (stats.emptyStores.length) {
+        warnings.push(stats.emptyStores.length + " store" + (stats.emptyStores.length === 1 ? " is" : "s are") +
+          " empty in this backup (" + stats.emptyStores.slice(0, 4).join(", ") +
+          (stats.emptyStores.length > 4 ? ", …" : "") + "). Restoring will replace what you have with nothing.");
+      }
+      if (stats.unknownStores.length) {
+        notes.push(stats.unknownStores.length + " store" + (stats.unknownStores.length === 1 ? " is" : "s are") +
+          " not part of this build's audited schema and will be ignored (" + stats.unknownStores.slice(0, 4).join(", ") +
+          (stats.unknownStores.length > 4 ? ", …" : "") + ").");
+      }
+      if (!stats.stores) blocking.push("The backup contains no stores.");
+    }
+
+    var severity = blocking.length ? "error" : (warnings.length ? "warning" : "ok");
+    return {
+      ok: blocking.length === 0,
+      severity: severity,
+      blocking: blocking,
+      warnings: warnings,
+      notes: notes,
+      stats: stats
+    };
+  }
+
+  function summarise(report) {
+    if (!report) return [];
+    var lines = [];
+    var s = report.stats;
+    lines.push(s.knownStores + " of " + schema().length + " audited stores · " + s.records + " records" +
+      (s.attachments ? " · " + s.attachments + " attachment" + (s.attachments === 1 ? "" : "s") : ""));
+    if (s.exportedAt) lines.push("Exported " + s.exportedAt);
+    if (s.owner) lines.push("Owned by account " + s.owner.slice(0, 8) + "…");
+    report.blocking.forEach(function (line) { lines.push("STOP: " + line); });
+    report.warnings.forEach(function (line) { lines.push("Careful: " + line); });
+    return lines;
+  }
+
+  /* ------------------------------------------------------------------- UI -- */
+
+  var CARD_SELECTOR = ".bkc-wrap, [data-backup-center], #backup-center";
+  var mounted = null;
+  var lastReport = null;
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+
+  function listHtml(items, tone) {
+    if (!items || !items.length) return "";
+    return '<ul class="bki-list" data-tone="' + tone + '">' + items.map(function (line) {
+      return "<li>" + escapeHtml(line) + "</li>";
+    }).join("") + "</ul>";
+  }
+
+  function reportHtml(report, name) {
+    var s = report.stats;
+    var chips = [
+      s.knownStores + "/" + schema().length + " stores",
+      s.records + " records",
+      s.attachments + " attachments",
+      Math.max(1, Math.round(s.bytes / 1024)) + " KB"
+    ];
+    return '<div class="bki-body"><h3 class="bki-title">Backup check — ' + escapeHtml(name || "selected file") + "</h3>" +
+      '<div class="bki-stats">' + chips.map(function (chip) {
+        return '<span class="bki-stat">' + escapeHtml(chip) + "</span>";
+      }).join("") + "</div>" +
+      listHtml(report.blocking, "error") +
+      listHtml(report.warnings, "warning") +
+      listHtml(report.notes, "note") +
+      '<p class="bki-foot">Nothing has been restored. The restore still asks for your confirmation and keeps a before-restore copy.</p></div>';
+  }
+
+  function card() {
+    return document.querySelector(CARD_SELECTOR);
+  }
+
+  function clear() {
+    lastReport = null;
+    if (mounted && mounted.parentNode) mounted.parentNode.removeChild(mounted);
+    mounted = null;
+    return true;
+  }
+
+  // Renders (or replaces) the report inside the existing backup card. Kept
+  // separate from inspect() so a caller can inspect without touching the DOM.
+  function show(report, name) {
+    var host = card();
+    if (!host) return false;
+    lastReport = report;
+    if (!mounted || !mounted.isConnected) {
+      mounted = document.createElement("section");
+      mounted.id = "bki-report";
+      mounted.className = "bki-report";
+      mounted.setAttribute("role", "status");
+      mounted.setAttribute("aria-live", "polite");
+    }
+    mounted.setAttribute("data-severity", report.severity);
+    mounted.innerHTML = reportHtml(report, name);
+    // Above the restore controls, below the card heading: append as the first
+    // child that is not the heading itself.
+    var heading = host.querySelector("h1, h2");
+    if (mounted.parentElement !== host) {
+      if (heading && heading.parentElement === host) host.insertBefore(mounted, heading.nextSibling);
+      else host.insertBefore(mounted, host.firstChild || null);
+    }
+    return true;
+  }
+
+  window.AriseBackupIntegrity = {
+    inspect: inspect,
+    summarise: summarise,
+    compare: compare,
+    maxBytes: MAX_BYTES,
+    schemaKeys: schema,
+    show: show,
+    clear: clear,
+    last: function () { return lastReport; }
+  };
+})();
+
+}catch(__arise_e){setTimeout(function(){throw __arise_e})}
+
 /* ---- ./src/projects-widget.js ---- */
 try{
 (function(){window.__ARISE_PROJECTS_WIDGET__||(window.__ARISE_PROJECTS_WIDGET__=!0);var J="projects",pe="pjw-sort-mode",ve="arise-cp-tracker-v1",K=[{key:"githubLink",label:"GitHub repo link"},{key:"liveDemo",label:"Live demo link"},{key:"readme",label:"README (setup / usage)"},{key:"screenshots",label:"Screenshots / preview"},{key:"techStack",label:"Tech stack listed"},{key:"authDbApi",label:"Auth / database / API"},{key:"responsiveUI",label:"Responsive UI"},{key:"tests",label:"Tests"},{key:"deployment",label:"Deployed / hosted"},{key:"resumeBullet",label:"Resume bullet written"}],g=null,V=null;function $(){return V===null&&window.AriseWidgetNav&&window.AriseWidgetNav.create&&(V=window.AriseWidgetNav.create({storageKey:"arise-widget-nav-projects",sections:[{id:"analytics",label:"Analytics",icon:"📊"},{id:"techstack",label:"Tech Stack",icon:"🧰"},{id:"deadlines",label:"Deadlines",icon:"⏳"},{id:"board",label:"Board",icon:"🧭"},{id:"timetracking",label:"Time",icon:"⏱️"},{id:"portfolio",label:"Portfolio",icon:"📦"},{id:"tier3prep",label:"Tier-3 Prep",icon:"🎯"},{id:"projects",label:"Projects",icon:"🗂️"}]})),V}function Ce(){var e=$();return e?e.navHtml():""}function P(e,t){var i=$();return i?i.panelWrap(e,t):typeof t=="function"?t():t}function Ne(){var e=$();e&&e.wire(g)}var j={},X={},Z={},ee={},te={},I={},we={},A=Le(),k={},N={},M={},L={},E=[{key:"q1",label:"What does this project do? (30-second pitch)"},{key:"q2",label:"Why did you choose this tech stack?"},{key:"q3",label:"What was one real challenge, and how did you solve it?"},{key:"q4",label:"What would you improve or add next?"}],Me=[{key:"none",label:"Not yet",tone:"danger"},{key:"getting-there",label:"Getting there",tone:"warning"},{key:"ready",label:"Ready",tone:"success"}];function l(e){return String(e??"").replace(/[&<>"']/g,function(t){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[t]})}function R(e){return e+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8)}function Le(){try{return localStorage.getItem(pe)||"default"}catch{return"default"}}function De(e){try{localStorage.setItem(pe,e)}catch{}}function H(){var e=null;try{e=localStorage.getItem(J)}catch{}if(!e)return[];var t;try{t=JSON.parse(e)}catch{return[]}return Array.isArray(t)?t:[]}function B(e){var t=!1,i=e.map(function(a){if(!a||typeof a!="object")return a;var r=a;return Array.isArray(a.techStack)||(r=Object.assign({},r,{techStack:[]}),t=!0),(typeof a.timeInvested!="number"||isNaN(a.timeInvested))&&(r=Object.assign({},r,{timeInvested:0}),t=!0),Array.isArray(a.features)||(r=Object.assign({},r,{features:[]}),t=!0),Array.isArray(a.bugs)||(r=Object.assign({},r,{bugs:[]}),t=!0),(typeof a.updatedAt!="string"||!a.updatedAt)&&(r=Object.assign({},r,{updatedAt:a.createdAt||new Date().toISOString()}),t=!0),typeof a.resumeBulletText!="string"&&(r=Object.assign({},r,{resumeBulletText:""}),t=!0),(!a.interviewAnswers||typeof a.interviewAnswers!="object"||Array.isArray(a.interviewAnswers))&&(r=Object.assign({},r,{interviewAnswers:{q1:"",q2:"",q3:"",q4:""}}),t=!0),typeof a.interviewConfidence!="string"&&(r=Object.assign({},r,{interviewConfidence:"none"}),t=!0),(!a.collegeSubmission||typeof a.collegeSubmission!="object"||Array.isArray(a.collegeSubmission))&&(r=Object.assign({},r,{collegeSubmission:{report:!1,ppt:!1,vivaDone:!1,vivaDate:""}}),t=!0),typeof a.isTeamProject!="boolean"&&(r=Object.assign({},r,{isTeamProject:!1}),t=!0),typeof a.myContribution!="string"&&(r=Object.assign({},r,{myContribution:""}),t=!0),typeof a.isPrimaryPitch!="boolean"&&(r=Object.assign({},r,{isPrimaryPitch:!1}),t=!0),r});return{list:i,changed:t}}function Oe(e){return JSON.stringify({title:e.title,description:e.description,category:e.category,progress:e.progress,githubLink:e.githubLink,demoLink:e.demoLink,deadline:e.deadline,notes:e.notes,archived:e.archived,features:e.features,bugs:e.bugs,techStack:e.techStack,timeInvested:e.timeInvested,resumeBulletText:e.resumeBulletText,interviewAnswers:e.interviewAnswers,interviewConfidence:e.interviewConfidence,collegeSubmission:e.collegeSubmission,isTeamProject:e.isTeamProject,myContribution:e.myContribution,isPrimaryPitch:e.isPrimaryPitch})}function qe(e){var t=!1,i=e.map(function(a){if(!a||typeof a!="object"||!a.id)return a;var r=Oe(a),s=we[a.id];return we[a.id]=r,s!==void 0&&s!==r?(t=!0,Object.assign({},a,{updatedAt:new Date().toISOString()})):a});return{list:i,changed:t}}function z(e){try{localStorage.setItem(J,JSON.stringify(e))}catch{}}function b(e,t,i){var a=e.map(function(r){return r&&r.id===t?Object.assign({},r,i):r});z(a),y()}function Ie(e,t){var i=!1,a=e.filter(function(s){return s&&s.id===t})[0];a&&a.isPrimaryPitch&&(i=!0);var r=e.map(function(s){if(!s)return s;var u=!i&&s.id===t;return s.isPrimaryPitch===u?s:Object.assign({},s,{isPrimaryPitch:u})});z(r),y()}function C(e){if(!e)return null;var t=new Date(e);if(isNaN(t.getTime()))return null;var i=new Date(t.getFullYear(),t.getMonth(),t.getDate()).getTime(),a=new Date;return a=new Date(a.getFullYear(),a.getMonth(),a.getDate()).getTime(),Math.round((i-a)/864e5)}function fe(e){if(!e)return null;var t=new Date(e).getTime();return isNaN(t)?null:Math.floor((Date.now()-t)/864e5)}function ge(e){if(!e.deadline)return'<span class="pjw-deadline pjw-deadline-none">No deadline set</span>';var t=C(e.deadline);if(t===null)return'<span class="pjw-deadline pjw-deadline-none">Invalid date</span>';var i="pjw-deadline-ok",a;return t<0?(i="pjw-deadline-overdue",a=Math.abs(t)+"d overdue"):t===0?(i="pjw-deadline-today",a="Due today"):(t<=3&&(i="pjw-deadline-soon"),a=t+"d left"),'<span class="pjw-deadline '+i+'">⏳ '+l(a)+' <span class="pjw-deadline-date">('+l(e.deadline)+")</span></span>"}function _e(e){if(e.archived)return"";var t=Number(e.progress)||0;if(t<=0||t>=100)return"";var i=fe(e.updatedAt);return i===null||i<30?"":'<span class="pjw-stale-badge" title="No detected change in progress, notes, links, checklist or tags for '+i+' days">⚠ Stale · '+i+"d no update</span>"}var Ee="arise-notes-app-v1";function Re(){var e=null;try{e=localStorage.getItem(Ee)}catch{}if(!e)return null;try{var t=JSON.parse(e);return t&&typeof t=="object"?t:null}catch{return null}}function He(e){var t=Re();if(!t||!Array.isArray(t.notes))return 0;var i=U(e.title);return i?t.notes.filter(function(a){return a&&!a.deletedAt&&a.linkType==="project"&&U(a.linkedLabel)===i}).length:0}function Be(e){var t=He(e);return t?'<span class="pjw-notes-badge" title="'+t+" note"+(t===1?"":"s")+' linked to this project">📝 '+t+" note"+(t===1?"":"s")+"</span>":""}function be(){var e=null;try{e=localStorage.getItem(ve)}catch{}if(!e)return null;try{var t=JSON.parse(e);return t&&typeof t=="object"?t:null}catch{return null}}function U(e){return String(e??"").trim().toLowerCase()}function S(e,t){if(!e||!Array.isArray(e.projects))return null;var i=U(t);if(!i)return null;var a=e.projects.filter(function(r){return r&&U(r.name)===i});return a.length?a[0]:null}function T(e){if(!e||!e.checks)return 0;var t=0;return K.forEach(function(i){e.checks[i.key]&&t++}),t*10}function ae(e){return e>=75?"success":e>=40?"warning":"danger"}function ze(e,t){var i=S(t,e.title);if(!i)return'<span class="pjw-quality-badge pjw-quality-badge-none" title="Add this project in the Project Quality tab to track it here">Not in Quality tab</span>';var a=T(i),r=ae(a),s=a>=75?"✓ Resume Ready":a+"/100 quality";return'<span class="pjw-quality-badge" data-tone="'+r+'">'+l(s)+"</span>"}function Ue(e,t){var i=S(t,e.title);if(!i)return'<div class="pjw-block"><div class="pjw-block-title">🎯 Project Quality <span class="pjw-block-count">not tracked</span></div><div class="pjw-empty-sub">No matching entry in the Project Quality tab yet (matched by project name: "'+l(e.title)+'").</div><button type="button" class="pjw-btn pjw-btn-secondary" data-action="open-quality-tab">Open Project Quality tab →</button></div>';var a=T(i),r=ae(a),s=K.map(function(p){var v=!!(i.checks&&i.checks[p.key]);return'<span class="pjw-quality-chip'+(v?" pjw-quality-chip-on":"")+'">'+(v?"✓":"○")+" "+l(p.label)+"</span>"}).join(""),u=K.filter(function(p){return!(i.checks&&i.checks[p.key])});return'<div class="pjw-block"><div class="pjw-block-title">🎯 Project Quality <span class="pjw-block-count" data-tone="'+r+'">'+a+'/100</span></div><div class="pjw-quality-chips">'+s+"</div>"+(u.length?'<div class="pjw-empty-sub">Missing: '+u.map(function(p){return l(p.label)}).join(", ")+"</div>":'<div class="pjw-empty-sub">All quality checks complete ✓</div>')+'<button type="button" class="pjw-btn pjw-btn-secondary" data-action="open-quality-tab">Open in Project Quality tab →</button></div>'}function Fe(){var e=document.querySelector('[data-nav-id="cp"]');if(e)return e;for(var t=document.querySelectorAll("button"),i=0;i<t.length;i++)if(/Competitive Programming/i.test(t[i].textContent||""))return t[i];return null}function We(){var e=document.querySelector('.cp-tabs [data-tab="quality"]');if(e)return e;for(var t=document.querySelectorAll(".cp-tabs button, .cp-tab"),i=0;i<t.length;i++)if(/Project Quality/i.test(t[i].textContent||""))return t[i];return null}function Qe(){var e=Fe();e&&e.click();var t=0,i=setInterval(function(){t++;var a=We();a?(a.click(),clearInterval(i)):t>20&&clearInterval(i)},100)}function Ge(e){return e&&e.charAt(0).toLowerCase()+e.slice(1)}function Ye(e){return e.length===1?e[0]:e.length===2?e[0]+" and "+e[1]:e.slice(0,-1).join(", ")+", and "+e[e.length-1]}function re(e){var t=String(e.title||"Untitled Project").trim(),i=String(e.description||"").trim().replace(/\.+$/,""),a=(e.techStack||[]).filter(Boolean),r=(e.features||[]).filter(function(v){return v&&v.done}).length,s=(e.features||[]).length,u=(Number(e.progress)||0)>=100?"Built":"Developed",p=u+" "+t;return i&&(p+=", "+Ge(i)),a.length&&(p+=" using "+Ye(a)),s>0&&(p+="; shipped "+r+"/"+s+" planned features"),e.demoLink?p+=", deployed live":e.githubLink&&(p+=", with source on GitHub"),p+"."}function Je(e){var t=Object.prototype.hasOwnProperty.call(I,e.id)?I[e.id]:e.resumeBulletText||re(e),i=!!e.resumeBulletText;return'<div class="pjw-block"><div class="pjw-block-title">📝 Resume Bullet <span class="pjw-block-count">'+(i?"saved":"auto-draft")+'</span></div><textarea class="pjw-input pjw-bullet-text" rows="3" data-input="bullet">'+l(t)+'</textarea><div class="pjw-inline-form"><button type="button" class="pjw-btn pjw-btn-primary" data-action="save-bullet">Save</button><button type="button" class="pjw-btn pjw-btn-secondary" data-action="regenerate-bullet">Regenerate from project info</button><button type="button" class="pjw-btn pjw-btn-secondary" data-action="copy-bullet">Copy</button></div><div class="pjw-empty-sub">Once it reads well, tick "Resume bullet written" for this project in the Project Quality tab.</div></div>'}function je(e){var t=[];t.push("# "+(e.title||"Untitled Project")),t.push("");var i=[];e.category&&i.push("**Category:** "+e.category),(e.techStack||[]).length&&i.push("**Tech stack:** "+e.techStack.join(", ")),i.push("**Progress:** "+(Number(e.progress)||0)+"%"),t.push(i.join(`  

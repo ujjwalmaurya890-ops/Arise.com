@@ -1,0 +1,143 @@
+/* ==========================================================================
+   Notification center (styles/notification-center.css)
+   Themed entirely from the active palette; no fixed colors.
+   ========================================================================== */
+
+.anc-launcher {
+  position: fixed;
+  left: 18px;
+  bottom: 88px;
+  z-index: 9985;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .2rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  cursor: pointer;
+  box-shadow: 0 8px 26px color-mix(in srgb, #000 32%, transparent);
+  transition: border-color .14s, background-color .14s, transform .14s;
+}
+.anc-launcher:hover { background: var(--surface-hover); border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
+.anc-launcher:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+.anc-launcher:active { transform: scale(.96); }
+.anc-launcher[hidden] { display: none; }
+
+.anc-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger, #ef4444);
+  color: #fff;
+  font: 700 .62rem/18px var(--font-body, Inter, system-ui, sans-serif);
+  text-align: center;
+}
+.anc-badge[hidden] { display: none; }
+
+.anc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10045;
+  display: none;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--overlay, #000) 72%, transparent);
+}
+.anc-overlay[data-open="true"] { display: grid; }
+
+.anc-dialog {
+  width: min(640px, 100%);
+  max-height: min(88dvh, 760px);
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  padding: 1.05rem 1.1rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 24px 70px color-mix(in srgb, #000 45%, transparent);
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+}
+
+.anc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.anc-head h2 { margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -.01em; }
+.anc-status { margin: .2rem 0 0; font-size: .74rem; color: var(--text-tertiary); }
+.anc-hint { margin: 0; font-size: .75rem; line-height: 1.6; color: var(--text-secondary); }
+
+.anc-list {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  padding: .1rem;
+  scrollbar-gutter: stable;
+}
+.anc-group-title {
+  margin: .5rem .15rem .1rem;
+  font: 700 .64rem/1 var(--font-body, Inter, system-ui, sans-serif);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-tertiary);
+}
+.anc-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .55rem;
+  padding: .55rem .65rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-muted);
+}
+.anc-item[data-tone="overdue"] { border-left-color: var(--danger, #ef4444); }
+.anc-item[data-tone="today"] { border-left-color: var(--warning, #f59e0b); }
+.anc-item[data-tone="soon"] { border-left-color: var(--info, #38bdf8); }
+.anc-item[data-tone="later"] { border-left-color: var(--border); }
+.anc-item[data-read="true"] { opacity: .6; }
+
+.anc-item-main { display: flex; flex-direction: column; gap: .12rem; min-width: 0; flex: 1 1 220px; }
+.anc-kind { font-size: .6rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--text-tertiary); }
+.anc-title { font-size: .82rem; font-weight: 650; overflow-wrap: anywhere; }
+.anc-detail { font-size: .72rem; line-height: 1.45; color: var(--text-secondary); overflow-wrap: anywhere; }
+.anc-source { font-size: .64rem; color: var(--text-tertiary); }
+
+.anc-item-actions { display: inline-flex; gap: .3rem; flex-wrap: wrap; }
+.anc-btn {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: .32rem .58rem;
+  font: 600 .7rem/1.2 var(--font-body, Inter, system-ui, sans-serif);
+  cursor: pointer;
+  transition: background-color .12s, border-color .12s;
+}
+.anc-btn:hover { background: var(--surface-hover); border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.anc-btn[aria-pressed="true"] { border-color: color-mix(in srgb, var(--primary) 55%, transparent); }
+.anc-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.anc-primary { background: color-mix(in srgb, var(--primary) 20%, var(--surface)); border-color: color-mix(in srgb, var(--primary) 55%, transparent); }
+.anc-empty { margin: 0; padding: 1.2rem .6rem; font-size: .8rem; line-height: 1.6; text-align: center; color: var(--text-tertiary); }
+.anc-foot { display: flex; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--border); padding-top: .7rem; }
+
+@media (max-width: 640px) {
+  .anc-launcher { left: 12px; bottom: calc(136px + env(safe-area-inset-bottom, 0px)); }
+  .anc-item-actions { width: 100%; }
+  .anc-item-actions .anc-btn { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anc-launcher, .anc-btn { transition: none; }
+  .anc-launcher:active { transform: none; }
+}

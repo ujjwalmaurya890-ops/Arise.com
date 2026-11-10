@@ -1,5 +1,8 @@
 'use strict';
 // Isolated real-browser widget fixture; never bypasses production authentication.
+// Image-free successor to verify-cse-image.cjs: the CSE header no longer ships an
+// illustrative screenshot, so this fixture asserts layout, theming and scoring
+// invariance for a header that renders text and controls only.
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
@@ -35,7 +38,6 @@ const path = require('node:path');
     let baseline;
     if (fs.existsSync('.test-artifacts/csu-baseline.js')) {
       await load('.test-artifacts/csu-baseline.js'); baseline = await scores();
-      await page.screenshot({ path: '.test-artifacts/cse-before.png', fullPage: true });
     }
     await load('src/features/semester-risk/cse-syllabus-unified-widget.js');
     const expected = await scores(); if (baseline) assert.deepEqual(expected, baseline);
@@ -46,30 +48,31 @@ const path = require('node:path');
       await page.evaluate(t => window.AriseThemeSystem.applyTheme(t, true), theme);
       for (const width of [1440, 768, 390]) {
         await page.setViewportSize({ width, height: 1000 });
-        await page.locator('.csu-header-img').evaluate(img => img.decode());
         const state = await page.evaluate(() => {
-          const root = document.querySelector('#csu-unified-root'), img = root.querySelector('.csu-header-img');
-          return { count: document.querySelectorAll('#csu-unified-root').length, natural: img.naturalWidth,
-            ratio: img.clientWidth / img.clientHeight, overflow: root.scrollWidth > root.clientWidth + 1,
+          const root = document.querySelector('#csu-unified-root');
+          return { count: document.querySelectorAll('#csu-unified-root').length,
+            images: root.querySelectorAll('img, picture, svg image, [style*="background-image"]').length,
+            headerWidth: root.querySelector('.csu-rs-title') ? root.querySelector('.csu-rs-title').getBoundingClientRect().width : 0,
+            overflow: root.scrollWidth > root.clientWidth + 1,
             text: getComputedStyle(root.querySelector('.csu-rs-title')).color,
             background: getComputedStyle(root).backgroundColor };
         });
-        assert.equal(state.count, 1); assert.equal(state.natural, 1720);
-        assert.ok(Math.abs(state.ratio - 1720 / 772) < .06); assert.equal(state.overflow, false, `${theme}/${width} overflow`);
+        assert.equal(state.count, 1, 'the widget mounts exactly once');
+        assert.equal(state.images, 0, `${theme}/${width}: the CSE widget renders no images`);
+        assert.ok(state.headerWidth > 0, `${theme}/${width}: the readiness title still lays out`);
+        assert.equal(state.overflow, false, `${theme}/${width} overflow`);
         assert.notEqual(state.text, state.background);
         assert.deepEqual(await scores(), expected);
         assert.equal(await page.evaluate(() => localStorage.getItem('cse-syllabus-progress-v1')), stored);
       }
-      rows.push({ theme, image: 'pass', layouts: '1440 / 768 / 390 pass', switching: 'pass', scoringAndProgress: 'unchanged', contrast: 'distinct title/surface only; full AA audit not performed' });
+      rows.push({ theme, images: 'none rendered', layouts: '1440 / 768 / 390 pass', switching: 'pass', scoringAndProgress: 'unchanged', contrast: 'distinct title/surface only; full AA audit not performed' });
     }
-    await page.screenshot({ path: '.test-artifacts/cse-after-mobile.png', fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.screenshot({ path: '.test-artifacts/cse-after-desktop.png', fullPage: true });
-    await page.locator('.csu-header-img').dispatchEvent('error');
-    assert.equal(await page.locator('.csu-header-reference').isVisible(), false);
-    assert.equal(await page.locator('.csu-rs-title').isVisible(), true);
+    assert.equal(await page.locator('#csu-unified-root img').count(), 0, 'no image survives in the rendered widget');
+    assert.equal(await page.locator('#csu-unified-root .csu-header-reference').count(), 0, 'the reference figure was removed, not hidden');
+    assert.equal(await page.locator('.csu-rs-title').isVisible(), true, 'the live readiness title is always visible');
     assert.deepEqual(errors, []);
     fs.writeFileSync('.test-artifacts/cse-theme-matrix.json', JSON.stringify(rows, null, 2));
-    console.log(`PASS: ${themes.length} live theme transitions × 3 viewports, image decode/proportions, single mount, no widget overflow, scoring/progress invariance, image-error fallback, no page errors. Baseline comparison: ${baseline ? 'pass' : 'not available'}.`);
+    console.log(`PASS: ${themes.length} live theme transitions × 3 viewports, zero rendered images, single mount, no widget overflow, scoring/progress invariance, no page errors. Baseline comparison: ${baseline ? 'pass' : 'not available'}.`);
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

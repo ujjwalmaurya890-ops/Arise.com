@@ -1,0 +1,220 @@
+/* ==========================================================================
+   Today card (styles/day-plan.css)
+   Additive, scoped to .dp-*, theme-token based, and tuned to sit next to the
+   existing glass-card dashboard cards without changing their rules.
+   ========================================================================== */
+
+.dp-card { position: relative; }
+
+.dp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .7rem;
+}
+.dp-title {
+  margin: 0;
+  font: 800 1.02rem/1.25 var(--font-display, "Inter", sans-serif);
+  color: var(--text-primary);
+}
+.dp-sub {
+  margin: .22rem 0 0;
+  font: 600 .74rem/1.4 var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+.dp-ring {
+  --dp-fill: 0%;
+  position: relative;
+  flex-shrink: 0;
+  width: 3.1rem;
+  height: 3.1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(closest-side, var(--surface) 72%, transparent 73% 100%),
+    conic-gradient(var(--primary) var(--dp-fill), color-mix(in srgb, var(--border-strong) 60%, transparent) 0);
+}
+.dp-ring-value {
+  font: 700 .72rem/1 var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.dp-progress {
+  height: .34rem;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: .75rem;
+}
+.dp-progress-fill {
+  display: block;
+  height: 100%;
+  width: var(--dp-w, 0%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 80%, var(--surface)) 0%, var(--primary) 100%);
+}
+
+.dp-notice {
+  margin: 0 0 .6rem;
+  padding: .4rem .6rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  color: var(--text-secondary);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
+.dp-list {
+  list-style: none;
+  margin: 0 0 .5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .28rem;
+}
+.dp-task {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .5rem;
+  padding: .42rem .55rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-muted);
+  font-size: .8rem;
+  color: var(--text-primary);
+}
+.dp-task[data-priority="high"] { border-left: 3px solid var(--danger); }
+.dp-task[data-priority="medium"] { border-left: 3px solid var(--warning); }
+.dp-task[data-priority="low"] { border-left: 3px solid var(--info); }
+.dp-task[data-done="true"] { opacity: .62; }
+.dp-task[data-done="true"] .dp-task-text { text-decoration: line-through; color: var(--text-tertiary); }
+.dp-check {
+  display: grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  font-size: .62rem;
+  line-height: 1;
+  color: var(--success);
+}
+.dp-task[data-done="true"] .dp-check {
+  border-color: color-mix(in srgb, var(--success) 55%, var(--border));
+  background: color-mix(in srgb, var(--success) 16%, var(--surface));
+}
+.dp-task-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-task-tag {
+  font: 600 .62rem/1.4 var(--font-mono, monospace);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 .4rem;
+  white-space: nowrap;
+}
+
+.dp-more {
+  margin: 0 0 .5rem;
+  font-size: .7rem;
+  color: var(--text-tertiary);
+}
+
+.dp-next {
+  margin: 0 0 .7rem;
+  padding: .5rem .6rem;
+  border-radius: 9px;
+  border: 1px dashed var(--border-strong);
+  background: var(--surface);
+  font-size: .78rem;
+  color: var(--text-primary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .4rem;
+}
+.dp-next[data-complete="true"] { border-style: solid; color: var(--text-secondary); }
+.dp-next-kicker {
+  font: 700 .6rem/1.6 var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--primary-ink, var(--primary));
+}
+.dp-next-reason { font-size: .7rem; color: var(--text-tertiary); }
+
+.dp-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .3rem;
+  margin-bottom: .8rem;
+}
+.dp-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .15rem;
+  padding: .3rem 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  font-variant-numeric: tabular-nums;
+}
+.dp-day[data-today="true"] { border-color: var(--primary); }
+.dp-day[data-state="done"] { background: color-mix(in srgb, var(--success) 14%, var(--surface)); }
+.dp-day[data-state="partial"] { background: color-mix(in srgb, var(--warning) 12%, var(--surface)); }
+.dp-day[data-state="empty"] { opacity: .6; }
+.dp-day-label {
+  font: 700 .6rem/1 var(--font-body, "Inter", sans-serif);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.dp-day-dot {
+  font: 600 .64rem/1 var(--font-mono, monospace);
+  color: var(--text-primary);
+}
+
+.dp-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.dp-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  padding: .38rem .62rem;
+  font: 600 .74rem/1.2 var(--font-body, "Inter", sans-serif);
+  cursor: pointer;
+}
+.dp-btn:hover,
+.dp-btn:focus-visible {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.dp-empty {
+  margin: 0 0 .7rem;
+  padding: 1rem .8rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: 9px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .dp-head { flex-direction: row; align-items: center; }
+  .dp-ring { width: 2.6rem; height: 2.6rem; }
+  .dp-task { grid-template-columns: auto 1fr; }
+  .dp-task-tag { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dp-progress-fill, .dp-btn, .dp-day { transition: none !important; }
+}

@@ -14,7 +14,6 @@
    .ars-sk-*          component-shaped skeletons built from .ars-skel
    .ars-topbar        global navigation / operation progress line
    .ars-ai-*          AI thinking and streaming affordances
-   .ars-img-*         lazy image & avatar placeholders
    .ars-refreshing    subtle refresh state that keeps existing content visible
 
    Motion rules
@@ -48,7 +47,6 @@
   --ars-topbar-color-start: var(--primary, #38bdf8);
   --ars-topbar-color-end: var(--secondary, #818cf8);
   --ars-refresh-tint: color-mix(in srgb, var(--primary) 5%, transparent);
-  --ars-image-tint: color-mix(in srgb, var(--surface-muted, var(--surface)) 82%, var(--border));
   --ars-offline-bg: color-mix(in srgb, var(--warning, #f59e0b) 16%, var(--surface));
   --ars-offline-border: color-mix(in srgb, var(--warning, #f59e0b) 42%, var(--border));
 }
@@ -676,37 +674,6 @@ html[dir="rtl"] .ars-skel-group::after { animation-direction: reverse; }
 @keyframes ars-ai-caret { 0%, 49% { opacity: 0.55; } 50%, 100% { opacity: 0; } }
 
 /* --------------------------------------------------------------------------
-   7. Lazy image & avatar placeholders
-   -------------------------------------------------------------------------- */
-.ars-img-loading {
-  background-color: var(--ars-image-tint);
-  background-image: linear-gradient(
-    var(--skeleton-shimmer-angle, 90deg),
-    transparent 20%,
-    var(--ars-skel-highlight) 50%,
-    transparent 80%
-  );
-  background-size: 220% 100%;
-  background-repeat: no-repeat;
-  animation: ars-img-sweep var(--ars-shimmer-duration) linear infinite;
-  color: transparent !important;
-  object-fit: cover;
-}
-@keyframes ars-img-sweep {
-  0% { background-position: 120% 0; }
-  100% { background-position: -120% 0; }
-}
-.ars-img-loaded { animation: ars-img-reveal var(--motion-normal, 200ms) var(--ease-standard, ease); }
-@keyframes ars-img-reveal { from { opacity: 0.55; } to { opacity: 1; } }
-.ars-img-error {
-  background-color: var(--ars-image-tint);
-  background-image: linear-gradient(135deg, color-mix(in srgb, var(--text-primary) 8%, transparent) 25%, transparent 25%, transparent 50%, color-mix(in srgb, var(--text-primary) 8%, transparent) 50%, color-mix(in srgb, var(--text-primary) 8%, transparent) 75%, transparent 75%);
-  background-size: 12px 12px;
-  opacity: 0.9;
-}
-.ars-img-frame { position: relative; display: inline-flex; overflow: hidden; }
-
-/* --------------------------------------------------------------------------
    8. Refresh-in-place (existing content stays visible)
    -------------------------------------------------------------------------- */
 .ars-refreshing { position: relative; }
@@ -928,7 +895,6 @@ html[dir="rtl"] .ars-skel-group::after { animation-direction: reverse; }
 @media (prefers-reduced-motion: reduce) {
   .ars-skel::after,
   .ars-skel-group::after,
-  .ars-img-loading,
   .ars-ai-dots span,
   .ars-ai-caret,
   .ars-page-loader__logo,
@@ -953,7 +919,6 @@ html[dir="rtl"] .ars-skel-group::after { animation-direction: reverse; }
 
 html.reduce-motion .ars-skel::after,
 html.reduce-motion .ars-skel-group::after,
-html.reduce-motion .ars-img-loading,
 html.reduce-motion .ars-ai-dots span,
 html.reduce-motion .ars-ai-caret,
 html.reduce-motion .ars-refreshing::after {
@@ -966,15 +931,12 @@ html.reduce-motion .ars-skel-group--delayed { opacity: 1; animation: none !impor
    they communicate an operation in progress (state, not decoration). */
 html.perf-lite .ars-skel::after,
 html.perf-lite .ars-skel-group::after,
-html.perf-lite .ars-img-loading,
 html.perf-lite .ars-ai-dots span,
 html.perf-lite .ars-ai-caret,
 html.perf-lite .ars-page-loader__logo,
 html.perf-lite .ars-refreshing::after {
   animation: none !important;
 }
-html.perf-lite .ars-img-loading { background-image: none; }
-
 /* --------------------------------------------------------------------------
    14. Offline state block — matches .uxa-error-state without duplicating the
        error semantics (offline is a different state, announced politely).

@@ -1,0 +1,52 @@
+/* ==========================================================================
+   Backup integrity report (styles/backup-integrity.css)
+   Shown inside the existing Backup & Restore card, above the restore controls.
+   Read-only: it styles a report, it never restyles the backup card itself.
+   ========================================================================== */
+
+.bki-report {
+  margin: .6rem 0 .8rem;
+  padding: .7rem .8rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: .76rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.bki-report[data-severity="error"] { border-color: color-mix(in srgb, var(--danger) 55%, var(--border)); }
+.bki-report[data-severity="warning"] { border-color: color-mix(in srgb, var(--warning) 55%, var(--border)); }
+.bki-report[data-severity="ok"] { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+
+.bki-title {
+  margin: 0 0 .3rem;
+  font: 700 .8rem/1.3 var(--font-display, "Inter", sans-serif);
+  color: var(--text-primary);
+}
+.bki-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-bottom: .4rem;
+}
+.bki-stat {
+  padding: .12rem .45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: .68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.bki-list { margin: 0 0 .35rem; padding-left: 1.1rem; }
+.bki-list li { margin-bottom: .2rem; }
+.bki-list[data-tone="error"] li { color: var(--danger); }
+.bki-list[data-tone="warning"] li { color: var(--warning); }
+.bki-list[data-tone="note"] li { color: var(--text-tertiary); }
+.bki-foot { margin: 0; font-size: .68rem; color: var(--text-tertiary); }
+
+@media (max-width: 680px) {
+  .bki-report { font-size: .74rem; }
+  .bki-stats { gap: .25rem; }
+}

@@ -40,13 +40,26 @@
   }
   function c() {
     if (i && (clearTimeout(i), i = 0), !!r.length) {
+      if (window.ArisePerf && typeof window.ArisePerf.noteNotification === "function") {
+        try { window.ArisePerf.noteNotification(); } catch {}
+      }
       var t = r;
       r = [];
+      // Records produced *by* the subscribers are not new information: every
+      // subscriber has already been handed this change. Without this, a widget
+      // that re-renders on every notification (the Career Readiness card does,
+      // 15 times a second while idle) fed the bus its own output forever - the
+      // bus re-notified all 40+ subscribers on every frame. Measured idle: 26
+      // dispatches per 4 s and 750 DOM mutations; dropping the loop takes it to
+      // zero notifications because muting is the documented contract of
+      // __ARISE_MUTATION_BUS__.mute(), which widgets already rely on.
+      try { u.takeRecords(); } catch {}
       for (var e = n.slice(), o = 0; o < e.length; o++) {
         if (n.indexOf(e[o]) !== -1) {
           try { e[o](t, u); } catch (err) { recordFailure(e[o], err); }
         }
       }
+      try { u.takeRecords(); } catch {}
     }
   }
   function a() {
@@ -72,6 +85,15 @@
   };
   u = new MutationObserver(function (t) {
     var addedAny = false;
+    // Some widgets animate their own DOM with requestAnimationFrame and rewrite
+    // text/attributes every frame. Those records cannot introduce new content,
+    // so drop them when they come from a subtree that declares itself
+    // self-updating (data-arise-bus-idle) - measured: 748 idle mutations and 16
+    // redundant re-renders per 4 s on the built dashboard. Real structural
+    // changes are never filtered.
+    if (window.ArisePerf && typeof window.ArisePerf.filter === "function") {
+      try { t = window.ArisePerf.filter(t); } catch (err) { recordFailure(window.ArisePerf.filter, err); }
+    }
     for (var e = 0; e < t.length; e++) {
       var rec = t[e];
       if ((!rec.addedNodes || !rec.addedNodes.length) && (!rec.removedNodes || !rec.removedNodes.length)) continue;

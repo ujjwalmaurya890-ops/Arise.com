@@ -1,0 +1,28 @@
+/* ==========================================================================
+   Accessibility audit (styles/a11y-audit.css)
+   Two small, global fixes plus .a11y-* scoped helpers. Everything here is
+   additive: the theme already styles focus rings and reduced motion, and these
+   rules must not override those.
+   ========================================================================== */
+
+/* The skip link moves focus to #arise-main, which must therefore not draw a
+   focus ring around the whole page — the visible cue is the scroll position. */
+#arise-main:focus,
+#arise-main:focus-visible {
+  outline: none;
+}
+
+/* The live region must stay announced but out of the visual layout. This is a
+   fallback for when the element is created before .sr-only is available. */
+#arise-a11y-route-live {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}

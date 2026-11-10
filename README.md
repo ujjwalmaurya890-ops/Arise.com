@@ -35,6 +35,32 @@ The [engineering report](docs/ENGINEERING-OVERHAUL-2026-10-30.md) documents the 
 
 With the built site running, `npm run test:browser:engineering` checks route layouts, recovery, attachment safety and the real offline shell. `npm run test:performance -- measurement` repeats the local lab protocol. These use explicit test authentication fixtures; they do not verify live provider credentials or relax the production sign-in gate.
 
+## Where to read next
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the shell, the ordered widget loader,
+  storage ownership and the failure surfaces fit together.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — the change loop this repository expects:
+  owner-first edits, a regression per change, registration in the loader and the
+  offline shell, storage hygiene, and the checks that define "done".
+- [CHANGELOG.md](CHANGELOG.md) — what each recent change replaced or fixed.
+- [docs/CONTRIBUTION-REPORT.md](docs/CONTRIBUTION-REPORT.md) — the sixteen
+  contributions, with the measured problem and the verification for each.
+- [REPOSITORY-AUDIT.md](REPOSITORY-AUDIT.md) — the baseline audit this work
+  started from.
+
+### In-app diagnostics worth knowing
+
+| Need | Open |
+| --- | --- |
+| Which shell version is serving the page, update/offline state | the status notice from `window.ArisePwaStatus.state()` |
+| Which widgets or updaters failed | `window.__ariseWidgetFailureReport.failures()` |
+| Chunk retry attempts | `window.AriseReliability.attempts()` |
+| Mutation-bus traffic and filtering | `window.ArisePerf.snapshot()` |
+| Study-time reconciliation (three writers) | `window.AriseFocusAudit.reconcile()` |
+| Two-week load plan with per-day drivers | `window.AriseHorizon.summary()` |
+| One row per progress area | `window.AriseProgress.overview()` |
+| A backup file before restoring it | `window.AriseBackupIntegrity.inspect(snapshot)` |
+
 ## ✨ Core Features
 
 ### 📚 Academic Management
@@ -105,11 +131,17 @@ The project uses modern web technologies to deliver an interactive student-focus
 - `styles/` — global and feature-specific stylesheets.
 - `tests/` — Node/jsdom feature regressions, cloud/auth/sync tests, and opt-in real Firestore rules tests.
 - `scripts/` — local server, build helpers, and test runner.
-- `assets/` — images, fonts, generated widget chunks, sound files, and static data.
+- `assets/` — fonts, generated widget chunks, sound files, static data, and the retained PWA identity icons (no displayed imagery).
 - `docs/` — upgrade notes and project documentation (see [the loading system report](docs/LOADING-SYSTEM-2026-11-07.md)).
 - Root-level `index.html`, `service-worker.js`, `netlify.toml`, and package manifests remain at the site root because static hosting, service-worker scope, and Netlify publish paths rely on those entry points.
 
 Use `npm run dev` to build and serve the site/API locally, `npm run build` for production, and `npm test` for regressions and auth/sync tests. See the secure setup guide before deployment.
+
+### Images and PWA identity assets
+
+The application interface renders **no images**. Logos, avatars, company marks, platform favicons and note images are drawn as text, initials or CSS, and file/certificate attachments are identified by name, type and size instead of an inline picture. Attachment bytes and metadata are still stored untouched and remain downloadable.
+
+The only tracked bitmaps left in `assets/` are the PWA identity set required for installability and browser chrome — `arise-logo.svg`, `arise-logo-32.png`, `arise-logo-192.{png,webp}` and `arise-logo-512.{png,webp}`. They are referenced from `manifest.webmanifest`, the `<link rel="icon">` tags and `service-worker.js`; nothing in the dashboard displays them. See [IMAGE-REMOVAL-REPORT.md](IMAGE-REMOVAL-REPORT.md) for the full inventory and the reasoning behind each retained file.
 
 ---
 

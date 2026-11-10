@@ -22,7 +22,6 @@
    showButtonLoading / hideButtonLoading
    showProgressLoader / hideProgressLoader
    announce(message, { assertive })                   -> one shared live region
-   enhanceImages(root)                                -> lazy image placeholders
    offline.{show,hide,isOffline}
    config                                             -> timing configuration
 
@@ -54,9 +53,7 @@
     progressDone: 240,
     progressError: 620,
     // Live-region de-duplication window
-    announceThrottle: 700,
-    // Images smaller than this are treated as decorative and skipped
-    minImagePx: 8
+    announceThrottle: 700
   };
 
   function readConfigOverrides() {
@@ -689,7 +686,7 @@
     el.setAttribute("aria-busy", "true");
     el.innerHTML =
       '<div class="ars-page-loader__brand">' +
-      '<img class="ars-page-loader__logo" src="./assets/arise-logo.svg" alt="" width="38" height="38" decoding="async" />' +
+      '<span class="arise-brand-mark arise-brand-mark--loading ars-page-loader__logo" aria-hidden="true">A</span>' +
       "<span>Arise</span></div>" +
       '<div class="ars-page-loader__label">' + escapeHtml(o.label || "Preparing your workspace…") + "</div>" +
       '<div class="ars-page-loader__bar" aria-hidden="true"></div>';
@@ -1284,96 +1281,8 @@
     region.textContent = text;
   }
 
-  /* --------------------------------------------------------------- images --- */
-  var imageObserver = null;
-
-  function markImage(img) {
-    if (img.getAttribute("data-ars-img")) return;
-    if (img.getAttribute("aria-hidden") === "true" && !img.getAttribute("alt")) {
-      img.setAttribute("data-ars-img", "decorative");
-      return;
-    }
-    img.setAttribute("data-ars-img", "pending");
-    img.classList.add("ars-img-loading");
-    if (img.complete) {
-      if (img.naturalWidth > 0) imageLoaded(img);
-      else if (img.currentSrc || img.getAttribute("src")) imageError(img);
-    }
-  }
-
-  function imageLoaded(img) {
-    img.setAttribute("data-ars-img", "loaded");
-    img.classList.remove("ars-img-loading", "ars-img-error");
-    img.classList.add("ars-img-loaded");
-  }
-
-  function imageError(img) {
-    img.setAttribute("data-ars-img", "error");
-    img.classList.remove("ars-img-loading", "ars-img-loaded");
-    img.classList.add("ars-img-error");
-  }
-
-  function onImageEvent(ev) {
-    var el = ev.target;
-    if (!el || !el.tagName || el.tagName !== "IMG") return;
-    if (el.getAttribute("data-ars-img") === "loaded") return;
-    if (ev.type === "load") imageLoaded(el);
-    else if (ev.type === "error") imageError(el);
-  }
-
-  function enhanceImages(container) {
-    var scope = container && container.nodeType === 1 ? container : doc;
-    if (!scope.querySelectorAll) return 0;
-    if (scope.tagName === "IMG") markImage(scope);
-    var images = scope.querySelectorAll("img:not([data-ars-img])");
-    for (var i = 0; i < images.length; i += 1) {
-      var img = images[i];
-      if (img.getAttribute("loading") === "lazy" && img.getBoundingClientRect) {
-        var rect = img.getBoundingClientRect();
-        if (rect.width && rect.height && rect.width < config.minImagePx) continue;
-      }
-      markImage(img);
-    }
-    return images.length;
-  }
-
-  function initImages() {
-    if (doc.__arsImageBound) return;
-    doc.__arsImageBound = true;
-    doc.addEventListener("load", onImageEvent, true);
-    doc.addEventListener("error", onImageEvent, true);
-    enhanceImages(doc);
-
-    function scan() {
-      enhanceImages(doc);
-    }
-    if (window.__ARISE_MUTATION_BUS__ && typeof window.__ARISE_MUTATION_BUS__.subscribe === "function") {
-      window.__ARISE_MUTATION_BUS__.subscribe(function () {
-        if (!doc.hidden) scan();
-      });
-    }
-    if (typeof MutationObserver === "function" && doc.body) {
-      var pending = null;
-      imageObserver = new MutationObserver(function (records) {
-        var relevant = false;
-        for (var r = 0; r < records.length && !relevant; r += 1) {
-          var added = records[r].addedNodes;
-          for (var n = 0; n < added.length; n += 1) {
-            var node = added[n];
-            if (node.nodeType !== 1) continue;
-            if (node.tagName === "IMG" || (node.querySelector && node.querySelector("img"))) {
-              relevant = true;
-              break;
-            }
-          }
-        }
-        if (!relevant) return;
-        if (pending) clearTimeout(pending);
-        pending = setTimeout(scan, 160);
-      });
-      imageObserver.observe(doc.body, { childList: true, subtree: true });
-    }
-  }
+  /* Loading states remain focused on navigation, operations and network state.
+     User attachments are stored and downloadable, but are not rendered as images. */
 
   /* --------------------------------------------------------------- offline -- */
   var offlineEl = null;
@@ -1470,7 +1379,6 @@
     ensureTopbar();
     ensureLiveRegion("polite");
     ensureLiveRegion("assertive");
-    initImages();
     initNetwork();
     initNavigationProgress();
     enhanceBootGate();
@@ -1503,7 +1411,6 @@
     showProgressLoader: showProgressLoader,
     hideProgressLoader: hideProgressLoader,
     announce: announce,
-    enhanceImages: enhanceImages,
     offline: offline,
     prefersReducedMotion: prefersReducedMotion
   };

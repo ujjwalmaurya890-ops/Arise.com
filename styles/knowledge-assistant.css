@@ -1,0 +1,284 @@
+/* ==========================================================================
+   Knowledge health panel (styles/knowledge-assistant.css)
+   Additive and theme-token based: no hardcoded surfaces, so it follows every
+   built-in light/dark palette. Scoped to .ka-* so it cannot affect widgets.
+   ========================================================================== */
+
+.ka-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.ka-launcher {
+  position: fixed;
+  left: 1rem;
+  bottom: 4rem;
+  z-index: 950;
+  height: 2.1rem;
+  min-width: 2.4rem;
+  padding: 0 .6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-md);
+  font: 600 .72rem/1 var(--font-body, "Inter", sans-serif);
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease;
+}
+.ka-launcher:hover,
+.ka-launcher:focus-visible {
+  color: var(--text-primary);
+  border-color: var(--primary);
+  outline: none;
+}
+.ka-badge {
+  min-width: 1.1rem;
+  padding: 0 .3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning) 22%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border));
+  color: var(--text-primary);
+  font: 700 .62rem/1.5 var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+}
+.ka-badge[hidden] { display: none; }
+
+.ka-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: none;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--overlay, #000) 72%, transparent);
+}
+.ka-overlay[data-open="true"] { display: grid; }
+
+.ka-dialog {
+  width: min(52rem, 100%);
+  max-height: min(86vh, 44rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.ka-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem .8rem;
+  border-bottom: 1px solid var(--border);
+}
+.ka-head h2 {
+  margin: 0;
+  font: 800 1.02rem/1.25 var(--font-display, "Inter", sans-serif);
+  color: var(--text-primary);
+}
+.ka-status {
+  margin: .2rem 0 0;
+  font: 600 .74rem/1.3 var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+.ka-tabs {
+  display: flex;
+  gap: .25rem;
+  padding: .55rem 1.15rem 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ka-tabs::-webkit-scrollbar { display: none; }
+.ka-tab {
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: .42rem .72rem;
+  font: 600 .76rem/1.1 var(--font-body, "Inter", sans-serif);
+  cursor: pointer;
+}
+.ka-tab:hover { color: var(--text-primary); background: var(--surface-hover); }
+.ka-tab[data-active="true"],
+.ka-tab[aria-selected="true"] {
+  color: var(--text-primary);
+  background: var(--surface-muted);
+  border-color: var(--border);
+}
+.ka-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+.ka-body {
+  overflow: auto;
+  padding: 1rem 1.15rem 1.25rem;
+  scrollbar-gutter: stable;
+}
+.ka-body:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
+
+.ka-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: .55rem;
+  margin-bottom: .9rem;
+}
+.ka-stat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  padding: .6rem .7rem;
+  min-width: 0;
+}
+.ka-stat strong {
+  display: block;
+  font: 700 1.05rem/1.2 var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.ka-stat span {
+  display: block;
+  margin-top: .15rem;
+  font-size: .62rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+.ka-stat.ka-warn {
+  border-color: color-mix(in srgb, var(--warning) 48%, var(--border));
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+}
+.ka-stat.ka-warn strong { color: var(--warning-ink, var(--warning)); }
+
+.ka-h {
+  margin: 1rem 0 .45rem;
+  font: 700 .74rem/1.2 var(--font-body, "Inter", sans-serif);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-tertiary);
+}
+.ka-block { margin-bottom: .9rem; }
+.ka-tag {
+  margin-left: .35rem;
+  padding: .08rem .38rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-tertiary);
+  font: 600 .62rem/1.4 var(--font-mono, monospace);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ka-list { display: flex; flex-direction: column; gap: .3rem; }
+
+.ka-entry {
+  display: flex;
+  flex-direction: column;
+  gap: .12rem;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: .48rem .62rem;
+  cursor: pointer;
+}
+.ka-entry:hover,
+.ka-entry:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+  background: var(--surface-hover);
+  outline: none;
+}
+.ka-entry-title { font: 600 .8rem/1.3 var(--font-body, "Inter", sans-serif); word-break: break-word; }
+.ka-entry-note { font-size: .7rem; color: var(--text-tertiary); }
+
+.ka-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .5rem .6rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  margin-bottom: .35rem;
+  flex-wrap: wrap;
+}
+.ka-row-main { display: flex; flex-direction: column; gap: .12rem; min-width: 0; flex: 1; }
+.ka-row-actions { display: flex; gap: .3rem; }
+.ka-row-actions .ka-entry { width: auto; padding: .3rem .55rem; }
+
+.ka-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  padding: .35rem .6rem;
+  font: 600 .72rem/1.2 var(--font-body, "Inter", sans-serif);
+  cursor: pointer;
+}
+.ka-btn:hover,
+.ka-btn:focus-visible {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  outline: none;
+}
+.ka-close { flex-shrink: 0; }
+
+.ka-empty {
+  margin: .4rem 0;
+  padding: 1.2rem .9rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: .8rem;
+  line-height: 1.45;
+}
+.ka-hint {
+  margin: .9rem 0 0;
+  font-size: .72rem;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 1023px) {
+  .ka-launcher { bottom: calc(5.4rem + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 680px) {
+  .ka-overlay { padding: 0; }
+  .ka-dialog {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ka-launcher,
+  .ka-tab,
+  .ka-entry,
+  .ka-btn { transition: none !important; }
+}

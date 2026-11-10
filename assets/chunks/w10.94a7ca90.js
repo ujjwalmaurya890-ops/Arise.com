@@ -655,6 +655,299 @@ try{
 
 }catch(__arise_e){setTimeout(function(){throw __arise_e})}
 
+/* ---- ./src/pwa-status.js ---- */
+try{
+/* ==========================================================================
+   PWA status (src/pwa-status.js)
+   --------------------------------------------------------------------------
+   The offline shell registers itself silently (src/cloud/protected-runtime.js)
+   and its service worker calls skipWaiting()/clients.claim() on install, so a
+   new version takes control *while the page you are looking at keeps running the
+   files it already loaded*. Nothing told the user that:
+
+     - a newer version had been installed and a reload would pick it up;
+     - the shell had just changed underneath them, so a reload is what makes the
+       current tab match the cache;
+     - the app was offline but still fully usable from the cache, or offline with
+       pages that were never cached.
+
+   This module adds one small, non-modal status card for exactly those moments
+   and nothing else. It does not duplicate the existing "you are offline" banner
+   in src/loading-system.js, it never claims push support, it never blocks the
+   page, and it disappears when there is nothing to say.
+
+   Public API (window.ArisePwaStatus)
+   ----------------------------------
+   state()          -> { supported, phase, version, cachedCaches, dismissed }
+   shellVersion()   -> "v248" (parsed from service-worker.js) or null
+   check()          -> Promise<{ ok, version, error }>  (asks for an update now)
+   reload()         -> reloads the page (the only action the card offers)
+   dismiss()        -> hides the card until the next real event
+   mount()/render() -> DOM control, used by the tests
+   ========================================================================== */
+(function () {
+  "use strict";
+  if (window.ArisePwaStatus) return;
+
+  var CARD_ID = "pwa-status";
+  var state = {
+    supported: false,
+    phase: "idle", // idle | ready | updated | offline | unsupported
+    version: null,
+    cachedCaches: 0,
+    dismissed: false,
+    reloading: false
+  };
+  var registration = null;
+  var startedWithController = false;
+  var booted = false;
+
+  function sw() {
+    return (window.navigator && window.navigator.serviceWorker) || null;
+  }
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+
+  // The cache name carries the shell version plus the build digest from
+  // service-worker.js, so a user (or a bug report) can tell exactly which shell
+  // is serving the page. Cache names are the truth about what is installed.
+  function shellVersion() {
+    if (state.version) return state.version;
+    try {
+      var names = window.__ariseSwCacheNames || [];
+      for (var i = 0; i < names.length; i += 1) {
+        var found = /^arise-developer-system-(v\d+[a-z0-9-]*-?[a-f0-9]*)/i.exec(names[i] || "");
+        if (found) { state.version = found[1].replace(/-+$/, ""); return state.version; }
+      }
+    } catch {}
+    return state.version;
+  }
+
+  function readCaches() {
+    if (!window.caches || typeof window.caches.keys !== "function") return Promise.resolve(0);
+    return window.caches.keys().then(function (names) {
+      var own = (names || []).filter(function (name) { return name.indexOf("arise-developer-system-") === 0; });
+      window.__ariseSwCacheNames = own;
+      shellVersion();
+      state.cachedCaches = own.length;
+      return own.length;
+    }).catch(function () { return 0; });
+  }
+
+  function online() {
+    return !(window.navigator && window.navigator.onLine === false);
+  }
+
+  function setPhase(phase) {
+    if (state.phase === phase) return;
+    state.phase = phase;
+    // A new event deserves another chance to be seen.
+    if (phase === "ready" || phase === "updated" || phase === "offline") state.dismissed = false;
+    render();
+  }
+
+  /* ------------------------------------------------------------------- UI -- */
+
+  function message() {
+    if (state.phase === "ready") {
+      return { tone: "update", title: "A new version is ready", detail: "It was installed in the background. Reload to use it — nothing you have saved is affected.", action: "Reload" };
+    }
+    if (state.phase === "updated") {
+      return { tone: "update", title: "Updated in the background", detail: "The newest version is serving this tab now. Reload so the page matches it.", action: "Reload" };
+    }
+    if (state.phase === "offline") {
+      if (state.cachedCaches > 0) {
+        return { tone: "offline", title: "Offline — cached shell in use", detail: "This page and its saved data came from the offline cache. Network actions resume when you reconnect.", action: null };
+      }
+      return { tone: "offline", title: "Offline — nothing cached yet", detail: "The offline shell has not finished caching on this device. Pages you have not opened may not load until you reconnect.", action: null };
+    }
+    return null;
+  }
+
+  function card() {
+    return document.getElementById(CARD_ID);
+  }
+
+  function remove() {
+    var node = card();
+    if (node && node.parentNode) node.parentNode.removeChild(node);
+  }
+
+  function render() {
+    var copy = state.dismissed ? null : message();
+    if (!copy) { remove(); return null; }
+    var node = card();
+    if (!node) {
+      node = document.createElement("div");
+      node.id = CARD_ID;
+      node.className = "pwa-status";
+      node.setAttribute("role", "status");
+      node.setAttribute("aria-live", "polite");
+      node.setAttribute("aria-atomic", "true");
+      document.body.appendChild(node);
+    }
+    node.setAttribute("data-tone", copy.tone);
+    node.innerHTML =
+      '<span class="pwa-status-dot" aria-hidden="true"></span>' +
+      '<span class="pwa-status-text"><strong class="pwa-status-title">' + esc(copy.title) + "</strong>" +
+      '<span class="pwa-status-detail">' + esc(copy.detail) + "</span></span>" +
+      (copy.action ? '<button type="button" class="pwa-status-action" data-pwa-action="reload">' + esc(copy.action) + "</button>" : "") +
+      '<button type="button" class="pwa-status-close" data-pwa-action="dismiss" aria-label="Dismiss this notice">&times;</button>';
+    return node;
+  }
+
+  function onCardClick(event) {
+    var button = event.target && event.target.closest ? event.target.closest("[data-pwa-action]") : null;
+    if (!button) return;
+    var action = button.getAttribute("data-pwa-action");
+    if (action === "reload") reload();
+    else if (action === "dismiss") dismiss();
+  }
+
+  /* -------------------------------------------------------------- lifecycle -- */
+
+  function watch(target) {
+    if (!target || !target.addEventListener) return;
+    target.addEventListener("updatefound", function () {
+      var installing = target.installing;
+      if (!installing) return;
+      setPhase("idle");
+      installing.addEventListener("statechange", function () {
+        if (installing.state === "installed" && sw() && sw().controller) {
+          // A previous version already controls this tab: this is a real update.
+          setPhase("ready");
+        }
+      });
+    });
+  }
+
+  function boot() {
+    if (booted) return;
+    booted = true;
+    var api = sw();
+    state.supported = !!api;
+    if (!api) {
+      state.phase = "unsupported";
+      return;
+    }
+    startedWithController = !!api.controller;
+    if (api.addEventListener) {
+      api.addEventListener("controllerchange", function () {
+        // The very first claim (no controller at load) is the install, not an
+        // update, and reloading for it would lose an in-progress session.
+        if (!startedWithController) { startedWithController = true; return; }
+        setPhase("updated");
+      });
+    }
+    var adopt = function (reg) {
+      if (!reg) return null;
+      registration = reg;
+      watch(reg);
+      // An update may already be waiting when this script runs.
+      if (reg.waiting && api.controller) setPhase("ready");
+      return reg;
+    };
+    if (typeof api.getRegistration === "function") {
+      api.getRegistration().then(adopt).catch(function () {});
+    }
+    if (api.ready) api.ready.then(adopt).catch(function () {});
+    readCaches().then(refreshConnectivity);
+    document.addEventListener("click", onCardClick, true);
+    window.addEventListener("online", refreshConnectivity);
+    window.addEventListener("offline", refreshConnectivity);
+    // Returning to a backgrounded tab is the natural moment to look for updates.
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) check();
+    });
+    // Ask for the extended shell once the page is idle, as before, but now the
+    // status card can report whether it worked.
+    setTimeout(readCaches, 4000);
+  }
+
+  function refreshConnectivity() {
+    if (!state.supported) return;
+    if (!online()) {
+      readCaches().then(function () { setPhase("offline"); });
+      return;
+    }
+    // Back online: an update notice may still be waiting; otherwise stand down.
+    if (registration && registration.waiting && sw() && sw().controller) setPhase("ready");
+    else if (state.phase === "offline") setPhase("idle");
+  }
+
+  function check() {
+    var api = sw();
+    if (!api) return Promise.resolve({ ok: false, error: "unsupported" });
+    var target = registration || (typeof api.getRegistration === "function" ? api.getRegistration() : Promise.resolve(null));
+    return Promise.resolve(target).then(function (reg) {
+      if (!reg) return { ok: false, error: "not registered" };
+      registration = reg;
+      watch(reg);
+      if (typeof reg.update !== "function") return { ok: false, error: "update unavailable" };
+      return reg.update().then(function () {
+        if (reg.waiting && api.controller) setPhase("ready");
+        return readCaches().then(function () {
+          return { ok: true, version: state.version, waiting: !!reg.waiting };
+        });
+      });
+    }).catch(function (error) {
+      return { ok: false, error: (error && error.message) || "update failed" };
+    });
+  }
+
+  function reload() {
+    state.reloading = true;
+    try { remove(); } catch {}
+    try {
+      window.location.reload();
+      return true;
+    } catch {
+      // jsdom and locked-down browsers throw here; the caller can still see it.
+      return false;
+    }
+  }
+
+  function dismiss() {
+    state.dismissed = true;
+    remove();
+    return true;
+  }
+
+  function api() {
+    return {
+      supported: state.supported,
+      phase: state.phase,
+      version: state.version,
+      cachedCaches: state.cachedCaches,
+      dismissed: state.dismissed,
+      reloading: state.reloading,
+      card: !!card(),
+      message: state.dismissed ? null : message()
+    };
+  }
+
+  window.ArisePwaStatus = {
+    state: api,
+    shellVersion: shellVersion,
+    check: check,
+    reload: reload,
+    dismiss: dismiss,
+    render: render,
+    mount: function () { boot(); return render(); },
+    refreshConnectivity: refreshConnectivity,
+    readCaches: readCaches
+  };
+
+  if (document.body) boot();
+  else document.addEventListener("DOMContentLoaded", boot);
+})();
+
+}catch(__arise_e){setTimeout(function(){throw __arise_e})}
+
 /* ---- ./src/projects-widget.js ---- */
 try{
 (function(){window.__ARISE_PROJECTS_WIDGET__||(window.__ARISE_PROJECTS_WIDGET__=!0);var J="projects",pe="pjw-sort-mode",ve="arise-cp-tracker-v1",K=[{key:"githubLink",label:"GitHub repo link"},{key:"liveDemo",label:"Live demo link"},{key:"readme",label:"README (setup / usage)"},{key:"screenshots",label:"Screenshots / preview"},{key:"techStack",label:"Tech stack listed"},{key:"authDbApi",label:"Auth / database / API"},{key:"responsiveUI",label:"Responsive UI"},{key:"tests",label:"Tests"},{key:"deployment",label:"Deployed / hosted"},{key:"resumeBullet",label:"Resume bullet written"}],g=null,V=null;function $(){return V===null&&window.AriseWidgetNav&&window.AriseWidgetNav.create&&(V=window.AriseWidgetNav.create({storageKey:"arise-widget-nav-projects",sections:[{id:"analytics",label:"Analytics",icon:"📊"},{id:"techstack",label:"Tech Stack",icon:"🧰"},{id:"deadlines",label:"Deadlines",icon:"⏳"},{id:"board",label:"Board",icon:"🧭"},{id:"timetracking",label:"Time",icon:"⏱️"},{id:"portfolio",label:"Portfolio",icon:"📦"},{id:"tier3prep",label:"Tier-3 Prep",icon:"🎯"},{id:"projects",label:"Projects",icon:"🗂️"}]})),V}function Ce(){var e=$();return e?e.navHtml():""}function P(e,t){var i=$();return i?i.panelWrap(e,t):typeof t=="function"?t():t}function Ne(){var e=$();e&&e.wire(g)}var j={},X={},Z={},ee={},te={},I={},we={},A=Le(),k={},N={},M={},L={},E=[{key:"q1",label:"What does this project do? (30-second pitch)"},{key:"q2",label:"Why did you choose this tech stack?"},{key:"q3",label:"What was one real challenge, and how did you solve it?"},{key:"q4",label:"What would you improve or add next?"}],Me=[{key:"none",label:"Not yet",tone:"danger"},{key:"getting-there",label:"Getting there",tone:"warning"},{key:"ready",label:"Ready",tone:"success"}];function l(e){return String(e??"").replace(/[&<>"']/g,function(t){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[t]})}function R(e){return e+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8)}function Le(){try{return localStorage.getItem(pe)||"default"}catch{return"default"}}function De(e){try{localStorage.setItem(pe,e)}catch{}}function H(){var e=null;try{e=localStorage.getItem(J)}catch{}if(!e)return[];var t;try{t=JSON.parse(e)}catch{return[]}return Array.isArray(t)?t:[]}function B(e){var t=!1,i=e.map(function(a){if(!a||typeof a!="object")return a;var r=a;return Array.isArray(a.techStack)||(r=Object.assign({},r,{techStack:[]}),t=!0),(typeof a.timeInvested!="number"||isNaN(a.timeInvested))&&(r=Object.assign({},r,{timeInvested:0}),t=!0),Array.isArray(a.features)||(r=Object.assign({},r,{features:[]}),t=!0),Array.isArray(a.bugs)||(r=Object.assign({},r,{bugs:[]}),t=!0),(typeof a.updatedAt!="string"||!a.updatedAt)&&(r=Object.assign({},r,{updatedAt:a.createdAt||new Date().toISOString()}),t=!0),typeof a.resumeBulletText!="string"&&(r=Object.assign({},r,{resumeBulletText:""}),t=!0),(!a.interviewAnswers||typeof a.interviewAnswers!="object"||Array.isArray(a.interviewAnswers))&&(r=Object.assign({},r,{interviewAnswers:{q1:"",q2:"",q3:"",q4:""}}),t=!0),typeof a.interviewConfidence!="string"&&(r=Object.assign({},r,{interviewConfidence:"none"}),t=!0),(!a.collegeSubmission||typeof a.collegeSubmission!="object"||Array.isArray(a.collegeSubmission))&&(r=Object.assign({},r,{collegeSubmission:{report:!1,ppt:!1,vivaDone:!1,vivaDate:""}}),t=!0),typeof a.isTeamProject!="boolean"&&(r=Object.assign({},r,{isTeamProject:!1}),t=!0),typeof a.myContribution!="string"&&(r=Object.assign({},r,{myContribution:""}),t=!0),typeof a.isPrimaryPitch!="boolean"&&(r=Object.assign({},r,{isPrimaryPitch:!1}),t=!0),r});return{list:i,changed:t}}function Oe(e){return JSON.stringify({title:e.title,description:e.description,category:e.category,progress:e.progress,githubLink:e.githubLink,demoLink:e.demoLink,deadline:e.deadline,notes:e.notes,archived:e.archived,features:e.features,bugs:e.bugs,techStack:e.techStack,timeInvested:e.timeInvested,resumeBulletText:e.resumeBulletText,interviewAnswers:e.interviewAnswers,interviewConfidence:e.interviewConfidence,collegeSubmission:e.collegeSubmission,isTeamProject:e.isTeamProject,myContribution:e.myContribution,isPrimaryPitch:e.isPrimaryPitch})}function qe(e){var t=!1,i=e.map(function(a){if(!a||typeof a!="object"||!a.id)return a;var r=Oe(a),s=we[a.id];return we[a.id]=r,s!==void 0&&s!==r?(t=!0,Object.assign({},a,{updatedAt:new Date().toISOString()})):a});return{list:i,changed:t}}function z(e){try{localStorage.setItem(J,JSON.stringify(e))}catch{}}function b(e,t,i){var a=e.map(function(r){return r&&r.id===t?Object.assign({},r,i):r});z(a),y()}function Ie(e,t){var i=!1,a=e.filter(function(s){return s&&s.id===t})[0];a&&a.isPrimaryPitch&&(i=!0);var r=e.map(function(s){if(!s)return s;var u=!i&&s.id===t;return s.isPrimaryPitch===u?s:Object.assign({},s,{isPrimaryPitch:u})});z(r),y()}function C(e){if(!e)return null;var t=new Date(e);if(isNaN(t.getTime()))return null;var i=new Date(t.getFullYear(),t.getMonth(),t.getDate()).getTime(),a=new Date;return a=new Date(a.getFullYear(),a.getMonth(),a.getDate()).getTime(),Math.round((i-a)/864e5)}function fe(e){if(!e)return null;var t=new Date(e).getTime();return isNaN(t)?null:Math.floor((Date.now()-t)/864e5)}function ge(e){if(!e.deadline)return'<span class="pjw-deadline pjw-deadline-none">No deadline set</span>';var t=C(e.deadline);if(t===null)return'<span class="pjw-deadline pjw-deadline-none">Invalid date</span>';var i="pjw-deadline-ok",a;return t<0?(i="pjw-deadline-overdue",a=Math.abs(t)+"d overdue"):t===0?(i="pjw-deadline-today",a="Due today"):(t<=3&&(i="pjw-deadline-soon"),a=t+"d left"),'<span class="pjw-deadline '+i+'">⏳ '+l(a)+' <span class="pjw-deadline-date">('+l(e.deadline)+")</span></span>"}function _e(e){if(e.archived)return"";var t=Number(e.progress)||0;if(t<=0||t>=100)return"";var i=fe(e.updatedAt);return i===null||i<30?"":'<span class="pjw-stale-badge" title="No detected change in progress, notes, links, checklist or tags for '+i+' days">⚠ Stale · '+i+"d no update</span>"}var Ee="arise-notes-app-v1";function Re(){var e=null;try{e=localStorage.getItem(Ee)}catch{}if(!e)return null;try{var t=JSON.parse(e);return t&&typeof t=="object"?t:null}catch{return null}}function He(e){var t=Re();if(!t||!Array.isArray(t.notes))return 0;var i=U(e.title);return i?t.notes.filter(function(a){return a&&!a.deletedAt&&a.linkType==="project"&&U(a.linkedLabel)===i}).length:0}function Be(e){var t=He(e);return t?'<span class="pjw-notes-badge" title="'+t+" note"+(t===1?"":"s")+' linked to this project">📝 '+t+" note"+(t===1?"":"s")+"</span>":""}function be(){var e=null;try{e=localStorage.getItem(ve)}catch{}if(!e)return null;try{var t=JSON.parse(e);return t&&typeof t=="object"?t:null}catch{return null}}function U(e){return String(e??"").trim().toLowerCase()}function S(e,t){if(!e||!Array.isArray(e.projects))return null;var i=U(t);if(!i)return null;var a=e.projects.filter(function(r){return r&&U(r.name)===i});return a.length?a[0]:null}function T(e){if(!e||!e.checks)return 0;var t=0;return K.forEach(function(i){e.checks[i.key]&&t++}),t*10}function ae(e){return e>=75?"success":e>=40?"warning":"danger"}function ze(e,t){var i=S(t,e.title);if(!i)return'<span class="pjw-quality-badge pjw-quality-badge-none" title="Add this project in the Project Quality tab to track it here">Not in Quality tab</span>';var a=T(i),r=ae(a),s=a>=75?"✓ Resume Ready":a+"/100 quality";return'<span class="pjw-quality-badge" data-tone="'+r+'">'+l(s)+"</span>"}function Ue(e,t){var i=S(t,e.title);if(!i)return'<div class="pjw-block"><div class="pjw-block-title">🎯 Project Quality <span class="pjw-block-count">not tracked</span></div><div class="pjw-empty-sub">No matching entry in the Project Quality tab yet (matched by project name: "'+l(e.title)+'").</div><button type="button" class="pjw-btn pjw-btn-secondary" data-action="open-quality-tab">Open Project Quality tab →</button></div>';var a=T(i),r=ae(a),s=K.map(function(p){var v=!!(i.checks&&i.checks[p.key]);return'<span class="pjw-quality-chip'+(v?" pjw-quality-chip-on":"")+'">'+(v?"✓":"○")+" "+l(p.label)+"</span>"}).join(""),u=K.filter(function(p){return!(i.checks&&i.checks[p.key])});return'<div class="pjw-block"><div class="pjw-block-title">🎯 Project Quality <span class="pjw-block-count" data-tone="'+r+'">'+a+'/100</span></div><div class="pjw-quality-chips">'+s+"</div>"+(u.length?'<div class="pjw-empty-sub">Missing: '+u.map(function(p){return l(p.label)}).join(", ")+"</div>":'<div class="pjw-empty-sub">All quality checks complete ✓</div>')+'<button type="button" class="pjw-btn pjw-btn-secondary" data-action="open-quality-tab">Open in Project Quality tab →</button></div>'}function Fe(){var e=document.querySelector('[data-nav-id="cp"]');if(e)return e;for(var t=document.querySelectorAll("button"),i=0;i<t.length;i++)if(/Competitive Programming/i.test(t[i].textContent||""))return t[i];return null}function We(){var e=document.querySelector('.cp-tabs [data-tab="quality"]');if(e)return e;for(var t=document.querySelectorAll(".cp-tabs button, .cp-tab"),i=0;i<t.length;i++)if(/Project Quality/i.test(t[i].textContent||""))return t[i];return null}function Qe(){var e=Fe();e&&e.click();var t=0,i=setInterval(function(){t++;var a=We();a?(a.click(),clearInterval(i)):t>20&&clearInterval(i)},100)}function Ge(e){return e&&e.charAt(0).toLowerCase()+e.slice(1)}function Ye(e){return e.length===1?e[0]:e.length===2?e[0]+" and "+e[1]:e.slice(0,-1).join(", ")+", and "+e[e.length-1]}function re(e){var t=String(e.title||"Untitled Project").trim(),i=String(e.description||"").trim().replace(/\.+$/,""),a=(e.techStack||[]).filter(Boolean),r=(e.features||[]).filter(function(v){return v&&v.done}).length,s=(e.features||[]).length,u=(Number(e.progress)||0)>=100?"Built":"Developed",p=u+" "+t;return i&&(p+=", "+Ge(i)),a.length&&(p+=" using "+Ye(a)),s>0&&(p+="; shipped "+r+"/"+s+" planned features"),e.demoLink?p+=", deployed live":e.githubLink&&(p+=", with source on GitHub"),p+"."}function Je(e){var t=Object.prototype.hasOwnProperty.call(I,e.id)?I[e.id]:e.resumeBulletText||re(e),i=!!e.resumeBulletText;return'<div class="pjw-block"><div class="pjw-block-title">📝 Resume Bullet <span class="pjw-block-count">'+(i?"saved":"auto-draft")+'</span></div><textarea class="pjw-input pjw-bullet-text" rows="3" data-input="bullet">'+l(t)+'</textarea><div class="pjw-inline-form"><button type="button" class="pjw-btn pjw-btn-primary" data-action="save-bullet">Save</button><button type="button" class="pjw-btn pjw-btn-secondary" data-action="regenerate-bullet">Regenerate from project info</button><button type="button" class="pjw-btn pjw-btn-secondary" data-action="copy-bullet">Copy</button></div><div class="pjw-empty-sub">Once it reads well, tick "Resume bullet written" for this project in the Project Quality tab.</div></div>'}function je(e){var t=[];t.push("# "+(e.title||"Untitled Project")),t.push("");var i=[];e.category&&i.push("**Category:** "+e.category),(e.techStack||[]).length&&i.push("**Tech stack:** "+e.techStack.join(", ")),i.push("**Progress:** "+(Number(e.progress)||0)+"%"),t.push(i.join(`  

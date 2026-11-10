@@ -1,0 +1,84 @@
+/* ==========================================================================
+   PWA status (styles/pwa-status.css)
+   A single, small, non-modal notice. It must never cover the workspace: it sits
+   above the bottom-left corner, clears the existing launcher stack, and leaves
+   the layout untouched when it is not rendered.
+   ========================================================================== */
+
+.pwa-status {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: .7rem .8rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  color: var(--text-secondary);
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: .76rem;
+  line-height: 1.4;
+}
+.pwa-status[data-tone="update"] { border-color: color-mix(in srgb, var(--primary) 55%, var(--border-strong)); }
+.pwa-status[data-tone="offline"] { border-color: color-mix(in srgb, var(--warning) 55%, var(--border-strong)); }
+
+.pwa-status-dot {
+  flex-shrink: 0;
+  width: .5rem;
+  height: .5rem;
+  margin-top: .3rem;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.pwa-status[data-tone="offline"] .pwa-status-dot { background: var(--warning); }
+
+.pwa-status-text { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.pwa-status-title { color: var(--text-primary); font-weight: 700; }
+.pwa-status-detail { color: var(--text-tertiary); }
+
+.pwa-status-action {
+  flex-shrink: 0;
+  align-self: center;
+  font: inherit;
+  font-weight: 700;
+  padding: .32rem .6rem;
+  border-radius: 8px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--primary-contrast);
+  cursor: pointer;
+}
+.pwa-status-action:hover { background: var(--primary-hover); }
+.pwa-status-close {
+  flex-shrink: 0;
+  font: inherit;
+  line-height: 1;
+  padding: .1rem .3rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.pwa-status-close:hover { color: var(--text-primary); background: var(--surface-hover); }
+.pwa-status-action:focus-visible,
+.pwa-status-close:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+@media (max-width: 680px) {
+  /* Clear the mobile bottom navigation and the floating launchers. */
+  .pwa-status {
+    left: .6rem;
+    right: .6rem;
+    bottom: calc(4.4rem + env(safe-area-inset-bottom, 0px));
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pwa-status { transition: none !important; }
+}

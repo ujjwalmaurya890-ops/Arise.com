@@ -450,6 +450,211 @@ try{
 
 }catch(__arise_e){setTimeout(function(){throw __arise_e})}
 
+/* ---- ./src/a11y-audit.js ---- */
+try{
+/* ==========================================================================
+   Accessibility audit (src/a11y-audit.js)
+   --------------------------------------------------------------------------
+   The shell already ships a skip link, labelled nav/aside landmarks, aria-live
+   regions, Escape handling in several dialogs, a reduced-motion stylesheet and
+   theme focus rings. Auditing it again by hand is what produced the following
+   gap: index.html puts a visible "Skip to main content" link in front of every
+   route, but the skip target (#arise-main) is not focusable, and the route is
+   never announced — so activating the link scrolls the page and leaves focus
+   where it was, and a keyboard user has no idea the route changed.
+
+   This module fixes those two things and makes them testable, without touching
+   the React bundle:
+
+   1. #arise-main becomes a labelled, programmatically focusable main landmark,
+      so the skip link actually moves focus;
+   2. each route change is announced through one polite live region (the shell
+      already announces "Analytics page" in some routes — this one only speaks
+      when the heading changed, so nothing is announced twice);
+   3. the landmark, the skip link and the live region are exposed through
+      audit(), so a regression test can assert them instead of trusting them.
+
+   Public API (window.AriseA11y)
+   -----------------------------
+   ensureLandmarks()          -> { main, skipLink, live }
+   announce(text)             -> speaks through the polite live region
+   audit()                    -> { main{...}, skipLink{...}, live{...}, route{...} }
+   ========================================================================== */
+(function () {
+  "use strict";
+  if (window.AriseA11y) return;
+
+  var LIVE_ID = "arise-a11y-route-live";
+  var lastHeading = null;
+
+  function main() { return document.getElementById("arise-main"); }
+
+  function skipLink() {
+    return document.querySelector('a.arise-skip-link[href="#arise-main"], a[href="#arise-main"].arise-sk');
+  }
+
+  function routeHeading() {
+    var host = main();
+    var heading = host && host.querySelector("header h1");
+    return heading ? String(heading.textContent || "").replace(/\s+/g, " ").trim() : "";
+  }
+
+  // The skip link only works if its target can receive focus on demand.
+  function ensureLandmarks() {
+    var host = main();
+    var link = skipLink();
+    if (host) {
+      if (!host.hasAttribute("role")) host.setAttribute("role", "main");
+      if (!host.hasAttribute("tabindex")) host.setAttribute("tabindex", "-1");
+      if (!host.hasAttribute("aria-label")) host.setAttribute("aria-label", "Main content");
+    }
+    if (link && !link.getAttribute("aria-label")) {
+      link.setAttribute("aria-label", "Skip to main content");
+    }
+    var live = document.getElementById(LIVE_ID);
+    if (!live && document.body) {
+      live = document.createElement("div");
+      live.id = LIVE_ID;
+      live.className = "sr-only";
+      live.setAttribute("role", "status");
+      live.setAttribute("aria-live", "polite");
+      live.setAttribute("aria-atomic", "true");
+      // Hidden visually but still announced: .sr-only must not use display:none.
+      live.style.cssText = "position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;";
+      document.body.appendChild(live);
+    }
+    if (host && !host.__ariseA11ySkip) {
+      var onSkip = function (event) {
+        // Follow the link ourselves so focus lands on the landmark even when the
+        // browser would only move the scroll position.
+        event.preventDefault();
+        host.focus({ preventScroll: true });
+        if (typeof host.scrollIntoView === "function") host.scrollIntoView({ block: "start" });
+        if (window.history && typeof window.history.replaceState === "function") {
+          window.history.replaceState(null, "", "#arise-main");
+        }
+      };
+      if (link) link.addEventListener("click", onSkip);
+      host.__ariseA11ySkip = true;
+    }
+    return { main: host, skipLink: link, live: live || document.getElementById(LIVE_ID) };
+  }
+
+  function announce(text) {
+    var live = document.getElementById(LIVE_ID);
+    if (!live || !text) return false;
+    // Re-writing the same string would not be re-announced, so clear first.
+    if (live.textContent === text) {
+      live.textContent = "";
+      setTimeout(function () { live.textContent = text; }, 30);
+    } else {
+      live.textContent = text;
+    }
+    return true;
+  }
+
+  function routeTick() {
+    ensureLandmarks();
+    var heading = routeHeading();
+    if (!heading || heading === lastHeading) return;
+    var first = lastHeading == null;
+    lastHeading = heading;
+    // Only announce real route changes; the initial load is already covered by
+    // the shell's own "Your saved progress is restored" status.
+    if (!first) announce(heading + " page");
+  }
+
+  function audit() {
+    ensureLandmarks();
+    var host = main();
+    var link = skipLink();
+    var live = document.getElementById(LIVE_ID);
+    var focusable = 0;
+    var named = 0;
+    var interactive = [];
+    if (host) {
+      // Inputs wrapped in a <label> (or referenced by label[for]) are already
+      // named by that label, so counting them as unnamed would be a false alarm.
+      interactive = Array.prototype.slice.call(host.querySelectorAll('button, [href], input, select, textarea, [role="button"]')).filter(function (el) {
+        return !el.closest("label") && !(el.id && document.querySelector('label[for="' + el.id + '"]'));
+      });
+      focusable = interactive.filter(function (el) {
+        return !el.disabled && el.getAttribute("tabindex") !== "-1";
+      }).length;
+      named = interactive.filter(function (el) {
+        var label = (el.getAttribute("aria-label") || "").trim() ||
+          (el.getAttribute("aria-labelledby") || "").trim() ||
+          String(el.textContent || "").trim() ||
+          (el.getAttribute("title") || "").trim() ||
+          (el.getAttribute("alt") || "").trim();
+        return !!label;
+      }).length;
+    }
+    var positiveTabindex = host ? host.querySelectorAll('[tabindex]:not([tabindex="-1"]):not([tabindex="0"])').length : 0;
+    return {
+      main: {
+        present: !!host,
+        role: host && host.getAttribute("role"),
+        tabindex: host && host.getAttribute("tabindex"),
+        label: host && host.getAttribute("aria-label"),
+        focusable: !!host && (host.tabIndex === 0 || host.getAttribute("tabindex") !== null)
+      },
+      skipLink: {
+        present: !!link,
+        href: link && link.getAttribute("href"),
+        text: link ? String(link.textContent || "").trim() : "",
+        label: link && link.getAttribute("aria-label")
+      },
+      live: {
+        present: !!live,
+        role: live && live.getAttribute("role"),
+        polite: !!live && live.getAttribute("aria-live") === "polite",
+        atomic: !!live && live.getAttribute("aria-atomic") === "true",
+        visuallyHidden: !!live && live.getBoundingClientRect().width <= 1
+      },
+      route: { heading: routeHeading(), announced: lastHeading },
+      controls: {
+        total: interactive.length,
+        focusable: focusable,
+        named: named,
+        labelledByWrapper: host ? host.querySelectorAll('label > input, label > select, label > textarea, label[for]').length : 0,
+        unnamed: interactive.length - named,
+        positiveTabindex: positiveTabindex
+      }
+    };
+  }
+
+  window.AriseA11y = {
+    ensureLandmarks: ensureLandmarks,
+    announce: announce,
+    audit: audit,
+    routeHeading: routeHeading,
+    liveId: LIVE_ID
+  };
+
+  /* --------------------------------------------------------------- boot -- */
+
+  var pending = null;
+  function schedule() {
+    if (pending) return;
+    pending = setTimeout(function () { pending = null; try { routeTick(); } catch {} }, 200);
+  }
+
+  function start() {
+    ensureLandmarks();
+    routeTick();
+    // The React shell swaps route content, so watch rather than poll.
+    if (typeof MutationObserver === "function" && document.body) {
+      new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
+})();
+
+}catch(__arise_e){setTimeout(function(){throw __arise_e})}
+
 /* ---- ./src/projects-widget.js ---- */
 try{
 (function(){window.__ARISE_PROJECTS_WIDGET__||(window.__ARISE_PROJECTS_WIDGET__=!0);var J="projects",pe="pjw-sort-mode",ve="arise-cp-tracker-v1",K=[{key:"githubLink",label:"GitHub repo link"},{key:"liveDemo",label:"Live demo link"},{key:"readme",label:"README (setup / usage)"},{key:"screenshots",label:"Screenshots / preview"},{key:"techStack",label:"Tech stack listed"},{key:"authDbApi",label:"Auth / database / API"},{key:"responsiveUI",label:"Responsive UI"},{key:"tests",label:"Tests"},{key:"deployment",label:"Deployed / hosted"},{key:"resumeBullet",label:"Resume bullet written"}],g=null,V=null;function $(){return V===null&&window.AriseWidgetNav&&window.AriseWidgetNav.create&&(V=window.AriseWidgetNav.create({storageKey:"arise-widget-nav-projects",sections:[{id:"analytics",label:"Analytics",icon:"📊"},{id:"techstack",label:"Tech Stack",icon:"🧰"},{id:"deadlines",label:"Deadlines",icon:"⏳"},{id:"board",label:"Board",icon:"🧭"},{id:"timetracking",label:"Time",icon:"⏱️"},{id:"portfolio",label:"Portfolio",icon:"📦"},{id:"tier3prep",label:"Tier-3 Prep",icon:"🎯"},{id:"projects",label:"Projects",icon:"🗂️"}]})),V}function Ce(){var e=$();return e?e.navHtml():""}function P(e,t){var i=$();return i?i.panelWrap(e,t):typeof t=="function"?t():t}function Ne(){var e=$();e&&e.wire(g)}var j={},X={},Z={},ee={},te={},I={},we={},A=Le(),k={},N={},M={},L={},E=[{key:"q1",label:"What does this project do? (30-second pitch)"},{key:"q2",label:"Why did you choose this tech stack?"},{key:"q3",label:"What was one real challenge, and how did you solve it?"},{key:"q4",label:"What would you improve or add next?"}],Me=[{key:"none",label:"Not yet",tone:"danger"},{key:"getting-there",label:"Getting there",tone:"warning"},{key:"ready",label:"Ready",tone:"success"}];function l(e){return String(e??"").replace(/[&<>"']/g,function(t){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[t]})}function R(e){return e+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8)}function Le(){try{return localStorage.getItem(pe)||"default"}catch{return"default"}}function De(e){try{localStorage.setItem(pe,e)}catch{}}function H(){var e=null;try{e=localStorage.getItem(J)}catch{}if(!e)return[];var t;try{t=JSON.parse(e)}catch{return[]}return Array.isArray(t)?t:[]}function B(e){var t=!1,i=e.map(function(a){if(!a||typeof a!="object")return a;var r=a;return Array.isArray(a.techStack)||(r=Object.assign({},r,{techStack:[]}),t=!0),(typeof a.timeInvested!="number"||isNaN(a.timeInvested))&&(r=Object.assign({},r,{timeInvested:0}),t=!0),Array.isArray(a.features)||(r=Object.assign({},r,{features:[]}),t=!0),Array.isArray(a.bugs)||(r=Object.assign({},r,{bugs:[]}),t=!0),(typeof a.updatedAt!="string"||!a.updatedAt)&&(r=Object.assign({},r,{updatedAt:a.createdAt||new Date().toISOString()}),t=!0),typeof a.resumeBulletText!="string"&&(r=Object.assign({},r,{resumeBulletText:""}),t=!0),(!a.interviewAnswers||typeof a.interviewAnswers!="object"||Array.isArray(a.interviewAnswers))&&(r=Object.assign({},r,{interviewAnswers:{q1:"",q2:"",q3:"",q4:""}}),t=!0),typeof a.interviewConfidence!="string"&&(r=Object.assign({},r,{interviewConfidence:"none"}),t=!0),(!a.collegeSubmission||typeof a.collegeSubmission!="object"||Array.isArray(a.collegeSubmission))&&(r=Object.assign({},r,{collegeSubmission:{report:!1,ppt:!1,vivaDone:!1,vivaDate:""}}),t=!0),typeof a.isTeamProject!="boolean"&&(r=Object.assign({},r,{isTeamProject:!1}),t=!0),typeof a.myContribution!="string"&&(r=Object.assign({},r,{myContribution:""}),t=!0),typeof a.isPrimaryPitch!="boolean"&&(r=Object.assign({},r,{isPrimaryPitch:!1}),t=!0),r});return{list:i,changed:t}}function Oe(e){return JSON.stringify({title:e.title,description:e.description,category:e.category,progress:e.progress,githubLink:e.githubLink,demoLink:e.demoLink,deadline:e.deadline,notes:e.notes,archived:e.archived,features:e.features,bugs:e.bugs,techStack:e.techStack,timeInvested:e.timeInvested,resumeBulletText:e.resumeBulletText,interviewAnswers:e.interviewAnswers,interviewConfidence:e.interviewConfidence,collegeSubmission:e.collegeSubmission,isTeamProject:e.isTeamProject,myContribution:e.myContribution,isPrimaryPitch:e.isPrimaryPitch})}function qe(e){var t=!1,i=e.map(function(a){if(!a||typeof a!="object"||!a.id)return a;var r=Oe(a),s=we[a.id];return we[a.id]=r,s!==void 0&&s!==r?(t=!0,Object.assign({},a,{updatedAt:new Date().toISOString()})):a});return{list:i,changed:t}}function z(e){try{localStorage.setItem(J,JSON.stringify(e))}catch{}}function b(e,t,i){var a=e.map(function(r){return r&&r.id===t?Object.assign({},r,i):r});z(a),y()}function Ie(e,t){var i=!1,a=e.filter(function(s){return s&&s.id===t})[0];a&&a.isPrimaryPitch&&(i=!0);var r=e.map(function(s){if(!s)return s;var u=!i&&s.id===t;return s.isPrimaryPitch===u?s:Object.assign({},s,{isPrimaryPitch:u})});z(r),y()}function C(e){if(!e)return null;var t=new Date(e);if(isNaN(t.getTime()))return null;var i=new Date(t.getFullYear(),t.getMonth(),t.getDate()).getTime(),a=new Date;return a=new Date(a.getFullYear(),a.getMonth(),a.getDate()).getTime(),Math.round((i-a)/864e5)}function fe(e){if(!e)return null;var t=new Date(e).getTime();return isNaN(t)?null:Math.floor((Date.now()-t)/864e5)}function ge(e){if(!e.deadline)return'<span class="pjw-deadline pjw-deadline-none">No deadline set</span>';var t=C(e.deadline);if(t===null)return'<span class="pjw-deadline pjw-deadline-none">Invalid date</span>';var i="pjw-deadline-ok",a;return t<0?(i="pjw-deadline-overdue",a=Math.abs(t)+"d overdue"):t===0?(i="pjw-deadline-today",a="Due today"):(t<=3&&(i="pjw-deadline-soon"),a=t+"d left"),'<span class="pjw-deadline '+i+'">⏳ '+l(a)+' <span class="pjw-deadline-date">('+l(e.deadline)+")</span></span>"}function _e(e){if(e.archived)return"";var t=Number(e.progress)||0;if(t<=0||t>=100)return"";var i=fe(e.updatedAt);return i===null||i<30?"":'<span class="pjw-stale-badge" title="No detected change in progress, notes, links, checklist or tags for '+i+' days">⚠ Stale · '+i+"d no update</span>"}var Ee="arise-notes-app-v1";function Re(){var e=null;try{e=localStorage.getItem(Ee)}catch{}if(!e)return null;try{var t=JSON.parse(e);return t&&typeof t=="object"?t:null}catch{return null}}function He(e){var t=Re();if(!t||!Array.isArray(t.notes))return 0;var i=U(e.title);return i?t.notes.filter(function(a){return a&&!a.deletedAt&&a.linkType==="project"&&U(a.linkedLabel)===i}).length:0}function Be(e){var t=He(e);return t?'<span class="pjw-notes-badge" title="'+t+" note"+(t===1?"":"s")+' linked to this project">📝 '+t+" note"+(t===1?"":"s")+"</span>":""}function be(){var e=null;try{e=localStorage.getItem(ve)}catch{}if(!e)return null;try{var t=JSON.parse(e);return t&&typeof t=="object"?t:null}catch{return null}}function U(e){return String(e??"").trim().toLowerCase()}function S(e,t){if(!e||!Array.isArray(e.projects))return null;var i=U(t);if(!i)return null;var a=e.projects.filter(function(r){return r&&U(r.name)===i});return a.length?a[0]:null}function T(e){if(!e||!e.checks)return 0;var t=0;return K.forEach(function(i){e.checks[i.key]&&t++}),t*10}function ae(e){return e>=75?"success":e>=40?"warning":"danger"}function ze(e,t){var i=S(t,e.title);if(!i)return'<span class="pjw-quality-badge pjw-quality-badge-none" title="Add this project in the Project Quality tab to track it here">Not in Quality tab</span>';var a=T(i),r=ae(a),s=a>=75?"✓ Resume Ready":a+"/100 quality";return'<span class="pjw-quality-badge" data-tone="'+r+'">'+l(s)+"</span>"}function Ue(e,t){var i=S(t,e.title);if(!i)return'<div class="pjw-block"><div class="pjw-block-title">🎯 Project Quality <span class="pjw-block-count">not tracked</span></div><div class="pjw-empty-sub">No matching entry in the Project Quality tab yet (matched by project name: "'+l(e.title)+'").</div><button type="button" class="pjw-btn pjw-btn-secondary" data-action="open-quality-tab">Open Project Quality tab →</button></div>';var a=T(i),r=ae(a),s=K.map(function(p){var v=!!(i.checks&&i.checks[p.key]);return'<span class="pjw-quality-chip'+(v?" pjw-quality-chip-on":"")+'">'+(v?"✓":"○")+" "+l(p.label)+"</span>"}).join(""),u=K.filter(function(p){return!(i.checks&&i.checks[p.key])});return'<div class="pjw-block"><div class="pjw-block-title">🎯 Project Quality <span class="pjw-block-count" data-tone="'+r+'">'+a+'/100</span></div><div class="pjw-quality-chips">'+s+"</div>"+(u.length?'<div class="pjw-empty-sub">Missing: '+u.map(function(p){return l(p.label)}).join(", ")+"</div>":'<div class="pjw-empty-sub">All quality checks complete ✓</div>')+'<button type="button" class="pjw-btn pjw-btn-secondary" data-action="open-quality-tab">Open in Project Quality tab →</button></div>'}function Fe(){var e=document.querySelector('[data-nav-id="cp"]');if(e)return e;for(var t=document.querySelectorAll("button"),i=0;i<t.length;i++)if(/Competitive Programming/i.test(t[i].textContent||""))return t[i];return null}function We(){var e=document.querySelector('.cp-tabs [data-tab="quality"]');if(e)return e;for(var t=document.querySelectorAll(".cp-tabs button, .cp-tab"),i=0;i<t.length;i++)if(/Project Quality/i.test(t[i].textContent||""))return t[i];return null}function Qe(){var e=Fe();e&&e.click();var t=0,i=setInterval(function(){t++;var a=We();a?(a.click(),clearInterval(i)):t>20&&clearInterval(i)},100)}function Ge(e){return e&&e.charAt(0).toLowerCase()+e.slice(1)}function Ye(e){return e.length===1?e[0]:e.length===2?e[0]+" and "+e[1]:e.slice(0,-1).join(", ")+", and "+e[e.length-1]}function re(e){var t=String(e.title||"Untitled Project").trim(),i=String(e.description||"").trim().replace(/\.+$/,""),a=(e.techStack||[]).filter(Boolean),r=(e.features||[]).filter(function(v){return v&&v.done}).length,s=(e.features||[]).length,u=(Number(e.progress)||0)>=100?"Built":"Developed",p=u+" "+t;return i&&(p+=", "+Ge(i)),a.length&&(p+=" using "+Ye(a)),s>0&&(p+="; shipped "+r+"/"+s+" planned features"),e.demoLink?p+=", deployed live":e.githubLink&&(p+=", with source on GitHub"),p+"."}function Je(e){var t=Object.prototype.hasOwnProperty.call(I,e.id)?I[e.id]:e.resumeBulletText||re(e),i=!!e.resumeBulletText;return'<div class="pjw-block"><div class="pjw-block-title">📝 Resume Bullet <span class="pjw-block-count">'+(i?"saved":"auto-draft")+'</span></div><textarea class="pjw-input pjw-bullet-text" rows="3" data-input="bullet">'+l(t)+'</textarea><div class="pjw-inline-form"><button type="button" class="pjw-btn pjw-btn-primary" data-action="save-bullet">Save</button><button type="button" class="pjw-btn pjw-btn-secondary" data-action="regenerate-bullet">Regenerate from project info</button><button type="button" class="pjw-btn pjw-btn-secondary" data-action="copy-bullet">Copy</button></div><div class="pjw-empty-sub">Once it reads well, tick "Resume bullet written" for this project in the Project Quality tab.</div></div>'}function je(e){var t=[];t.push("# "+(e.title||"Untitled Project")),t.push("");var i=[];e.category&&i.push("**Category:** "+e.category),(e.techStack||[]).length&&i.push("**Tech stack:** "+e.techStack.join(", ")),i.push("**Progress:** "+(Number(e.progress)||0)+"%"),t.push(i.join(`  

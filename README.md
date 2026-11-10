@@ -35,6 +35,32 @@ The [engineering report](docs/ENGINEERING-OVERHAUL-2026-10-30.md) documents the 
 
 With the built site running, `npm run test:browser:engineering` checks route layouts, recovery, attachment safety and the real offline shell. `npm run test:performance -- measurement` repeats the local lab protocol. These use explicit test authentication fixtures; they do not verify live provider credentials or relax the production sign-in gate.
 
+## Where to read next
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the shell, the ordered widget loader,
+  storage ownership and the failure surfaces fit together.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — the change loop this repository expects:
+  owner-first edits, a regression per change, registration in the loader and the
+  offline shell, storage hygiene, and the checks that define "done".
+- [CHANGELOG.md](CHANGELOG.md) — what each recent change replaced or fixed.
+- [docs/CONTRIBUTION-REPORT.md](docs/CONTRIBUTION-REPORT.md) — the sixteen
+  contributions, with the measured problem and the verification for each.
+- [REPOSITORY-AUDIT.md](REPOSITORY-AUDIT.md) — the baseline audit this work
+  started from.
+
+### In-app diagnostics worth knowing
+
+| Need | Open |
+| --- | --- |
+| Which shell version is serving the page, update/offline state | the status notice from `window.ArisePwaStatus.state()` |
+| Which widgets or updaters failed | `window.__ariseWidgetFailureReport.failures()` |
+| Chunk retry attempts | `window.AriseReliability.attempts()` |
+| Mutation-bus traffic and filtering | `window.ArisePerf.snapshot()` |
+| Study-time reconciliation (three writers) | `window.AriseFocusAudit.reconcile()` |
+| Two-week load plan with per-day drivers | `window.AriseHorizon.summary()` |
+| One row per progress area | `window.AriseProgress.overview()` |
+| A backup file before restoring it | `window.AriseBackupIntegrity.inspect(snapshot)` |
+
 ## ✨ Core Features
 
 ### 📚 Academic Management

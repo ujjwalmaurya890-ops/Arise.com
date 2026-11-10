@@ -364,9 +364,9 @@ function makeDom(html) {
     d.window.close();
   }
 
-  /* ------------------------------------------------ announcements & images -- */
+  /* --------------------------------------------- announcements & offline -- */
   {
-    const d = makeDom('<!doctype html><html><body><img id="i" src="avatar.png" alt="Avatar"><div id="t"></div></body></html>');
+    const d = makeDom('<!doctype html><html><body><div id="t"></div></body></html>');
     const win = d.window;
     const api = win.AriseLoading;
     api.announce("Loading your dashboard…");
@@ -374,22 +374,6 @@ function makeDom(html) {
     ok(region.textContent === "Loading your dashboard…", "polite announcements reach one shared region");
     ok(win.document.querySelectorAll("[data-ars-live]").length === 2,
       "no extra live region is created per announcement");
-
-    const img = win.document.getElementById("i");
-    api.enhanceImages(win.document);
-    ok(img.getAttribute("data-ars-img") === "pending" && img.classList.contains("ars-img-loading"),
-      "images get a placeholder until they decode");
-    img.dispatchEvent(new win.Event("load"));
-    ok(img.getAttribute("data-ars-img") === "loaded" && !img.classList.contains("ars-img-loading"),
-      "a decoded image clears its placeholder");
-    const broken = win.document.createElement("img");
-    broken.setAttribute("src", "missing.png");
-    broken.setAttribute("alt", "Broken");
-    win.document.body.appendChild(broken);
-    api.enhanceImages(win.document);
-    broken.dispatchEvent(new win.Event("error"));
-    ok(broken.getAttribute("data-ars-img") === "error" && broken.classList.contains("ars-img-error"),
-      "a failed image falls back instead of showing an empty box");
 
     api.offline.show();
     const banner = win.document.querySelector(".ars-offline");

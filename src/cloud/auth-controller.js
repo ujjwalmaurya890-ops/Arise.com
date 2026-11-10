@@ -197,7 +197,10 @@ export function createController(adapter, { storage = window.AriseStorage, schem
       window.AriseCloudSync = { isConfigured: () => sync.active, push: () => sync.flush(), pull: () => sync.poll() };
       element('cloud-account-name').textContent = sync.profile.name || 'Arise member';
       element('cloud-account-email').textContent = sync.profile.email + ' · verified';
-      const avatar = element('cloud-avatar'); avatar.onerror = () => { avatar.onerror = null; avatar.src = './assets/arise-logo.svg'; avatar.alt = 'Arise account'; }; avatar.hidden = !sync.profile.photoURL; avatar.src = sync.profile.photoURL || './assets/arise-logo.svg';
+      const avatar = element('cloud-avatar');
+      const accountLabel = sync.profile.name || sync.profile.email || 'Arise member';
+      avatar.textContent = accountLabel.trim().charAt(0).toUpperCase() || 'A';
+      avatar.hidden = false;
       gate('Workspace ready', 'Your saved progress is restored.', true);
       document.documentElement.dataset.cloudAuth = 'ready';
       element('root').inert = false; element('root').removeAttribute('aria-hidden');
@@ -301,7 +304,7 @@ export function createController(adapter, { storage = window.AriseStorage, schem
   window.addEventListener('storage', event => { if (!event.__ariseRemote && event.key?.startsWith('arise:account:' + encodeURIComponent(storage.uid) + ':') && started) reload(); });
   const api = {
     login, logout, importBackup,
-    snapshot: () => ({ session: { mode: started && sync?.active ? 'google' : 'anonymous', name: sync?.profile?.name || 'Arise member' }, displayName: sync?.profile?.name || 'Arise member', avatarUrl: sync?.profile?.photoURL || null,
+    snapshot: () => ({ session: { mode: started && sync?.active ? 'google' : 'anonymous', name: sync?.profile?.name || 'Arise member' }, displayName: sync?.profile?.name || 'Arise member', avatarUrl: null,
       isAuthenticated: !!(started && sync?.active), syncState: { status: sync?.lastStatus.status === 'saved' ? 'synced' : sync?.lastStatus.status === 'saving' ? 'syncing' : sync?.lastStatus.status || 'idle' } }),
     fetch: async (url, options = {}) => {
       if (!currentUser || !sync?.active) throw new Error('Sign in first.');

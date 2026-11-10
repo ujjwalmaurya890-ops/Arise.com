@@ -360,21 +360,15 @@ const bundle = buildSync({
     assert.equal(navProgressIdle, 'idle', 'the navigation progress line hides itself after the transition');
     assert.equal(await page.locator('[data-ars-topbar]').count(), 1, 'only one global progress line exists');
 
-    // Lazy image placeholders + button loading guard, verified in a real browser.
-    const imageAndButton = await page.evaluate(async () => {
-      const good = document.createElement('img');
-      good.src = './assets/arise-logo-32.png';
-      good.alt = 'Probe avatar';
-      const bad = document.createElement('img');
-      bad.src = 'data:image/png;base64,AAAA';
-      bad.alt = 'Broken probe';
-      document.body.append(good, bad);
-      window.AriseLoading.enhanceImages(document.body);
-      const pending = good.classList.contains('ars-img-loading');
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      const loaded = good.getAttribute('data-ars-img');
-      const failed = bad.getAttribute('data-ars-img');
+    // Image-free UI + button loading guard, verified in a real browser.
+    const uiImages = await page.evaluate(() => ({
+      appImages: document.querySelectorAll('#arise-main img, #cloud-gate img, #cloud-account img, #root img').length,
+      enhancementApi: typeof (window.AriseLoading && window.AriseLoading.enhanceImages)
+    }));
+    assert.equal(uiImages.appImages, 0, 'the application chrome renders no images');
+    assert.equal(uiImages.enhancementApi, 'undefined', 'the removed image placeholder API is no longer exposed');
 
+    const buttonGuard = await page.evaluate(async () => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = 'Sync';
@@ -385,17 +379,15 @@ const bundle = buildSync({
       const busy = { disabled: btn.disabled, spinner: !!btn.querySelector('.uxa-spinner, .ars-spinner'), label: btn.textContent.trim() };
       await Promise.all([p1, p2]);
       const restored = { disabled: btn.disabled, label: btn.textContent.trim() };
-      good.remove(); bad.remove(); btn.remove();
-      return { pending, loaded, failed, busy, restored, calls };
+      btn.remove();
+      return { busy, restored, calls };
     });
-    assert.equal(imageAndButton.pending, true, 'a newly added image starts in the loading placeholder state');
-    assert.equal(imageAndButton.loaded, 'loaded', 'a decoded image clears its placeholder');
-    assert.equal(imageAndButton.failed, 'error', 'a broken image shows the error fallback');
-    assert.equal(imageAndButton.busy.disabled, true, 'a guarded button disables while the action runs');
-    assert.equal(imageAndButton.busy.spinner, true, 'a guarded button shows an inline spinner');
-    assert.equal(imageAndButton.calls, 1, 'duplicate browser clicks are blocked by the guard');
-    assert.equal(imageAndButton.restored.disabled, false, 'the guarded button is restored afterwards');
-    assert.equal(imageAndButton.restored.label, 'Sync', 'the guarded button restores its original label');
+    assert.equal(buttonGuard.busy.disabled, true, 'a guarded button disables while the action runs');
+    assert.equal(buttonGuard.busy.spinner, true, 'a guarded button shows an inline spinner');
+    assert.equal(buttonGuard.calls, 1, 'duplicate browser clicks are blocked by the guard');
+    assert.equal(buttonGuard.restored.disabled, false, 'the guarded button is restored afterwards');
+    assert.equal(buttonGuard.restored.label, 'Sync', 'the guarded button restores its original label');
+    console.log('PASS: Image-free app chrome and guarded-button loading states verified.');
 
     // -----------------------------------------------------------------------
     // 3. Delayed API, Duplicate-Click Prevention, Error Alert & Retry Recovery

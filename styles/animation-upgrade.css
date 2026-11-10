@@ -788,19 +788,6 @@ html[dir="rtl"] .uxa-skeleton::after { animation-direction: reverse; }
 
 .air-skeleton { margin-top: .7rem; }
 
-/* Broken-image clean fallback placeholder */
-img.uxa-img-fallback {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-muted, rgba(148, 163, 184, 0.14));
-  border: 1px dashed var(--border, rgba(148, 163, 184, 0.3));
-  color: var(--text-tertiary, #64748b);
-  font-size: 0.72rem;
-  min-height: 48px;
-  border-radius: var(--skeleton-radius-sm);
-}
-
 /* --------------------------------------------------------------------------
    7. Coordinated Modal, Drawer & Menu Entrance / Exit Transitions
    -------------------------------------------------------------------------- */

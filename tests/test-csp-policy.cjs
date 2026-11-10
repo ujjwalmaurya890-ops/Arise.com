@@ -103,12 +103,15 @@ test("style-src allows the inline blocks the app really ships", () => {
   assert.ok(!style.some((source) => source.startsWith("http")), "no remote stylesheets are referenced");
 });
 
-test("images allow the generated data URLs and blob previews the app uses", () => {
+test("img-src only allows the same-origin identity assets that remain", () => {
+  // The app deliberately renders no user-supplied imagery: profile photos,
+  // company logos, custom-platform favicons, Markdown images and upload
+  // previews are all shown as text or initials. What is left is the PWA
+  // identity set (manifest icons, favicon, apple-touch-icon) plus any image
+  // the browser derives from a same-origin document, so the directive must
+  // not keep the data:/blob: escape hatches that made those previews possible.
   const img = d["img-src"] || [];
-  assert.ok(img.includes("'self'"));
-  assert.ok(img.includes("data:"), "avatars/logos are inlined as data: URLs");
-  assert.ok(img.includes("blob:"), "file previews are rendered from blob: URLs");
-  assert.ok(!img.includes("*"));
+  assert.deepEqual(img, ["'self'"], "img-src must stay at 'self': " + img.join(" "));
 });
 
 test("connect-src is an explicit allow-list matching the sources in the repo", () => {

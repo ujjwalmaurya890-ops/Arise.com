@@ -27,11 +27,12 @@ try {
   }
   assert.equal(w.document.querySelector('.na-md-link[href="https://example.com/code"] code')?.textContent, 'nested <code>');
   assert.equal(w.document.querySelector('.pw-md-link[href="https://example.com/code"] code')?.textContent, 'nested <code>');
-  assert.equal(w.document.querySelector('.na-md-img[src="https://example.com/alt.png"]').alt, 'quoted "x"');
+  const imageNotes = [...w.document.querySelectorAll('.na-md-image-alt')].map((el) => el.textContent);
+  assert.deepEqual(imageNotes, ['Image: Bad image', 'Image: Image', 'Image: quoted "x"'], 'every image Markdown becomes a labelled, text-only note');
+  assert.equal(w.document.querySelectorAll('.pw-md-image-alt').length, 0, 'the wiki renderer still escapes image Markdown as text');
   assert.equal(/[\u0003\u0004]/.test(w.document.body.innerHTML), false, 'nested token placeholders never leak');
   assert.equal(w.document.querySelectorAll('script').length, 0);
-  assert.equal(w.document.querySelectorAll('img[src^="data:"]').length, 0);
-  assert.equal(w.document.querySelector('.na-md-img').getAttribute('referrerpolicy'), 'no-referrer');
+  assert.equal(w.document.querySelectorAll('img').length, 0, 'no Markdown image is ever rendered, including remote images');
   const wikiLink = w.document.querySelector('.pw-wikilink[data-title="R&D"]');
   assert.ok(wikiLink && !wikiLink.classList.contains('pw-wikilink-new'), 'wiki titles are not double-escaped');
   const safeURL = w.__ariseShared.safeURL;
@@ -40,5 +41,5 @@ try {
   assert.equal(safeURL('https://example.com/?a=1&b=2'), 'https://example.com/?a=1&b=2');
   assert.equal(JSON.parse(w.localStorage.getItem('arise-notes-app-v1')).notes[0].content, content, 'unsafe input is not erased from the stored document');
   assert.equal(JSON.parse(w.localStorage.getItem('arise-personal-wiki-v1')).pages[0].content, content);
-  console.log('Safe Markdown: unsafe schemes, stored links, code escaping, wiki links, legitimate URLs, image privacy and original data retention passed.');
+  console.log('Safe Markdown: unsafe schemes, stored links, code escaping, wiki links, legitimate URLs, image-free rendering and original data retention passed.');
 } finally { w.close(); }

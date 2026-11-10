@@ -105,11 +105,17 @@ The project uses modern web technologies to deliver an interactive student-focus
 - `styles/` — global and feature-specific stylesheets.
 - `tests/` — Node/jsdom feature regressions, cloud/auth/sync tests, and opt-in real Firestore rules tests.
 - `scripts/` — local server, build helpers, and test runner.
-- `assets/` — images, fonts, generated widget chunks, sound files, and static data.
+- `assets/` — fonts, generated widget chunks, sound files, static data, and the retained PWA identity icons (no displayed imagery).
 - `docs/` — upgrade notes and project documentation (see [the loading system report](docs/LOADING-SYSTEM-2026-11-07.md)).
 - Root-level `index.html`, `service-worker.js`, `netlify.toml`, and package manifests remain at the site root because static hosting, service-worker scope, and Netlify publish paths rely on those entry points.
 
 Use `npm run dev` to build and serve the site/API locally, `npm run build` for production, and `npm test` for regressions and auth/sync tests. See the secure setup guide before deployment.
+
+### Images and PWA identity assets
+
+The application interface renders **no images**. Logos, avatars, company marks, platform favicons and note images are drawn as text, initials or CSS, and file/certificate attachments are identified by name, type and size instead of an inline picture. Attachment bytes and metadata are still stored untouched and remain downloadable.
+
+The only tracked bitmaps left in `assets/` are the PWA identity set required for installability and browser chrome — `arise-logo.svg`, `arise-logo-32.png`, `arise-logo-192.{png,webp}` and `arise-logo-512.{png,webp}`. They are referenced from `manifest.webmanifest`, the `<link rel="icon">` tags and `service-worker.js`; nothing in the dashboard displays them. See [IMAGE-REMOVAL-REPORT.md](IMAGE-REMOVAL-REPORT.md) for the full inventory and the reasoning behind each retained file.
 
 ---
 

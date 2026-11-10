@@ -76,6 +76,7 @@
   "arise-knowledge-ui-v1",
   "arise-analytics-integrity-v1",
   "arise-day-plan-v1",
+  "arise-focus-audit-v1",
   "arise-notes-app-v1",
   "arise-personal-wiki-v1",
   "arise-quick-toggle-last-theme-v1",

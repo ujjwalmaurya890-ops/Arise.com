@@ -212,10 +212,18 @@
         return snapshotState.order.indexOf(a) - snapshotState.order.indexOf(b);
       });
 
-      ordered.forEach(function (key) {
+      // Only move nodes that are actually out of place. appendChild() moves an
+      // existing node even when it is already the right child, and doing that on
+      // every pass made the layout observer observe itself: every other widget's
+      // re-render put all the cards back in the stack in one long loop, 35
+      // appendChild calls per 4 s while the app was idle (each one a real DOM
+      // mutation that wakes the 40+ mutation-bus subscribers).
+      var placed = stack.children;
+      ordered.forEach(function (key, index) {
         var card = byKey[key];
         if (!card) return;
-        stack.appendChild(card.node); // appendChild moves existing nodes; it never clones
+        if (placed[index] === card.node) return;
+        stack.insertBefore(card.node, placed[index] || null);
       });
 
       snapshotState.cards.forEach(function (card) {

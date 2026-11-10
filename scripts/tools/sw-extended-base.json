@@ -5,6 +5,7 @@
 "./assets/arise-logo-192.webp",
 "./assets/arise-logo-512.webp",
 "./src/mutation-bus.js",
+"./src/perf-watch.js",
 "./src/storage-watch-bus.js",
 "./src/storage-keys.js",
 "./src/widget-shared-utils.js",

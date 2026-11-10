@@ -527,6 +527,573 @@ try{
 
 }catch(__arise_e){setTimeout(function(){throw __arise_e})}
 
+/* ---- ./src/notification-center.js ---- */
+try{
+/* ==========================================================================
+   Notification center (src/notification-center.js)
+   --------------------------------------------------------------------------
+   Feature widgets already compute their own deadlines and some raise native
+   notifications, but there was no single place to see "what needs me today".
+   This module aggregates ONLY records that already exist — it never invents an
+   event, never writes to a feature store and never claims push delivery.
+
+   Sources (read-only)
+   -------------------
+   arise_exam_tracker_v1   exams + exam dates (+ cse-syllabus-exam-dates-v1 overrides)
+   hackathonPipelineV1     registration deadlines
+   arise_placement_tracker_v1  interviews / deadlines on applications
+   arise-daily-learning-tasks-v1 / tasks  open tasks with a due date
+   dsaRevisionSRS, devRevisionSRS          cards due for revision
+   cse-syllabus-progress-v1               nothing (used only for context)
+
+   Read state lives in its own key (arise-notification-read-v1): a map of
+   item id -> ISO timestamp. Marking read never mutates the source store, and an
+   item that is dismissed but later becomes due again is a NEW id, so it returns.
+
+   Public API (window.AriseNotifications)
+   --------------------------------------
+   list({ now, withinDays })  -> [{ id, kind, title, detail, due, tone, route, source, read }]
+   unreadCount()              -> number
+   markRead(id) / markAllRead()
+   open() / close()
+   refresh()
+   ========================================================================== */
+(function () {
+  "use strict";
+  if (window.AriseNotifications) return;
+
+  var READ_KEY = "arise-notification-read-v1";
+  var MAX_PER_SOURCE = 25;
+
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+
+  function readJSON(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      if (raw == null || raw === "") return fallback;
+      var parsed = JSON.parse(raw);
+      return parsed == null ? fallback : parsed;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function readState() {
+    var raw = readJSON(READ_KEY, {});
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    var out = {};
+    Object.keys(raw).forEach(function (key) {
+      if (typeof raw[key] === "string") out[key] = raw[key];
+    });
+    return out;
+  }
+
+  function writeState(state) {
+    try {
+      localStorage.setItem(READ_KEY, JSON.stringify(state));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  var DAY = 86400000;
+
+  function toUTC(dayKey) {
+    if (!dayKey) return null;
+    var parts = String(dayKey).slice(0, 10).split("-");
+    if (parts.length !== 3) return null;
+    var y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+    if (!y || !m || !d) return null;
+    var stamp = Date.UTC(y, m - 1, d);
+    return Number.isFinite(stamp) ? stamp : null;
+  }
+
+  function normalize(dateLike) {
+    if (dateLike == null || dateLike === "") return null;
+    if (typeof dateLike === "number") return Number.isFinite(dateLike) ? dateLike : null;
+    var text = String(dateLike).trim();
+    var utcDay = toUTC(text);
+    if (utcDay !== null) return utcDay;
+    var parsed = Date.parse(text);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function daysBetween(fromStamp, toStamp) {
+    return Math.round((toStamp - fromStamp) / DAY);
+  }
+
+  function toneFor(days) {
+    if (days < 0) return "overdue";
+    if (days === 0) return "today";
+    if (days <= 3) return "soon";
+    return "later";
+  }
+
+  function item(fields) {
+    return {
+      id: String(fields.id),
+      kind: fields.kind,
+      title: String(fields.title || "Untitled"),
+      detail: String(fields.detail || ""),
+      due: fields.due,
+      days: fields.days,
+      tone: fields.tone,
+      route: fields.route,
+      source: fields.source,
+      read: false
+    };
+  }
+
+  function examDateFor(exam, overrides) {
+    var id = exam && (exam.id || exam.subjectId);
+    if (id && overrides && typeof overrides === "object") {
+      var override = overrides[id] || (exam.subjectId && overrides[exam.subjectId]);
+      if (override) return override;
+    }
+    return exam && (exam.examDate || exam.date);
+  }
+
+  function collect(now) {
+    var out = [];
+    var today = new Date(now);
+    var dayStart = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+
+    /* ------------------------------------------------------------- exams -- */
+    var examStore = readJSON("arise_exam_tracker_v1", null);
+    var overrides = readJSON("cse-syllabus-exam-dates-v1", {});
+    var exams = examStore && Array.isArray(examStore.exams) ? examStore.exams : [];
+    exams.slice(0, MAX_PER_SOURCE).forEach(function (exam) {
+      if (!exam) return;
+      var stamp = normalize(examDateFor(exam, overrides));
+      if (stamp === null) return;
+      var days = daysBetween(dayStart, stamp);
+      // A passed exam is not actionable; the tracker shows its own history.
+      if (days < 0 || days > 30) return;
+      out.push(item({
+        id: "exam:" + (exam.id || exam.title || exam.examName) + ":" + days,
+        kind: "Exam",
+        title: exam.examName || exam.title || "Exam",
+        detail: [exam.subjectName, exam.examType, days < 0 ? "date passed" : days === 0 ? "is today" : "in " + days + " day" + (days === 1 ? "" : "s")].filter(Boolean).join(" · "),
+        due: stamp,
+        days: days,
+        tone: toneFor(days),
+        route: "exam-tracker",
+        source: "Exam Tracker"
+      }));
+    });
+
+    /* -------------------------------------------------------- hackathons -- */
+    var pipeline = readJSON("hackathonPipelineV1", []);
+    (Array.isArray(pipeline) ? pipeline : []).slice(0, MAX_PER_SOURCE).forEach(function (entry) {
+      if (!entry) return;
+      var stamp = normalize(entry.registrationDeadline || entry.deadline || entry.regDeadline);
+      if (stamp === null) return;
+      var days = daysBetween(dayStart, stamp);
+      if (days < 0 || days > 30) return;
+      out.push(item({
+        id: "hackathon:" + (entry.id || entry.name) + ":" + days,
+        kind: "Deadline",
+        title: entry.name || entry.event || "Hackathon",
+        detail: [entry.status, days === 0 ? "registration closes today" : days < 0 ? "registration closed" : "registration closes in " + days + " day" + (days === 1 ? "" : "s")].filter(Boolean).join(" · "),
+        due: stamp,
+        days: days,
+        tone: toneFor(days),
+        route: "hackathon-tracker",
+        source: "Hackathon Pipeline"
+      }));
+    });
+
+    /* --------------------------------------------------------- placement -- */
+    var placement = readJSON("arise_placement_tracker_v1", null);
+    var applications = placement && Array.isArray(placement.applications) ? placement.applications : [];
+    applications.slice(0, MAX_PER_SOURCE).forEach(function (app) {
+      if (!app) return;
+      var stamp = normalize(app.interviewDate || app.deadline || app.nextRoundDate);
+      if (stamp === null) return;
+      var days = daysBetween(dayStart, stamp);
+      if (days < 0 || days > 21) return;
+      out.push(item({
+        id: "placement:" + (app.id || app.company) + ":" + days,
+        kind: "Interview",
+        title: [app.company, app.role].filter(Boolean).join(" · ") || "Application",
+        detail: [app.status, app.interviewMode, days === 0 ? "is today" : days < 0 ? "has passed" : "in " + days + " day" + (days === 1 ? "" : "s")].filter(Boolean).join(" · "),
+        due: stamp,
+        days: days,
+        tone: toneFor(days),
+        route: "placement-tracker",
+        source: "Placement Tracker"
+      }));
+    });
+
+    /* ------------------------------------------------------------- tasks -- */
+    var taskStores = [
+      { key: "arise-daily-learning-tasks-v1", route: "learning", source: "Daily tasks" },
+      { key: "tasks", route: "learning", source: "Tasks" }
+    ];
+    taskStores.forEach(function (store) {
+      var rows = readJSON(store.key, []);
+      if (rows && !Array.isArray(rows) && Array.isArray(rows.tasks)) rows = rows.tasks;
+      (Array.isArray(rows) ? rows : []).slice(0, MAX_PER_SOURCE).forEach(function (task) {
+        if (!task || task.completed || task.done) return;
+        var stamp = normalize(task.dueDate || task.due || task.date);
+        if (stamp === null) return;
+        var days = daysBetween(dayStart, stamp);
+        if (days < -1 || days > 7) return;
+        out.push(item({
+          id: "task:" + store.key + ":" + (task.id || task.title) + ":" + days,
+          kind: "Task",
+          title: task.title || task.text || "Open task",
+          detail: [task.priority, days === 0 ? "due today" : days < 0 ? "overdue" : "due in " + days + " day" + (days === 1 ? "" : "s")].filter(Boolean).join(" · "),
+          due: stamp,
+          days: days,
+          tone: toneFor(days),
+          route: store.route,
+          source: store.source
+        }));
+      });
+    });
+
+    /* --------------------------------------------------------- revisions -- */
+    [
+      { key: "dsaRevisionSRS", label: "DSA revision", route: "dsa" },
+      { key: "devRevisionSRS", label: "Development revision", route: "dev" }
+    ].forEach(function (store) {
+      var data = readJSON(store.key, null);
+      if (!data || typeof data !== "object") return;
+      var count = 0;
+      Object.keys(data).forEach(function (id) {
+        if (count >= MAX_PER_SOURCE) return;
+        var card = data[id];
+        var stamp = normalize(card && (card.due || card.nextReview || card.dueAt));
+        if (stamp === null) return;
+        var days = daysBetween(dayStart, stamp);
+        if (days > 0) return; // revision is only "due" once the date arrives
+        count += 1;
+        out.push(item({
+          id: "revision:" + store.key + ":" + id + ":" + Math.max(days, -1),
+          kind: "Revision",
+          title: (card && (card.title || card.name || card.question)) || "Revision card",
+          detail: [store.label, days === 0 ? "due today" : "overdue by " + Math.abs(days) + " day" + (days === -1 ? "" : "s")].join(" · "),
+          due: stamp,
+          days: days,
+          tone: days < 0 ? "overdue" : "today",
+          route: store.route,
+          source: "Spaced repetition"
+        }));
+      });
+    });
+
+    return out;
+  }
+
+  var cache = null;
+  function compute(options) {
+    var opts = options || {};
+    var now = typeof opts.now === "number" ? opts.now : Date.now();
+    var withinDays = typeof opts.withinDays === "number" ? opts.withinDays : 30;
+    var read = readState();
+    var items = collect(now).filter(function (entry) {
+      return entry.days <= withinDays;
+    }).map(function (entry) {
+      entry.read = !!read[entry.id];
+      return entry;
+    });
+    items.sort(function (a, b) {
+      if (a.read !== b.read) return a.read ? 1 : -1;
+      return a.due - b.due;
+    });
+    cache = items;
+    return items;
+  }
+
+  function list(options) {
+    return compute(options);
+  }
+
+  function unreadCount(options) {
+    return compute(options).filter(function (entry) { return !entry.read; }).length;
+  }
+
+  function markRead(id) {
+    if (!id) return false;
+    var state = readState();
+    state[String(id)] = new Date().toISOString();
+    var saved = writeState(state);
+    render();
+    return saved;
+  }
+
+  function markAllRead() {
+    var state = readState();
+    var stamp = new Date().toISOString();
+    compute().forEach(function (entry) { state[entry.id] = stamp; });
+    var saved = writeState(state);
+    render();
+    return saved;
+  }
+
+  function refresh() {
+    compute();
+    render();
+    updateBadge();
+    return cache;
+  }
+
+  /* ------------------------------------------------------------------- UI -- */
+
+  function host() {
+    return document.getElementById("anc-panel");
+  }
+
+  var TONE_LABEL = { overdue: "Overdue", today: "Today", soon: "Soon", later: "Upcoming" };
+
+  function renderRows(items) {
+    if (!items.length) {
+      return '<p class="anc-empty">Nothing needs you in the next 30 days. Exams, hackathon deadlines, interviews, dated tasks and due revision cards all appear here automatically.</p>';
+    }
+    var groups = { overdue: [], today: [], soon: [], later: [] };
+    items.forEach(function (entry) {
+      var bucket = groups[entry.tone] ? entry.tone : "later";
+      groups[bucket].push(entry);
+    });
+    var html = "";
+    ["overdue", "today", "soon", "later"].forEach(function (tone) {
+      if (!groups[tone].length) return;
+      html += '<div class="anc-group-title" role="presentation">' + TONE_LABEL[tone] + " (" + groups[tone].length + ")</div>";
+      groups[tone].forEach(function (entry) {
+        html += '<div class="anc-item" data-anc-id="' + esc(entry.id) + '" data-tone="' + esc(entry.tone) + '" data-read="' + (entry.read ? "true" : "false") + '">' +
+          '<div class="anc-item-main">' +
+          '<span class="anc-kind">' + esc(entry.kind) + "</span>" +
+          '<span class="anc-title">' + esc(entry.title) + "</span>" +
+          '<span class="anc-detail">' + esc(entry.detail) + "</span>" +
+          '<span class="anc-source">' + esc(entry.source) + "</span>" +
+          "</div>" +
+          '<div class="anc-item-actions">' +
+          '<button type="button" class="anc-btn" data-anc-action="open" data-route="' + esc(entry.route) + '" aria-label="Open ' + esc(entry.title) + ' in ' + esc(entry.source) + '">Open</button>' +
+          '<button type="button" class="anc-btn" data-anc-action="read" aria-pressed="' + (entry.read ? "true" : "false") + '" aria-label="' + (entry.read ? "Mark unread: " : "Mark as read: ") + esc(entry.title) + '">' + (entry.read ? "Unread" : "Read") + "</button>" +
+          "</div></div>";
+      });
+    });
+    return html;
+  }
+
+  function render() {
+    var panel = host();
+    if (!panel) return;
+    var items = compute();
+    var body = panel.querySelector(".anc-list");
+    if (body) body.innerHTML = renderRows(items);
+    var unread = items.filter(function (entry) { return !entry.read; }).length;
+    var status = panel.querySelector(".anc-status");
+    if (status) status.textContent = unread + " unread · " + items.length + " tracked";
+    updateBadge();
+  }
+
+  function updateBadge() {
+    var badge = document.getElementById("anc-badge");
+    if (!badge) return;
+    var count = unreadCount();
+    badge.textContent = count > 9 ? "9+" : String(count);
+    badge.hidden = count === 0;
+  }
+
+  function ensureLauncher() {
+    if (document.getElementById("anc-launcher")) return;
+    var launcher = document.createElement("button");
+    launcher.type = "button";
+    launcher.id = "anc-launcher";
+    launcher.className = "anc-launcher";
+    launcher.setAttribute("aria-label", "Open notifications");
+    launcher.setAttribute("aria-haspopup", "dialog");
+    launcher.innerHTML = '<span aria-hidden="true">🔔</span><span id="anc-badge" class="anc-badge" hidden>0</span>';
+    launcher.addEventListener("click", open);
+    document.body.appendChild(launcher);
+    updateBadge();
+  }
+
+  function open() {
+    var panel = host();
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "anc-panel";
+      panel.className = "anc-overlay";
+      panel.setAttribute("data-open", "false");
+      panel.setAttribute("aria-hidden", "true");
+      panel.innerHTML =
+        '<div class="anc-dialog" role="dialog" aria-modal="true" aria-labelledby="anc-title">' +
+        '<div class="anc-head"><div><h2 id="anc-title">Notifications</h2>' +
+        '<p class="anc-status" role="status"></p></div>' +
+        '<button type="button" class="anc-btn anc-close" data-anc-action="close" aria-label="Close notifications">✕</button></div>' +
+        '<p class="anc-hint">Aggregated from your own exam, hackathon, placement, task and revision records. Nothing is pushed or invented; hiding an item only clears its unread marker.</p>' +
+        '<div class="anc-list"></div>' +
+        '<div class="anc-foot"><button type="button" class="anc-btn" data-anc-action="mark-all">Mark all as read</button>' +
+        '<button type="button" class="anc-btn anc-primary" data-anc-action="close">Done</button></div></div>';
+      panel.addEventListener("click", onPanelClick);
+      document.body.appendChild(panel);
+    }
+    panel.__previous = document.activeElement;
+    panel.setAttribute("data-open", "true");
+    panel.setAttribute("aria-hidden", "false");
+    document.addEventListener("keydown", onKeydown, true);
+    render();
+    var closeBtn = panel.querySelector(".anc-close");
+    if (closeBtn) closeBtn.focus();
+    return true;
+  }
+
+  function close() {
+    var panel = host();
+    if (!panel || panel.getAttribute("data-open") !== "true") return false;
+    document.removeEventListener("keydown", onKeydown, true);
+    panel.setAttribute("data-open", "false");
+    panel.setAttribute("aria-hidden", "true");
+    var previous = panel.__previous;
+    if (previous && typeof previous.focus === "function" && previous.isConnected) {
+      try { previous.focus({ preventScroll: true }); } catch { previous.focus(); }
+    }
+    return true;
+  }
+
+  function visible(el) {
+    if (!el || el.disabled) return false;
+    for (var node = el; node && node.nodeType === 1; node = node.parentElement) {
+      if (node.hidden) return false;
+      if (node !== el && node.getAttribute("aria-hidden") === "true") return false;
+    }
+    return true;
+  }
+
+  function onKeydown(event) {
+    var panel = host();
+    if (!panel || panel.getAttribute("data-open") !== "true") return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    var dialog = panel.querySelector(".anc-dialog");
+    var focusable = dialog ? Array.prototype.slice.call(dialog.querySelectorAll("button, [href], [tabindex]:not([tabindex='-1'])")).filter(visible) : [];
+    if (!focusable.length) return;
+    var first = focusable[0], last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function navigate(route) {
+    if (!route) return;
+    var label = {
+      "exam-tracker": "Exam Tracker",
+      "hackathon-tracker": "Hackathon Tracker",
+      "placement-tracker": "Placement Tracker",
+      learning: "Learning",
+      dsa: "DSA Tracker",
+      dev: "Development"
+    }[route];
+    var buttons = Array.prototype.slice.call(document.querySelectorAll("#arise-desktop-nav button, #arise-mobile-nav button, aside button"));
+    for (var i = 0; i < buttons.length; i++) {
+      var text = (buttons[i].textContent || "").replace(/\s+/g, " ").trim();
+      if (label && (text === label || text.indexOf(label) !== -1)) {
+        buttons[i].click();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function onPanelClick(event) {
+    var control = event.target.closest ? event.target.closest("[data-anc-action]") : null;
+    if (!control) return;
+    var action = control.getAttribute("data-anc-action");
+    if (action === "close") return void close();
+    if (action === "mark-all") return void markAllRead();
+    var row = control.closest(".anc-item");
+    var id = row && row.getAttribute("data-anc-id");
+    if (!id) return;
+    if (action === "read") {
+      markRead(id);
+      return;
+    }
+    if (action === "open") {
+      markRead(id);
+      navigate(control.getAttribute("data-route"));
+      close();
+    }
+  }
+
+  /* ------------------------------------------------------------ lifecycle -- */
+
+  var scheduled = 0;
+  function scheduleRefresh() {
+    if (scheduled) return;
+    scheduled = 1;
+    setTimeout(function () {
+      scheduled = 0;
+      refresh();
+    }, 250);
+  }
+
+  function boot() {
+    if (!document.body) return;
+    ensureLauncher();
+    refresh();
+    window.addEventListener("storage", scheduleRefresh);
+    window.addEventListener("focus", scheduleRefresh);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) scheduleRefresh();
+    });
+    // Re-derive when a widget mounts into the page (it may have loaded records
+    // from the cloud after first paint). Debounced, so a busy render pass costs
+    // one recomputation, and the launcher itself is not a source of churn.
+    if (typeof MutationObserver === "function") {
+      var observer = new MutationObserver(function (records) {
+        for (var i = 0; i < records.length; i++) {
+          var added = records[i].addedNodes || [];
+          for (var j = 0; j < added.length; j++) {
+            var node = added[j];
+            if (node.nodeType !== 1) continue;
+            if (node.id === "anc-launcher" || node.id === "anc-panel") continue;
+            scheduleRefresh();
+            return;
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    scheduleRefresh();
+  }
+
+  window.AriseNotifications = {
+    storageKey: READ_KEY,
+    list: list,
+    unreadCount: unreadCount,
+    markRead: markRead,
+    markAllRead: markAllRead,
+    refresh: refresh,
+    open: open,
+    close: close
+  };
+
+  // The loader injects this module after the body exists, so create the
+  // launcher immediately; the DOMContentLoaded listener is only a safety net
+  // for a script tag placed in <head>.
+  if (document.body) boot();
+  else document.addEventListener("DOMContentLoaded", boot);
+})();
+
+}catch(__arise_e){setTimeout(function(){throw __arise_e})}
+
 /* ---- ./src/projects-widget.js ---- */
 try{
 (function(){window.__ARISE_PROJECTS_WIDGET__||(window.__ARISE_PROJECTS_WIDGET__=!0);var J="projects",pe="pjw-sort-mode",ve="arise-cp-tracker-v1",K=[{key:"githubLink",label:"GitHub repo link"},{key:"liveDemo",label:"Live demo link"},{key:"readme",label:"README (setup / usage)"},{key:"screenshots",label:"Screenshots / preview"},{key:"techStack",label:"Tech stack listed"},{key:"authDbApi",label:"Auth / database / API"},{key:"responsiveUI",label:"Responsive UI"},{key:"tests",label:"Tests"},{key:"deployment",label:"Deployed / hosted"},{key:"resumeBullet",label:"Resume bullet written"}],g=null,V=null;function $(){return V===null&&window.AriseWidgetNav&&window.AriseWidgetNav.create&&(V=window.AriseWidgetNav.create({storageKey:"arise-widget-nav-projects",sections:[{id:"analytics",label:"Analytics",icon:"📊"},{id:"techstack",label:"Tech Stack",icon:"🧰"},{id:"deadlines",label:"Deadlines",icon:"⏳"},{id:"board",label:"Board",icon:"🧭"},{id:"timetracking",label:"Time",icon:"⏱️"},{id:"portfolio",label:"Portfolio",icon:"📦"},{id:"tier3prep",label:"Tier-3 Prep",icon:"🎯"},{id:"projects",label:"Projects",icon:"🗂️"}]})),V}function Ce(){var e=$();return e?e.navHtml():""}function P(e,t){var i=$();return i?i.panelWrap(e,t):typeof t=="function"?t():t}function Ne(){var e=$();e&&e.wire(g)}var j={},X={},Z={},ee={},te={},I={},we={},A=Le(),k={},N={},M={},L={},E=[{key:"q1",label:"What does this project do? (30-second pitch)"},{key:"q2",label:"Why did you choose this tech stack?"},{key:"q3",label:"What was one real challenge, and how did you solve it?"},{key:"q4",label:"What would you improve or add next?"}],Me=[{key:"none",label:"Not yet",tone:"danger"},{key:"getting-there",label:"Getting there",tone:"warning"},{key:"ready",label:"Ready",tone:"success"}];function l(e){return String(e??"").replace(/[&<>"']/g,function(t){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[t]})}function R(e){return e+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8)}function Le(){try{return localStorage.getItem(pe)||"default"}catch{return"default"}}function De(e){try{localStorage.setItem(pe,e)}catch{}}function H(){var e=null;try{e=localStorage.getItem(J)}catch{}if(!e)return[];var t;try{t=JSON.parse(e)}catch{return[]}return Array.isArray(t)?t:[]}function B(e){var t=!1,i=e.map(function(a){if(!a||typeof a!="object")return a;var r=a;return Array.isArray(a.techStack)||(r=Object.assign({},r,{techStack:[]}),t=!0),(typeof a.timeInvested!="number"||isNaN(a.timeInvested))&&(r=Object.assign({},r,{timeInvested:0}),t=!0),Array.isArray(a.features)||(r=Object.assign({},r,{features:[]}),t=!0),Array.isArray(a.bugs)||(r=Object.assign({},r,{bugs:[]}),t=!0),(typeof a.updatedAt!="string"||!a.updatedAt)&&(r=Object.assign({},r,{updatedAt:a.createdAt||new Date().toISOString()}),t=!0),typeof a.resumeBulletText!="string"&&(r=Object.assign({},r,{resumeBulletText:""}),t=!0),(!a.interviewAnswers||typeof a.interviewAnswers!="object"||Array.isArray(a.interviewAnswers))&&(r=Object.assign({},r,{interviewAnswers:{q1:"",q2:"",q3:"",q4:""}}),t=!0),typeof a.interviewConfidence!="string"&&(r=Object.assign({},r,{interviewConfidence:"none"}),t=!0),(!a.collegeSubmission||typeof a.collegeSubmission!="object"||Array.isArray(a.collegeSubmission))&&(r=Object.assign({},r,{collegeSubmission:{report:!1,ppt:!1,vivaDone:!1,vivaDate:""}}),t=!0),typeof a.isTeamProject!="boolean"&&(r=Object.assign({},r,{isTeamProject:!1}),t=!0),typeof a.myContribution!="string"&&(r=Object.assign({},r,{myContribution:""}),t=!0),typeof a.isPrimaryPitch!="boolean"&&(r=Object.assign({},r,{isPrimaryPitch:!1}),t=!0),r});return{list:i,changed:t}}function Oe(e){return JSON.stringify({title:e.title,description:e.description,category:e.category,progress:e.progress,githubLink:e.githubLink,demoLink:e.demoLink,deadline:e.deadline,notes:e.notes,archived:e.archived,features:e.features,bugs:e.bugs,techStack:e.techStack,timeInvested:e.timeInvested,resumeBulletText:e.resumeBulletText,interviewAnswers:e.interviewAnswers,interviewConfidence:e.interviewConfidence,collegeSubmission:e.collegeSubmission,isTeamProject:e.isTeamProject,myContribution:e.myContribution,isPrimaryPitch:e.isPrimaryPitch})}function qe(e){var t=!1,i=e.map(function(a){if(!a||typeof a!="object"||!a.id)return a;var r=Oe(a),s=we[a.id];return we[a.id]=r,s!==void 0&&s!==r?(t=!0,Object.assign({},a,{updatedAt:new Date().toISOString()})):a});return{list:i,changed:t}}function z(e){try{localStorage.setItem(J,JSON.stringify(e))}catch{}}function b(e,t,i){var a=e.map(function(r){return r&&r.id===t?Object.assign({},r,i):r});z(a),y()}function Ie(e,t){var i=!1,a=e.filter(function(s){return s&&s.id===t})[0];a&&a.isPrimaryPitch&&(i=!0);var r=e.map(function(s){if(!s)return s;var u=!i&&s.id===t;return s.isPrimaryPitch===u?s:Object.assign({},s,{isPrimaryPitch:u})});z(r),y()}function C(e){if(!e)return null;var t=new Date(e);if(isNaN(t.getTime()))return null;var i=new Date(t.getFullYear(),t.getMonth(),t.getDate()).getTime(),a=new Date;return a=new Date(a.getFullYear(),a.getMonth(),a.getDate()).getTime(),Math.round((i-a)/864e5)}function fe(e){if(!e)return null;var t=new Date(e).getTime();return isNaN(t)?null:Math.floor((Date.now()-t)/864e5)}function ge(e){if(!e.deadline)return'<span class="pjw-deadline pjw-deadline-none">No deadline set</span>';var t=C(e.deadline);if(t===null)return'<span class="pjw-deadline pjw-deadline-none">Invalid date</span>';var i="pjw-deadline-ok",a;return t<0?(i="pjw-deadline-overdue",a=Math.abs(t)+"d overdue"):t===0?(i="pjw-deadline-today",a="Due today"):(t<=3&&(i="pjw-deadline-soon"),a=t+"d left"),'<span class="pjw-deadline '+i+'">⏳ '+l(a)+' <span class="pjw-deadline-date">('+l(e.deadline)+")</span></span>"}function _e(e){if(e.archived)return"";var t=Number(e.progress)||0;if(t<=0||t>=100)return"";var i=fe(e.updatedAt);return i===null||i<30?"":'<span class="pjw-stale-badge" title="No detected change in progress, notes, links, checklist or tags for '+i+' days">⚠ Stale · '+i+"d no update</span>"}var Ee="arise-notes-app-v1";function Re(){var e=null;try{e=localStorage.getItem(Ee)}catch{}if(!e)return null;try{var t=JSON.parse(e);return t&&typeof t=="object"?t:null}catch{return null}}function He(e){var t=Re();if(!t||!Array.isArray(t.notes))return 0;var i=U(e.title);return i?t.notes.filter(function(a){return a&&!a.deletedAt&&a.linkType==="project"&&U(a.linkedLabel)===i}).length:0}function Be(e){var t=He(e);return t?'<span class="pjw-notes-badge" title="'+t+" note"+(t===1?"":"s")+' linked to this project">📝 '+t+" note"+(t===1?"":"s")+"</span>":""}function be(){var e=null;try{e=localStorage.getItem(ve)}catch{}if(!e)return null;try{var t=JSON.parse(e);return t&&typeof t=="object"?t:null}catch{return null}}function U(e){return String(e??"").trim().toLowerCase()}function S(e,t){if(!e||!Array.isArray(e.projects))return null;var i=U(t);if(!i)return null;var a=e.projects.filter(function(r){return r&&U(r.name)===i});return a.length?a[0]:null}function T(e){if(!e||!e.checks)return 0;var t=0;return K.forEach(function(i){e.checks[i.key]&&t++}),t*10}function ae(e){return e>=75?"success":e>=40?"warning":"danger"}function ze(e,t){var i=S(t,e.title);if(!i)return'<span class="pjw-quality-badge pjw-quality-badge-none" title="Add this project in the Project Quality tab to track it here">Not in Quality tab</span>';var a=T(i),r=ae(a),s=a>=75?"✓ Resume Ready":a+"/100 quality";return'<span class="pjw-quality-badge" data-tone="'+r+'">'+l(s)+"</span>"}function Ue(e,t){var i=S(t,e.title);if(!i)return'<div class="pjw-block"><div class="pjw-block-title">🎯 Project Quality <span class="pjw-block-count">not tracked</span></div><div class="pjw-empty-sub">No matching entry in the Project Quality tab yet (matched by project name: "'+l(e.title)+'").</div><button type="button" class="pjw-btn pjw-btn-secondary" data-action="open-quality-tab">Open Project Quality tab →</button></div>';var a=T(i),r=ae(a),s=K.map(function(p){var v=!!(i.checks&&i.checks[p.key]);return'<span class="pjw-quality-chip'+(v?" pjw-quality-chip-on":"")+'">'+(v?"✓":"○")+" "+l(p.label)+"</span>"}).join(""),u=K.filter(function(p){return!(i.checks&&i.checks[p.key])});return'<div class="pjw-block"><div class="pjw-block-title">🎯 Project Quality <span class="pjw-block-count" data-tone="'+r+'">'+a+'/100</span></div><div class="pjw-quality-chips">'+s+"</div>"+(u.length?'<div class="pjw-empty-sub">Missing: '+u.map(function(p){return l(p.label)}).join(", ")+"</div>":'<div class="pjw-empty-sub">All quality checks complete ✓</div>')+'<button type="button" class="pjw-btn pjw-btn-secondary" data-action="open-quality-tab">Open in Project Quality tab →</button></div>'}function Fe(){var e=document.querySelector('[data-nav-id="cp"]');if(e)return e;for(var t=document.querySelectorAll("button"),i=0;i<t.length;i++)if(/Competitive Programming/i.test(t[i].textContent||""))return t[i];return null}function We(){var e=document.querySelector('.cp-tabs [data-tab="quality"]');if(e)return e;for(var t=document.querySelectorAll(".cp-tabs button, .cp-tab"),i=0;i<t.length;i++)if(/Project Quality/i.test(t[i].textContent||""))return t[i];return null}function Qe(){var e=Fe();e&&e.click();var t=0,i=setInterval(function(){t++;var a=We();a?(a.click(),clearInterval(i)):t>20&&clearInterval(i)},100)}function Ge(e){return e&&e.charAt(0).toLowerCase()+e.slice(1)}function Ye(e){return e.length===1?e[0]:e.length===2?e[0]+" and "+e[1]:e.slice(0,-1).join(", ")+", and "+e[e.length-1]}function re(e){var t=String(e.title||"Untitled Project").trim(),i=String(e.description||"").trim().replace(/\.+$/,""),a=(e.techStack||[]).filter(Boolean),r=(e.features||[]).filter(function(v){return v&&v.done}).length,s=(e.features||[]).length,u=(Number(e.progress)||0)>=100?"Built":"Developed",p=u+" "+t;return i&&(p+=", "+Ge(i)),a.length&&(p+=" using "+Ye(a)),s>0&&(p+="; shipped "+r+"/"+s+" planned features"),e.demoLink?p+=", deployed live":e.githubLink&&(p+=", with source on GitHub"),p+"."}function Je(e){var t=Object.prototype.hasOwnProperty.call(I,e.id)?I[e.id]:e.resumeBulletText||re(e),i=!!e.resumeBulletText;return'<div class="pjw-block"><div class="pjw-block-title">📝 Resume Bullet <span class="pjw-block-count">'+(i?"saved":"auto-draft")+'</span></div><textarea class="pjw-input pjw-bullet-text" rows="3" data-input="bullet">'+l(t)+'</textarea><div class="pjw-inline-form"><button type="button" class="pjw-btn pjw-btn-primary" data-action="save-bullet">Save</button><button type="button" class="pjw-btn pjw-btn-secondary" data-action="regenerate-bullet">Regenerate from project info</button><button type="button" class="pjw-btn pjw-btn-secondary" data-action="copy-bullet">Copy</button></div><div class="pjw-empty-sub">Once it reads well, tick "Resume bullet written" for this project in the Project Quality tab.</div></div>'}function je(e){var t=[];t.push("# "+(e.title||"Untitled Project")),t.push("");var i=[];e.category&&i.push("**Category:** "+e.category),(e.techStack||[]).length&&i.push("**Tech stack:** "+e.techStack.join(", ")),i.push("**Progress:** "+(Number(e.progress)||0)+"%"),t.push(i.join(`  

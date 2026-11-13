@@ -498,6 +498,95 @@ try{
     );
   }
 
+  function wireDelegated(container) {
+    if (!container || container.__ishWired) return;
+    container.__ishWired = true;
+    container.addEventListener("click", function (ev) {
+      var target = ev.target && ev.target.closest ? ev.target : null;
+      if (!target) return;
+      var retry = target.closest("[data-ish-retry]");
+      if (retry) {
+        loadError = !1;
+        h();
+        var mounted = n;
+        loadData(!0).then(function () {
+          if (n === mounted && mounted.isConnected !== false) h();
+        });
+        return;
+      }
+      var tab = target.closest(".ish-tab");
+      if (tab) {
+        e.activeSheet = tab.getAttribute("data-sheet");
+        e.company = "All";
+        e.topic = "All";
+        e.search = "";
+        e.difficulty = "All";
+        e.status = "All";
+        h();
+        return;
+      }
+      var chip = target.closest(".ish-chip");
+      if (chip) {
+        e.company = chip.getAttribute("data-company");
+        e.topic = "All";
+        h();
+        return;
+      }
+      var cf = target.closest("[data-ish-clear-filters]");
+      if (cf) {
+        e.search = "";
+        e.topic = "All";
+        e.difficulty = "All";
+        e.status = "All";
+        h();
+        return;
+      }
+      var chk = target.closest(".ish-check");
+      if (chk) {
+        q(_().sheetKey, chk.getAttribute("data-title"));
+        h();
+      }
+    });
+    container.addEventListener("change", function (ev) {
+      var target = ev.target;
+      if (!target || !target.classList) return;
+      if (target.classList.contains("ish-topic-select")) {
+        e.topic = target.value;
+        h();
+      } else if (target.classList.contains("ish-diff-select")) {
+        e.difficulty = target.value;
+        h();
+      } else if (target.classList.contains("ish-status-select")) {
+        e.status = target.value;
+        h();
+      }
+    });
+    container.addEventListener("input", function (ev) {
+      var target = ev.target;
+      if (!target || !target.classList || !target.classList.contains("ish-search")) return;
+      e.search = target.value;
+      var s = target.selectionStart;
+      f && clearTimeout(f);
+      f = setTimeout(function () {
+        f = null;
+        h();
+        var d = n && n.querySelector(".ish-search");
+        if (d) {
+          d.focus();
+          try {
+            d.setSelectionRange(s, s);
+          } catch {}
+        }
+        if (window.AriseLoading && window.AriseLoading.announce && n) {
+          var rows = n.querySelectorAll(".ish-row").length;
+          window.AriseLoading.announce(
+            rows ? rows + (rows === 1 ? " question matches your filters." : " questions match your filters.") : "No questions match your filters."
+          );
+        }
+      }, 120);
+    });
+  }
+
   function h() {
     if (!n) return;
     if (!c) {
@@ -506,17 +595,6 @@ try{
         n.innerHTML =
           "<div class='ish-wrap'><div class='ish-header'><div class='ish-title'><span>📑</span> Interview Sheets</div><div class='ish-subtitle'>Built-in curated problem sheets on top of your DSA tracker.</div></div>" +
           "<div class='uxa-error-state' role='alert'><div class='uxa-state-title'>Could not load interview sheets</div><div class='uxa-state-desc'>The curated sheet dataset could not be fetched. Your solved progress is safe locally.</div><button type='button' class='uxa-retry-btn' data-ish-retry='1'>Retry loading sheets</button></div></div>";
-        var rb = n.querySelector("[data-ish-retry]");
-        if (rb) {
-          rb.addEventListener("click", function () {
-            loadError = !1;
-            h();
-            var mounted = n;
-            loadData(!0).then(function () {
-              if (n === mounted && mounted.isConnected !== false) h();
-            });
-          });
-        }
         return;
       }
       n.setAttribute("aria-busy", "true");
@@ -531,81 +609,6 @@ try{
       "<div class='ish-wrap'><div class='ish-header'><div class='ish-title'><span>📑</span> Interview Sheets</div><div class='ish-subtitle'>Built-in curated sheets on top of your DSA tracker — Blind 75, NeetCode 150, LeetCode Top Interview 150, Striver A2Z &amp; company-wise lists.</div></div>" +
       (Object.keys(c).length ? L() : "<div class='uxa-empty-state'><div class='uxa-state-title'>No interview sheets available</div><div class='uxa-state-desc'>The sheet collection is empty. Your saved progress is unchanged.</div></div>") +
       "</div>";
-    for (var i = n.querySelectorAll(".ish-tab"), r = 0; r < i.length; r++)
-      i[r].addEventListener("click", function (t) {
-        e.activeSheet = t.currentTarget.getAttribute("data-sheet");
-        e.company = "All";
-        e.topic = "All";
-        e.search = "";
-        e.difficulty = "All";
-        e.status = "All";
-        h();
-      });
-    for (var o = n.querySelectorAll(".ish-chip"), p = 0; p < o.length; p++)
-      o[p].addEventListener("click", function (t) {
-        e.company = t.currentTarget.getAttribute("data-company");
-        e.topic = "All";
-        h();
-      });
-    var m = n.querySelector(".ish-search");
-    m &&
-      m.addEventListener("input", function (t) {
-        e.search = t.target.value;
-        var s = t.target.selectionStart;
-        f && clearTimeout(f);
-        f = setTimeout(function () {
-          f = null;
-          h();
-          var d = n && n.querySelector(".ish-search");
-          if (d) {
-            d.focus();
-            try {
-              d.setSelectionRange(s, s);
-            } catch {}
-          }
-          // Polite result feedback: filtering is synchronous, so a skeleton
-          // would be dishonest — a status line tells screen-reader users what
-          // changed without replacing the visible list.
-          if (window.AriseLoading && window.AriseLoading.announce && n) {
-            var rows = n.querySelectorAll(".ish-row").length;
-            window.AriseLoading.announce(
-              rows ? rows + (rows === 1 ? " question matches your filters." : " questions match your filters.") : "No questions match your filters."
-            );
-          }
-        }, 120);
-      });
-    var g = n.querySelector(".ish-topic-select");
-    g &&
-      g.addEventListener("change", function (t) {
-        e.topic = t.target.value;
-        h();
-      });
-    var y = n.querySelector(".ish-diff-select");
-    y &&
-      y.addEventListener("change", function (t) {
-        e.difficulty = t.target.value;
-        h();
-      });
-    var b = n.querySelector(".ish-status-select");
-    b &&
-      b.addEventListener("change", function (t) {
-        e.status = t.target.value;
-        h();
-      });
-    var cf = n.querySelector("[data-ish-clear-filters]");
-    cf &&
-      cf.addEventListener("click", function () {
-        e.search = "";
-        e.topic = "All";
-        e.difficulty = "All";
-        e.status = "All";
-        h();
-      });
-    for (var w = n.querySelectorAll(".ish-check"), a = 0; a < w.length; a++)
-      w[a].addEventListener("click", function (t) {
-        q(_().sheetKey, t.currentTarget.getAttribute("data-title"));
-        h();
-      });
   }
 
   window.__mountInterviewSheets = function (r) {
@@ -617,6 +620,7 @@ try{
         ".ish-wrap{display:flex;flex-direction:column;gap:1rem;font-family:var(--font-body)}.ish-header{display:flex;flex-direction:column;gap:.2rem}.ish-title{font-family:var(--font-display);font-weight:800;font-size:1.35rem;color:var(--text-primary);display:flex;align-items:center;gap:.5rem}.ish-subtitle{font-size:.8rem;color:var(--text-tertiary)}.ish-tabs{display:flex;flex-wrap:wrap;gap:.5rem}.ish-tab{padding:.5rem .9rem;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);font-size:.78rem;font-weight:600;cursor:pointer;transition:background-color var(--motion-fast,120ms),border-color var(--motion-fast,120ms),color var(--motion-fast,120ms)}.ish-tab:hover{border-color:var(--accent)}.ish-tab-active{background:var(--accent);color:var(--accent-contrast,#fff);border-color:var(--accent)}.ish-chip-row{display:flex;flex-wrap:wrap;gap:.4rem}.ish-chip{padding:.35rem .7rem;border-radius:999px;border:1px solid var(--border);background:var(--surface-muted);color:var(--text-secondary);font-size:.72rem;font-weight:600;cursor:pointer}.ish-chip-active{background:var(--accent);color:var(--accent-contrast,#fff);border-color:var(--accent)}.ish-desc{font-size:.76rem;color:var(--text-tertiary);line-height:1.5}.ish-progress-row{display:flex;align-items:center;gap:.75rem}.ish-progress-bar{flex:1;height:8px;border-radius:999px;background:var(--surface-muted);overflow:hidden}.ish-progress-fill{height:100%;border-radius:999px;background:linear-gradient(to right,var(--accent),var(--success));transition:width var(--motion-section,260ms) var(--ease-out-quart,ease)}.ish-progress-label{font-size:.72rem;color:var(--text-tertiary);white-space:nowrap;font-family:'JetBrains Mono',monospace}.ish-filters{display:flex;flex-wrap:wrap;gap:.5rem}.ish-search{flex:1;min-width:180px;padding:.5rem .75rem;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:.8rem}.ish-select{padding:.5rem .6rem;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:.78rem}.ish-list{display:flex;flex-direction:column;gap:.4rem;max-height:520px;overflow-y:auto;padding-right:.25rem}.ish-row{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow-sm);flex-wrap:wrap}.ish-row-solved{opacity:.6}.ish-check{width:20px;height:20px;flex-shrink:0;border-radius:5px;border:1px solid var(--border);background:transparent;color:#fff;font-size:.7rem;display:flex;align-items:center;justify-content:center;cursor:pointer}.ish-check-on{background:var(--success);border-color:var(--success)}.ish-row-title{flex:1;min-width:160px;font-size:.82rem;color:var(--text-primary)}.ish-row-solved .ish-row-title{text-decoration:line-through;color:var(--text-tertiary)}.ish-badge{font-size:.66rem;font-weight:600;padding:.15rem .5rem;border-radius:999px;border:1px solid var(--border);color:var(--text-tertiary);white-space:nowrap}.ish-badge-platform{background:var(--surface-muted)}.ish-row-topic{font-size:.7rem;color:var(--text-tertiary);white-space:nowrap}.ish-link{font-size:.72rem;color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap}.ish-link:hover{text-decoration:underline}.ish-empty{text-align:center;padding:2rem 1rem;color:var(--text-tertiary);font-size:.85rem;background:var(--surface-muted);border-radius:var(--radius-md);border:1px dashed var(--border)}";
       document.head.appendChild(o);
     }
+    wireDelegated(r);
     n = r;
     h();
     if (!c && !loadError) {
@@ -629,6 +633,8 @@ try{
   };
   window.__unmountInterviewSheets = function (r) {
     f && clearTimeout(f);
+    f = null;
+    if (r) r.innerHTML = "";
     n === r && (n = null);
   };
 })();

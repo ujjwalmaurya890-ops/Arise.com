@@ -351,15 +351,25 @@
     return html;
   }
 
+  function runMuted(fn) {
+    var bus = window.__ARISE_MUTATION_BUS__;
+    if (bus && typeof bus.mute === "function") return bus.mute(fn);
+    return fn();
+  }
+
   function render() {
     var panel = host();
     if (!panel) return;
     var items = compute();
     var body = panel.querySelector(".anc-list");
-    if (body) body.innerHTML = renderRows(items);
+    if (body) {
+      var nextHtml = renderRows(items);
+      if (body.innerHTML !== nextHtml) runMuted(function () { body.innerHTML = nextHtml; });
+    }
     var unread = items.filter(function (entry) { return !entry.read; }).length;
     var status = panel.querySelector(".anc-status");
-    if (status) status.textContent = unread + " unread · " + items.length + " tracked";
+    var nextStatus = unread + " unread · " + items.length + " tracked";
+    if (status && status.textContent !== nextStatus) runMuted(function () { status.textContent = nextStatus; });
     updateBadge();
   }
 
@@ -367,8 +377,13 @@
     var badge = document.getElementById("anc-badge");
     if (!badge) return;
     var count = unreadCount();
-    badge.textContent = count > 9 ? "9+" : String(count);
-    badge.hidden = count === 0;
+    var nextText = count > 9 ? "9+" : String(count);
+    var nextHidden = count === 0;
+    if (badge.textContent === nextText && badge.hidden === nextHidden) return;
+    runMuted(function () {
+      if (badge.textContent !== nextText) badge.textContent = nextText;
+      if (badge.hidden !== nextHidden) badge.hidden = nextHidden;
+    });
   }
 
   function ensureLauncher() {
@@ -525,19 +540,25 @@
     // Re-derive when a widget mounts into the page (it may have loaded records
     // from the cloud after first paint). Debounced, so a busy render pass costs
     // one recomputation, and the launcher itself is not a source of churn.
-    if (typeof MutationObserver === "function") {
-      var observer = new MutationObserver(function (records) {
-        for (var i = 0; i < records.length; i++) {
-          var added = records[i].addedNodes || [];
-          for (var j = 0; j < added.length; j++) {
-            var node = added[j];
-            if (node.nodeType !== 1) continue;
-            if (node.id === "anc-launcher" || node.id === "anc-panel") continue;
-            scheduleRefresh();
-            return;
-          }
+    function onMutations(records) {
+      for (var i = 0; i < records.length; i++) {
+        var t = records[i].target;
+        if (t && (t.id === "anc-launcher" || t.id === "anc-panel" || t.id === "anc-badge" || (t.closest && (t.closest("#anc-launcher") || t.closest("#anc-panel"))))) continue;
+        var added = records[i].addedNodes || [];
+        for (var j = 0; j < added.length; j++) {
+          var node = added[j];
+          if (node.nodeType !== 1) continue;
+          if (node.id === "anc-launcher" || node.id === "anc-panel") continue;
+          scheduleRefresh();
+          return;
         }
-      });
+      }
+    }
+    var bus = window.__ARISE_MUTATION_BUS__;
+    if (bus && typeof bus.subscribe === "function") {
+      bus.subscribe(onMutations);
+    } else if (typeof MutationObserver === "function") {
+      var observer = new MutationObserver(onMutations);
       observer.observe(document.body, { childList: true, subtree: true });
     }
     scheduleRefresh();

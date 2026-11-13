@@ -364,11 +364,17 @@
       (summary.hasData ? "" : "Log a focus session and this range fills in automatically.") + "</p>";
   }
 
+  var lastRenderedHtml = "";
   function renderCard() {
     if (!mountedCard) return;
     var body = mountedCard.querySelector(".ani-body");
     if (!body) return;
-    body.innerHTML = cardHtml(summarise({ days: range }), audit());
+    var html = cardHtml(summarise({ days: range }), audit());
+    if (body.innerHTML === html || lastRenderedHtml === html && body.firstChild) return;
+    lastRenderedHtml = html;
+    var bus = window.__ARISE_MUTATION_BUS__;
+    if (bus && typeof bus.mute === "function") bus.mute(function () { body.innerHTML = html; });
+    else body.innerHTML = html;
   }
 
   // The route body is the direct child of the flex column; the .space-y-6 card
@@ -379,14 +385,23 @@
     if (!main) return null;
     var stack = main.querySelector(".space-y-6");
     if (stack) return stack;
+    // Never mount outside .arise-route-state while Analytics is still loading or
+    // in its retryable error state: doing so places #ani-card above the route
+    // wrapper and snaps .arise-route-state upward once the bundle mounts.
+    var anyRouteState = main.querySelector(".arise-route-state");
+    if (anyRouteState) return null;
     var flex = main.querySelector(":scope > div.flex-1");
     if (!flex) return null;
-    // Early in a route change the stack does not exist yet: prefer the route
-    // state wrapper's own container so the card never lands beside the route.
     var routeState = flex.querySelector(":scope > .arise-route-state");
     var inner = routeState ? routeState.firstElementChild : (flex.firstElementChild || flex);
     if (inner && inner.id === "upp-data-health-card") inner = inner.nextElementSibling || inner;
     return inner || flex;
+  }
+
+  function runMuted(fn) {
+    var bus = window.__ARISE_MUTATION_BUS__;
+    if (bus && typeof bus.mute === "function") return bus.mute(fn);
+    return fn();
   }
 
   function mount() {
@@ -399,6 +414,7 @@
       mountedCard.className = "glass-card rounded-2xl p-5 ani-card";
       mountedCard.setAttribute("aria-labelledby", "ani-title");
       mountedCard.innerHTML = '<div class="ani-body"></div>';
+      lastRenderedHtml = "";
       mountedCard.addEventListener("click", function (event) {
         var btn = event.target && event.target.closest ? event.target.closest("[data-ani-range]") : null;
         if (!btn) return;
@@ -413,7 +429,9 @@
     }
     // Re-home the card when the route finished rendering after we mounted into
     // its placeholder, so it always sits inside the current card stack.
-    if (mountedCard.parentElement !== host) host.appendChild(mountedCard);
+    if (mountedCard.parentElement !== host) {
+      runMuted(function () { host.appendChild(mountedCard); });
+    }
     renderCard();
     // The heading lives inside the rendered body, so keep its id in sync with
     // the card's aria-labelledby on every render.
@@ -423,7 +441,13 @@
   }
 
   function unmount() {
-    if (mountedCard && mountedCard.parentNode) mountedCard.parentNode.removeChild(mountedCard);
+    if (mountedCard && mountedCard.parentNode) {
+      runMuted(function () {
+        if (mountedCard && mountedCard.parentNode) mountedCard.parentNode.removeChild(mountedCard);
+      });
+    }
+    mountedCard = null;
+    lastRenderedHtml = "";
   }
 
   range = readRange();
@@ -451,18 +475,24 @@
 
     function tick() {
       try {
-        if (routeIsAnalytics()) mount();
+        if (routeIsAnalytics() && home()) mount();
         else if (mountedCard && mountedCard.isConnected) unmount();
       } catch {}
     }
     function start() {
       tick();
-      if (typeof MutationObserver === "function" && document.body) {
-        var scheduled = null;
-        var observer = new MutationObserver(function () {
-          if (scheduled) return;
-          scheduled = setTimeout(function () { scheduled = null; tick(); }, 220);
-        });
+      var scheduled = null;
+      function scheduleTick(records) {
+        if (Array.isArray(records) && mountedCard && mountedCard.isConnected && records.every(function (r) {
+          return r && mountedCard.contains(r.target);
+        })) return;
+        if (scheduled) return;
+        scheduled = setTimeout(function () { scheduled = null; tick(); }, 180);
+      }
+      if (window.__ARISE_MUTATION_BUS__ && typeof window.__ARISE_MUTATION_BUS__.subscribe === "function") {
+        window.__ARISE_MUTATION_BUS__.subscribe(scheduleTick);
+      } else if (typeof MutationObserver === "function" && document.body) {
+        var observer = new MutationObserver(scheduleTick);
         observer.observe(document.body, { childList: true, subtree: true });
       }
       window.addEventListener("storage", tick);

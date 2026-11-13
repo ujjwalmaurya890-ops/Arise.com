@@ -42,15 +42,15 @@
     <link rel="stylesheet" href="./styles/cloud-auth.css" />
     <link rel="stylesheet" href="./styles/dashboard-personalization.css" />
     <link rel="stylesheet" href="./styles/notification-center.css" />
-    <link rel="stylesheet" href="./styles/knowledge-assistant.css" />
-    <link rel="stylesheet" href="./styles/analytics-integrity.css" />
+    <link rel="stylesheet" href="./styles/knowledge-assistant.css" media="print" data-promote-on-load />
+    <link rel="stylesheet" href="./styles/analytics-integrity.css" media="print" data-promote-on-load />
     <link rel="stylesheet" href="./styles/day-plan.css" />
     <link rel="stylesheet" href="./styles/focus-session-audit.css" />
     <link rel="stylesheet" href="./styles/study-horizon.css" />
     <link rel="stylesheet" href="./styles/progress-overview.css" />
-    <link rel="stylesheet" href="./styles/a11y-audit.css" />
-    <link rel="stylesheet" href="./styles/pwa-status.css" />
-    <link rel="stylesheet" href="./styles/backup-integrity.css" />
+    <link rel="stylesheet" href="./styles/a11y-audit.css" media="print" data-promote-on-load />
+    <link rel="stylesheet" href="./styles/pwa-status.css" media="print" data-promote-on-load />
+    <link rel="stylesheet" href="./styles/backup-integrity.css" media="print" data-promote-on-load />
     <script src="./src/cloud/storage-schema.js"></script>
     <script src="./src/cloud/storage-bridge.js"></script>
     <script type="module" src="./assets/cloud-auth.js"></script>
@@ -836,6 +836,7 @@ window.AriseBoot.ready.then(function () {
     if(activeRoot && !activeRoot.classList.contains('arise-active-focus-root')) activeRoot.classList.add('arise-active-focus-root');
   }
   function installCore(){
+    if(!document.getElementById('arise-main')&&!document.querySelector('.focus-mode')) return;
     const rings=document.querySelectorAll('.timer-ring-container');
     const hasTimerUI=rings.length>0;
     const activeRoot=hasTimerUI?getFocusOverlay():null; setFocusState(activeRoot);
@@ -896,7 +897,12 @@ window.AriseBoot.ready.then(function () {
   // install once on visibility regain so the panel is never left un-anchored.
   document.addEventListener('visibilitychange',function(){if(!document.hidden)install();});
   var ambObs=new MutationObserver(debounced);
-  ambObs.observe(document.documentElement,{childList:true,subtree:true});
+  function startAmbObs(){
+    if(window.__ARISE_MUTATION_BUS__){window.__ARISE_MUTATION_BUS__.subscribe(debounced);return;}
+    ambObs.observe(document.body||document.documentElement,{childList:true,subtree:true});
+  }
+  if(document.body) startAmbObs();
+  else document.addEventListener('DOMContentLoaded',startAmbObs,{once:true});
   window.addEventListener('arise:widgets-ready',function(){
     if(window.__ARISE_MUTATION_BUS__){try{ambObs.disconnect();}catch(e){} window.__ARISE_MUTATION_BUS__.subscribe(debounced);}
   },{once:true});
@@ -968,6 +974,18 @@ window.AriseBoot.ready.then(function () {
       './src/a11y-color-patch.js',
       './src/a11y-label-patch.js',
       './src/widget-failure-reporter.js',
+      './src/dashboard-personalization.js',
+      './src/notification-center.js',
+      './src/knowledge-assistant.js',
+      './src/analytics-integrity.js',
+      './src/day-plan.js',
+      './src/focus-session-audit.js',
+      './src/study-horizon.js',
+      './src/progress-overview.js',
+      './src/a11y-audit.js',
+      './src/pwa-status.js',
+      './src/backup-integrity.js',
+      './src/reliability-watch.js',
       './src/attendance-tracker-widget.js',
       './src/competitive-programming-widget.js',
       './src/social-media-widget.js',
@@ -1033,18 +1051,6 @@ window.AriseBoot.ready.then(function () {
       './src/features/semester-risk/cse-syllabus-tabs-v150-patch.js',
       './src/features/semester-risk/cse-syllabus-unified-widget.js',
       './src/local-files-widget.js',
-      './src/dashboard-personalization.js',
-      './src/notification-center.js',
-      './src/knowledge-assistant.js',
-      './src/analytics-integrity.js',
-      './src/day-plan.js',
-      './src/focus-session-audit.js',
-      './src/study-horizon.js',
-      './src/progress-overview.js',
-      './src/a11y-audit.js',
-      './src/pwa-status.js',
-      './src/backup-integrity.js',
-      './src/reliability-watch.js',
       './src/projects-widget.js',
       './src/expenses.js',
       './src/cgpa-tracker-widget.js',
@@ -1054,20 +1060,20 @@ window.AriseBoot.ready.then(function () {
     ];
     /*CHUNKS:START*/
     var CHUNKS = [
-      "./assets/chunks/w01.f4da0b94.js",
-      "./assets/chunks/w02.98dcfad7.js",
-      "./assets/chunks/w03.13da4cc8.js",
-      "./assets/chunks/w04.a2342fa0.js",
-      "./assets/chunks/w05.3baa3194.js",
-      "./assets/chunks/w06.f8f9135d.js",
-      "./assets/chunks/w07.5144c189.js",
-      "./assets/chunks/w08.9cb9c623.js",
-      "./assets/chunks/w09.3c1b0d3f.js",
-      "./assets/chunks/w10.057993be.js",
+      "./assets/chunks/w01.82e8bc12.js",
+      "./assets/chunks/w02.2e4eca0d.js",
+      "./assets/chunks/w03.9ba39af7.js",
+      "./assets/chunks/w04.7540b646.js",
+      "./assets/chunks/w05.fecb7cda.js",
+      "./assets/chunks/w06.3baa3194.js",
+      "./assets/chunks/w07.c7166edf.js",
+      "./assets/chunks/w08.5144c189.js",
+      "./assets/chunks/w09.6c08693f.js",
+      "./assets/chunks/w10.883f40da.js",
       "./assets/chunks/w11.d858d06b.js",
       "./assets/chunks/w12.25ead63b.js"
     ];
-    var CHUNK_FILES = {"./assets/chunks/w01.f4da0b94.js":["./src/mutation-bus.js","./src/perf-watch.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.98dcfad7.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js"],"./assets/chunks/w03.13da4cc8.js":["./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/a11y-label-patch.js","./src/widget-failure-reporter.js","./src/attendance-tracker-widget.js"],"./assets/chunks/w04.a2342fa0.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w05.3baa3194.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js","./src/skills-timeline-widget.js"],"./assets/chunks/w06.f8f9135d.js":["./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js","./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js"],"./assets/chunks/w07.5144c189.js":["./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js","./src/dsa-mistake-journal-widget.js","./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js"],"./assets/chunks/w08.9cb9c623.js":["./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js","./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w09.3c1b0d3f.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/dashboard-personalization.js","./src/notification-center.js","./src/knowledge-assistant.js","./src/analytics-integrity.js","./src/day-plan.js","./src/focus-session-audit.js","./src/study-horizon.js","./src/progress-overview.js"],"./assets/chunks/w10.057993be.js":["./src/a11y-audit.js","./src/pwa-status.js","./src/backup-integrity.js","./src/reliability-watch.js","./src/projects-widget.js"],"./assets/chunks/w11.d858d06b.js":["./src/expenses.js"],"./assets/chunks/w12.25ead63b.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js","./src/career-intelligence-dashboard.js"]};
+    var CHUNK_FILES = {"./assets/chunks/w01.82e8bc12.js":["./src/mutation-bus.js","./src/perf-watch.js","./src/storage-watch-bus.js","./src/storage-keys.js","./src/widget-shared-utils.js","./src/widget-nav.js","./src/mobile-nav-enhance.js","./src/dev-task-timestamps-widget.js","./src/theme-system.js","./src/theme-quick-toggle.js","./src/premium-productivity-features.js","./src/saas-widget-enhancer.js","./src/habit-heatmap-widget.js","./src/burnout-detector-widget.js","./src/xp-breakdown-widget.js","./src/features/exam-tracker/exam-tracker-calculations.js","./src/features/exam-tracker/exam-tracker-intelligence.js","./src/features/exam-tracker/exam-tracker-storage.js","./src/features/exam-tracker/exam-tracker-dday.js"],"./assets/chunks/w02.2e4eca0d.js":["./src/features/exam-tracker/exam-tracker.js","./src/features/exam-tracker/exam-tracker-analytics-widget.js","./src/readiness-50lpa-widget.js","./src/career-command-center-widget.js","./src/readiness-path-planner-widget.js","./src/battle-plan-widget.js","./src/ai-smart-learning-path-widget.js","./src/revision-system-widget.js","./src/water-reminder-widget.js","./src/focus-mode-widget.js","./src/focus-timer-upgrade-widget.js","./src/timer-visual-upgrade-widget.js","./src/learning-session-analytics-widget.js","./src/learning-mastery-correlation-widget.js","./src/weekly-ai-report-widget.js"],"./assets/chunks/w03.9ba39af7.js":["./src/ai-career-mentor-widget.js","./src/ai-connect-shared.js","./src/ai-real-insights-widget.js","./src/mount-safety.js","./src/widget-reset.js","./src/a11y-toast-patch.js","./src/a11y-color-patch.js","./src/a11y-label-patch.js","./src/widget-failure-reporter.js","./src/dashboard-personalization.js","./src/notification-center.js","./src/knowledge-assistant.js","./src/analytics-integrity.js","./src/day-plan.js","./src/focus-session-audit.js","./src/study-horizon.js","./src/progress-overview.js","./src/a11y-audit.js","./src/pwa-status.js","./src/backup-integrity.js","./src/reliability-watch.js"],"./assets/chunks/w04.7540b646.js":["./src/attendance-tracker-widget.js"],"./assets/chunks/w05.fecb7cda.js":["./src/competitive-programming-widget.js","./src/social-media-widget.js","./src/problem-log-explorer-widget.js"],"./assets/chunks/w06.3baa3194.js":["./src/hackathon-tracker-widget.js","./src/hackathon-expense-tracker-widget.js","./src/hackathon-timeline-widget.js","./src/hackathon-pipeline-widget.js","./src/hackathon-team-directory-widget.js","./src/hackathon-prize-wall-widget.js","./src/hackathon-funnel-widget.js","./src/dev-mastery-heatmap-widget.js","./src/dev-weekly-sparkline-widget.js","./src/dev-milestone-badges-widget.js","./src/dev-pace-projection-widget.js","./src/dev-difficulty-radar-widget.js","./src/skills-timeline-widget.js"],"./assets/chunks/w07.c7166edf.js":["./src/notes-app-widget.js","./src/personal-wiki-widget.js","./src/interview-sheets-widget.js","./src/dsa-mastery-premium-widget.js","./src/dev-mastery-premium-widget.js","./src/dev-mastery-trend-widget.js","./src/dev-topic-breakdown-widget.js","./src/dev-streak-widget.js","./src/dev-roadmap-coverage-widget.js","./src/dev-solve-speed-widget.js","./src/dsa-topic-breakdown-widget.js","./src/dsa-pace-projection-widget.js","./src/dsa-streak-widget.js","./src/dsa-weekly-sparkline-widget.js","./src/dsa-mastery-trend-widget.js","./src/dsa-difficulty-radar-widget.js","./src/dsa-sheet-coverage-widget.js","./src/dsa-solve-speed-widget.js","./src/dsa-milestone-badges-widget.js","./src/dsa-revision-scheduler-widget.js"],"./assets/chunks/w08.5144c189.js":["./src/dsa-problem-insights-widget.js","./src/dsa-tier3-readiness-widget.js","./src/dsa-placement-engine-widget.js","./src/dsa-daily-goal-widget.js","./src/dsa-mock-oa-widget.js","./src/dsa-pattern-playbook-widget.js","./src/dsa-proof-pack-widget.js","./src/dsa-mistake-journal-widget.js","./src/dsa-study-planner-widget.js","./src/aptitude-practice-widget.js","./src/dev-placement-engine-widget.js","./src/placement-command-center-widget.js","./src/dev-task-insights-widget.js","./src/dev-quality-trend-widget.js","./src/dev-portfolio-flags-widget.js","./src/dev-revision-scheduler-widget.js","./src/backup-center-widget.js","./src/features/placement-tracker/placement-calculations.js","./src/features/placement-tracker/placement-storage.js"],"./assets/chunks/w09.6c08693f.js":["./src/features/placement-tracker/placement-tracker.js","./src/features/placement-tracker/placement-tracker-new-features.js","./src/features/cse-placement-critical/cse-placement-critical-config.js","./src/features/semester-risk/cse-full-syllabus-config.js","./src/features/semester-risk/cse-syllabus-plus-widget.js","./src/features/semester-risk/cse-syllabus-plus-v144-patch.js","./src/features/semester-risk/cse-syllabus-tabs-v150-patch.js"],"./assets/chunks/w10.883f40da.js":["./src/features/semester-risk/cse-syllabus-unified-widget.js","./src/local-files-widget.js","./src/projects-widget.js"],"./assets/chunks/w11.d858d06b.js":["./src/expenses.js"],"./assets/chunks/w12.25ead63b.js":["./src/cgpa-tracker-widget.js","./src/features/certificates/certificates-storage.js","./src/features/certificates/certificates-widget.js","./src/career-intelligence-dashboard.js"]};
     /*CHUNKS:END*/
 
     function loadCss() {
@@ -1157,9 +1163,9 @@ window.AriseBoot.ready.then(function () {
     // already loaded.
     window.__ariseLoadModule = function (src) {
       if (!src) return Promise.resolve(false);
-      var index = SOURCE_FILES.indexOf(src) === -1 ? CHUNKS.indexOf(src) : -1;
+      var index = SCRIPTS.indexOf(src) === -1 ? CHUNKS.indexOf(src) : -1;
       var isChunk = index !== -1;
-      if (!isChunk && SOURCE_FILES.indexOf(src) === -1) return Promise.resolve(false);
+      if (!isChunk && SCRIPTS.indexOf(src) === -1) return Promise.resolve(false);
       return new Promise(function (resolve) {
         var settled = false;
         function done(ok) {
@@ -1205,8 +1211,8 @@ window.AriseBoot.ready.then(function () {
       // wait. A script that fails to load is skipped and logged, as before.
       var BATCH = (list === CHUNKS) ? 1 : 6;
       var bootCap = (list === CHUNKS)
-        ? (document.getElementById('arise-main') ? 2 : 1)
-        : (document.getElementById('arise-main') ? 40 : 12);
+        ? (document.getElementById('arise-main') ? 3 : 1)
+        : (document.getElementById('arise-main') ? 52 : 12);
       var stage2Prewarmed = false;
       var index = 0;
       var finished = false;
@@ -1244,10 +1250,16 @@ window.AriseBoot.ready.then(function () {
           return;
         }
         if (index === bootCap) {
-          // Stage 1 (Landing shell w01 OR full Dashboard core w01..w03) is 100% live & mounted.
-          // Defer non-active route chunks (Exams/Attendance/CP/Hackathons/Syllabus/Expenses)
-          // to calm post-load idle OR 0ms immediate execution on window.__ariseExpedite().
-          setTimeout(go, 8500);
+          // Stage 1 (Dashboard core & active UX) is live & mounted.
+          // Yield to paint + first idle window so LCP/input never stall,
+          // then stream remaining background route chunks cleanly without an 8.5s sleep.
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(function () {
+              if (typeof requestIdleCallback === 'function') requestIdleCallback(go, { timeout: 220 });
+              else setTimeout(go, 60);
+            });
+          }
+          setTimeout(go, 260);
           return;
         }
         if (typeof requestAnimationFrame === 'function') {

@@ -268,11 +268,21 @@
       '<div class="dp-actions"><button type="button" class="dp-btn" data-dp-action="open-tasks">Open Daily Tasks</button></div>';
   }
 
+  var lastCardHtml = "";
+  function runMuted(fn) {
+    var bus = window.__ARISE_MUTATION_BUS__;
+    if (bus && typeof bus.mute === "function") return bus.mute(fn);
+    return fn();
+  }
+
   function render() {
     if (!mounted) return;
     var body = mounted.querySelector(".dp-body");
     if (!body) return;
-    body.innerHTML = cardHtml(today(), week());
+    var html = cardHtml(today(), week());
+    if (body.innerHTML === html || (lastCardHtml === html && body.firstChild)) return;
+    lastCardHtml = html;
+    runMuted(function () { body.innerHTML = html; });
   }
 
   function mount() {
@@ -286,14 +296,23 @@
       mounted.setAttribute("aria-labelledby", "dp-title");
       mounted.innerHTML = '<div class="dp-body"></div>';
       mounted.addEventListener("click", onClick);
+      lastCardHtml = "";
     }
-    if (mounted.parentElement !== host) host.appendChild(mounted);
+    if (mounted.parentElement !== host) {
+      runMuted(function () { host.appendChild(mounted); });
+    }
     render();
     return true;
   }
 
   function unmount() {
-    if (mounted && mounted.parentNode) mounted.parentNode.removeChild(mounted);
+    if (mounted && mounted.parentNode) {
+      runMuted(function () {
+        if (mounted && mounted.parentNode) mounted.parentNode.removeChild(mounted);
+      });
+    }
+    mounted = null;
+    lastCardHtml = "";
   }
 
   function onClick(event) {
@@ -344,8 +363,17 @@
 
   function start() {
     tick();
-    if (typeof MutationObserver === "function" && document.body) {
-      new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+    function onMutations(records) {
+      if (Array.isArray(records) && mounted && mounted.isConnected && records.every(function (r) {
+        return r && mounted.contains(r.target);
+      })) return;
+      schedule();
+    }
+    var bus = window.__ARISE_MUTATION_BUS__;
+    if (bus && typeof bus.subscribe === "function") {
+      bus.subscribe(onMutations);
+    } else if (typeof MutationObserver === "function" && document.body) {
+      new MutationObserver(onMutations).observe(document.body, { childList: true, subtree: true });
     }
     window.addEventListener("storage", schedule);
   }

@@ -251,6 +251,7 @@
     var reporter = window.__ariseWidgetFailureReport;
     if (!reporter || typeof reporter.failures !== "function") return false;
     var seen = {};
+    var timer = null;
     var tick = function () {
       var failures = reporter.failures();
       for (var i = 0; i < failures.length; i += 1) {
@@ -259,14 +260,11 @@
         if (!src || seen[src]) continue;
         seen[src] = true;
         if (/^widget:|^updater:/.test(src)) {
-          // A widget that mounted and then threw is not a missing file: retrying
-          // the script would not help, so it is only recorded for the status line.
           observed[src] = entry.reason || "failed";
           continue;
         }
         schedule(src, entry.reason);
       }
-      // Anything that is present again has been dealt with.
       Object.keys(seen).forEach(function (src) {
         var selector;
         if (/^widget:|^updater:/.test(src)) return;
@@ -275,9 +273,18 @@
         try { loaded = !!document.querySelector(selector); } catch { loaded = false; }
         if (loaded) finish(src);
       });
+      if (window.__ariseWidgetsReady && !failures.length && !Object.keys(read()).length && timer) {
+        clearInterval(timer);
+        timer = null;
+      }
     };
     tick();
-    setInterval(tick, 2500);
+    timer = setInterval(tick, 2500);
+    window.addEventListener("arise:widgets-ready", function () { setTimeout(tick, 500); }, { once: true });
+    window.addEventListener("arise:widget-failure", function () {
+      tick();
+      if (!timer) timer = setInterval(tick, 2500);
+    });
     return true;
   }
 

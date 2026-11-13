@@ -1,4 +1,4 @@
-(function(){function ariseIcon(name){return window.AriseIcons?window.AriseIcons.svg(name):""}if(!window.__ARISE_LEARNING_HEATMAP__){window.__ARISE_LEARNING_HEATMAP__=!0;var U="learning-heatmap-style",I=864e5,R=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],T=null,M=null;window.__mountLearningHeatmap=function(t){if(t){T=t,(function(){if(!document.getElementById(U)){var i=document.createElement("style");i.id=U,i.textContent=`
+(function(){function ariseIcon(name){return window.AriseIcons?window.AriseIcons.svg(name):""}if(!window.__ARISE_LEARNING_HEATMAP__){window.__ARISE_LEARNING_HEATMAP__=!0;var U="learning-heatmap-style",I=864e5,R=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],T=null,M=null;window.__mountLearningHeatmap=function(t){if(t){T&&window.__unmountLearningHeatmap(T),T=t,(function(){if(!document.getElementById(U)){var i=document.createElement("style");i.id=U,i.textContent=`
       .learning-heatmap-container {
         width: 100%;
         padding: 1.5rem;

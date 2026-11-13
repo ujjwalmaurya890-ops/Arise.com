@@ -135,12 +135,8 @@
     // The loader starts injecting chunks before this file is evaluated, so
     // adopt anything it has already recorded rather than waiting for new ones.
     window.__ariseWidgetFailureReport.adopt(window.__ariseWidgetLoadFailures);
-    // The loader keeps appending to __ariseWidgetLoadFailures for as long as
-    // it is streaming chunks (which is most of a session), so the array has to
-    // be re-read rather than adopted once. A mount error is a different failure
-    // mode - the chunk loaded and the widget threw - but the consequence for
-    // the user is the same, so it shares the one status line.
-    setInterval(function () {
+    var scanTimer = null;
+    function scan() {
       try {
         var loaded = window.__ariseWidgetLoadFailures;
         if (Array.isArray(loaded)) {
@@ -150,10 +146,6 @@
         if (Array.isArray(errors)) {
           for (var j = 0; j < errors.length; j++) remember("widget:" + errors[j].widget, errors[j].message);
         }
-        // mutation-bus failures are forwarded here through
-        // __ariseReportWidgetError as they happen; re-reading its own list
-        // covers the case where the bus recorded a failure before this file
-        // was evaluated.
         var bus = window.__ARISE_MUTATION_BUS__;
         if (bus && typeof bus.failures === "function") {
           var updaters = bus.failures();
@@ -161,7 +153,24 @@
         }
         render();
       } catch (_) {}
+    }
+    scanTimer = setInterval(function () {
+      scan();
+      if (window.__ariseWidgetsReady && !failures.length) {
+        clearInterval(scanTimer);
+        scanTimer = null;
+      }
     }, 2000);
+    window.addEventListener("arise:widgets-ready", function () {
+      setTimeout(function () {
+        scan();
+        if (scanTimer && !failures.length) {
+          clearInterval(scanTimer);
+          scanTimer = null;
+        }
+      }, 1000);
+    }, { once: true });
+    window.addEventListener("arise:mount-error", scan);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

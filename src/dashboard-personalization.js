@@ -193,6 +193,15 @@
     return authorOrder;
   }
 
+  function runMuted(fn) {
+    var bus = window.__ARISE_MUTATION_BUS__;
+    if (bus && typeof bus.mute === "function") return bus.mute(fn);
+    return fn();
+  }
+
+  var lastAppliedStack = null;
+  var lastAppliedCount = -1;
+
   function apply() {
     var stack = cardStack();
     if (!stack || applying) return false;
@@ -201,48 +210,50 @@
     captureAuthorOrder();
     applying = true;
     try {
-      var byKey = {};
-      snapshotState.cards.forEach(function (card) { byKey[card.key] = card; });
+      return runMuted(function () {
+        var byKey = {};
+        snapshotState.cards.forEach(function (card) { byKey[card.key] = card; });
 
-      // Pinned cards first (in the user's order), then the rest of the order.
-      var ordered = snapshotState.order.slice().sort(function (a, b) {
-        var pa = snapshotState.pinned.indexOf(a) === -1 ? 1 : 0;
-        var pb = snapshotState.pinned.indexOf(b) === -1 ? 1 : 0;
-        if (pa !== pb) return pa - pb;
-        return snapshotState.order.indexOf(a) - snapshotState.order.indexOf(b);
+        var ordered = snapshotState.order.slice().sort(function (a, b) {
+          var pa = snapshotState.pinned.indexOf(a) === -1 ? 1 : 0;
+          var pb = snapshotState.pinned.indexOf(b) === -1 ? 1 : 0;
+          if (pa !== pb) return pa - pb;
+          return snapshotState.order.indexOf(a) - snapshotState.order.indexOf(b);
+        });
+
+        var placed = stack.children;
+        ordered.forEach(function (key, index) {
+          var card = byKey[key];
+          if (!card) return;
+          if (placed[index] === card.node) return;
+          stack.insertBefore(card.node, placed[index] || null);
+        });
+
+        snapshotState.cards.forEach(function (card) {
+          var hidden = snapshotState.hidden.indexOf(card.key) !== -1;
+          if (hidden) {
+            if (!card.node.hidden) card.node.hidden = true;
+            if (card.node.getAttribute("data-arise-card-hidden") !== "true") card.node.setAttribute("data-arise-card-hidden", "true");
+            try { if (!card.node.inert) card.node.inert = true; } catch {}
+          } else {
+            if (card.node.hidden) card.node.hidden = false;
+            if (card.node.hasAttribute("data-arise-card-hidden")) card.node.removeAttribute("data-arise-card-hidden");
+            try { if (card.node.inert) card.node.inert = false; } catch {}
+          }
+          if (snapshotState.pinned.indexOf(card.key) !== -1) {
+            if (card.node.getAttribute("data-arise-card-pinned") !== "true") card.node.setAttribute("data-arise-card-pinned", "true");
+          } else if (card.node.hasAttribute("data-arise-card-pinned")) {
+            card.node.removeAttribute("data-arise-card-pinned");
+          }
+          if (card.node.getAttribute("data-arise-card-key") !== card.key) {
+            card.node.setAttribute("data-arise-card-key", card.key);
+          }
+        });
+
+        lastAppliedStack = stack;
+        lastAppliedCount = stack.children.length;
+        return true;
       });
-
-      // Only move nodes that are actually out of place. appendChild() moves an
-      // existing node even when it is already the right child, and doing that on
-      // every pass made the layout observer observe itself: every other widget's
-      // re-render put all the cards back in the stack in one long loop, 35
-      // appendChild calls per 4 s while the app was idle (each one a real DOM
-      // mutation that wakes the 40+ mutation-bus subscribers).
-      var placed = stack.children;
-      ordered.forEach(function (key, index) {
-        var card = byKey[key];
-        if (!card) return;
-        if (placed[index] === card.node) return;
-        stack.insertBefore(card.node, placed[index] || null);
-      });
-
-      snapshotState.cards.forEach(function (card) {
-        var hidden = snapshotState.hidden.indexOf(card.key) !== -1;
-        if (hidden) {
-          card.node.hidden = true;
-          card.node.setAttribute("data-arise-card-hidden", "true");
-          try { card.node.inert = true; } catch {}
-        } else {
-          card.node.hidden = false;
-          card.node.removeAttribute("data-arise-card-hidden");
-          try { card.node.inert = false; } catch {}
-        }
-        if (snapshotState.pinned.indexOf(card.key) !== -1) card.node.setAttribute("data-arise-card-pinned", "true");
-        else card.node.removeAttribute("data-arise-card-pinned");
-        card.node.setAttribute("data-arise-card-key", card.key);
-      });
-
-      return true;
     } finally {
       applying = false;
     }
@@ -481,16 +492,27 @@
   function boot() {
     if (!mainEl()) return;
     apply();
-    if (typeof MutationObserver !== "function") return;
-    var observer = new MutationObserver(function (records) {
-      for (var i = 0; i < records.length; i++) {
-        var target = records[i].target;
-        if (target && target.nodeType === 1 && !target.closest) return schedule();
+    function onMutations(records) {
+      if (applying) return;
+      var stack = cardStack();
+      if (!stack) {
+        if (lastAppliedStack) { lastAppliedStack = null; lastAppliedCount = -1; }
+        return;
       }
-      // New cards in the stack (route re-render) need the preference re-applied.
+      if (stack === lastAppliedStack && stack.children.length === lastAppliedCount) {
+        if (!Array.isArray(records) || records.every(function (r) {
+          return r && r.target !== stack && (r.target.nodeType !== 1 || !r.target.contains || !r.target.contains(stack));
+        })) return;
+      }
       schedule();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    }
+    var bus = window.__ARISE_MUTATION_BUS__;
+    if (bus && typeof bus.subscribe === "function") {
+      bus.subscribe(onMutations);
+    } else if (typeof MutationObserver === "function") {
+      var observer = new MutationObserver(onMutations);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
   }
 
   window.AriseDashboardLayout = {

@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 /* ==========================================================================
    netlify/functions/_proxy-guard.js
    --------------------------------------------------------------------------
@@ -36,9 +36,9 @@ const MAX_CACHE_ENTRIES = 500;
 const MAX_CLIENT_KEYS = 5000;
 
 function configuredOrigins() {
-  return String(process.env.ARISE_PROXY_ORIGINS || '')
-    .split(',')
-    .map((value) => value.trim())
+  return String(process.env.ARISE_PROXY_ORIGINS || "")
+    .split(",")
+    .map(value => value.trim())
     .filter(Boolean);
 }
 
@@ -55,28 +55,28 @@ function allowedOrigin(event) {
   const origin = headers.origin || headers.Origin;
   if (!origin) return null; // same-origin fetch or a server-side caller
   const allowed = new Set(configuredOrigins());
-  for (const name of ['URL', 'DEPLOY_URL', 'DEPLOY_PRIME_URL']) {
-    if (process.env[name]) allowed.add(process.env[name].replace(/\/$/, ''));
+  for (const name of ["URL", "DEPLOY_URL", "DEPLOY_PRIME_URL"]) {
+    if (process.env[name]) allowed.add(process.env[name].replace(/\/$/, ""));
   }
   // The request's own Host is the most reliable same-origin signal: it is set
   // by the platform on every request, including local `netlify dev` runs where
   // none of the deployment env vars exist.
   const host = headers.host || headers.Host;
   if (host) {
-    allowed.add('https://' + host);
-    allowed.add('http://' + host);
+    allowed.add("https://" + host);
+    allowed.add("http://" + host);
   }
-  return allowed.has(origin.replace(/\/$/, '')) ? origin : null;
+  return allowed.has(origin.replace(/\/$/, "")) ? origin : null;
 }
 
 function corsHeaders(event) {
   const origin = allowedOrigin(event);
   const headers = {
-    Vary: 'Origin',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    Vary: "Origin",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
   };
-  if (origin) headers['Access-Control-Allow-Origin'] = origin;
+  if (origin) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
 }
 
@@ -88,23 +88,25 @@ function isForeignOrigin(event) {
 
 function clientKey(event) {
   const headers = (event && event.headers) || {};
-  const forwarded = String(headers['x-nf-client-connection-ip'] || headers['x-forwarded-for'] || '')
-    .split(',')[0]
+  const forwarded = String(headers["x-nf-client-connection-ip"] || headers["x-forwarded-for"] || "")
+    .split(",")[0]
     .trim();
   // Netlify always sets the connection IP; fall back to a non-identifying
   // bucket so a missing header degrades to a shared budget, never to "no limit".
-  return forwarded || 'unknown-client';
+  return forwarded || "unknown-client";
 }
 
 const buckets = new Map(); // client -> { count, resetAt }
 
 function rateLimit(event) {
-  const limit = Number(process.env.ARISE_PROXY_RATE_LIMIT) > 0
-    ? Number(process.env.ARISE_PROXY_RATE_LIMIT)
-    : DEFAULT_RATE_LIMIT;
-  const windowMs = Number(process.env.ARISE_PROXY_RATE_WINDOW_MS) > 0
-    ? Number(process.env.ARISE_PROXY_RATE_WINDOW_MS)
-    : DEFAULT_RATE_WINDOW_MS;
+  const limit =
+    Number(process.env.ARISE_PROXY_RATE_LIMIT) > 0
+      ? Number(process.env.ARISE_PROXY_RATE_LIMIT)
+      : DEFAULT_RATE_LIMIT;
+  const windowMs =
+    Number(process.env.ARISE_PROXY_RATE_WINDOW_MS) > 0
+      ? Number(process.env.ARISE_PROXY_RATE_WINDOW_MS)
+      : DEFAULT_RATE_WINDOW_MS;
   const key = clientKey(event);
   const now = Date.now();
   let bucket = buckets.get(key);
@@ -162,17 +164,32 @@ class BoundedCache {
  */
 function rejected(event, cors) {
   if (isForeignOrigin(event)) {
-    return { statusCode: 403, headers: cors, body: JSON.stringify({ error: 'This endpoint is only available to the ARISE app.' }) };
+    return {
+      statusCode: 403,
+      headers: cors,
+      body: JSON.stringify({ error: "This endpoint is only available to the ARISE app." })
+    };
   }
   const limit = rateLimit(event);
   if (!limit.allowed) {
     return {
       statusCode: 429,
-      headers: Object.assign({ 'content-type': 'application/json', 'Retry-After': String(limit.retryAfter) }, cors),
-      body: JSON.stringify({ error: 'Too many requests. Please wait a moment and try again.' })
+      headers: Object.assign(
+        { "content-type": "application/json", "Retry-After": String(limit.retryAfter) },
+        cors
+      ),
+      body: JSON.stringify({ error: "Too many requests. Please wait a moment and try again." })
     };
   }
   return null;
 }
 
-module.exports = { allowedOrigin, corsHeaders, isForeignOrigin, rateLimit, BoundedCache, rejected, MAX_CACHE_ENTRIES };
+module.exports = {
+  allowedOrigin,
+  corsHeaders,
+  isForeignOrigin,
+  rateLimit,
+  BoundedCache,
+  rejected,
+  MAX_CACHE_ENTRIES
+};

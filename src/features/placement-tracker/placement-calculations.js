@@ -1,1 +1,1002 @@
-(function(v){"use strict";function y(a,u,o){return a=Number(a)||0,Math.max(u,Math.min(o,a))}function m(a,u){if(!a)return null;var o=new Date(a);if(isNaN(o))return null;var c=u?new Date(u):new Date;return c.setHours(0,0,0,0),o.setHours(0,0,0,0),Math.round((o-c)/864e5)}function i(a,u){try{var o=localStorage.getItem(a);if(!o)return u;var c=JSON.parse(o);return c??u}catch{return u}}function n(a){var u=a&&Array.isArray(a.subjects)?a.subjects:[];if(!u.length)return null;var o=0,c=0;return u.forEach(function(p){o+=Number(p.attended)||0,c+=Number(p.total)||0}),c<=0?null:y(o/c*100,0,100)}function t(a){var u=Array.isArray(a)?a:[];if(!u.length)return null;var o=window.__READINESS_ENGINE__;return o&&o.dsaScore?o.dsaScore(u):y(u.filter(function(c){return c&&c.solved}).length/u.length*100,0,100)}function e(a){var u=Array.isArray(a)?a:[];if(!u.length)return null;var o=window.__READINESS_ENGINE__;if(o&&o.projectScore)return o.projectScore(u);var c=Math.min(5,u.length),p=0;return u.forEach(function(h){var r=Number(h&&h.progress);isNaN(r)&&(r=0),p+=y(r,0,100)}),y(p/c,0,100)}function l(a){var u=window.__READINESS_ENGINE__&&window.__READINESS_ENGINE__.aptitudeFromLog&&window.__READINESS_ENGINE__.aptitudeFromLog();if(u)return Math.round(u.score);var o=Array.isArray(a)?a:[];if(!o.length)return null;var c=window.__READINESS_ENGINE__;if(c&&c.examScore)return c.examScore(o);var p=0,h=0;return o.forEach(function(r){var f=Number(r&&r.confidence);isNaN(f)||(p+=y(f,0,100),h++)}),h?Math.round(p/h):null}function s(a){var u=Array.isArray(a)?a:[];if(!u.length)return null;var o=0;return u.forEach(function(c){o+=y(20*(Number(c.performanceRating)||0),0,100)}),y(o/u.length,0,100)}function g(a){var u=a&&Array.isArray(a.problems)?a.problems:[];if(!u.length)return null;var o=Date.now()-2592e6;return y(u.filter(function(c){var p=c&&(c.date||c.solvedAt||c.createdAt);if(!p)return!1;var h=new Date(p).getTime();return!isNaN(h)&&h>=o}).length/30*100,0,100)}var b=typeof window<"u"&&window.__READINESS_SCORING_CONFIG__||null,d=b&&b.profiles&&b.profiles.placement||{},N=d.tiers||{massRecruiter:{attendance:22,resume:20,aptitude:23,dsa:10,projects:10,mocks:10,coding:5},service:{attendance:15,resume:18,aptitude:18,dsa:16,projects:16,mocks:12,coding:5},product:{attendance:5,resume:13,aptitude:9,dsa:30,projects:20,mocks:13,coding:10},dream:{attendance:3,resume:9,aptitude:5,dsa:35,projects:20,mocks:13,coding:15}},I=d.weights||{attendance:12,resume:15,aptitude:14,dsa:20,projects:18,mocks:13,coding:8},D={attendance:"Attendance",resume:"Resume",aptitude:"Aptitude",dsa:"DSA Progress",projects:"Projects",mocks:"Mock Interviews",coding:"Coding Activity"};function P(a,u){var o=0,c=0,p=[];return Object.keys(u).forEach(function(h){var r=a[h];r!=null?(o+=u[h],c+=r*u[h]):p.push(h)}),{pct:o>0?Math.round(c/o):0,missing:p}}function O(a,u){var o=typeof window<"u"&&window.__READINESS_ENGINE__,c=P(a,u);if(!o||!o.computeComposite)return{pct:c.pct,missing:c.missing,rawPct:c.pct,missingPenalty:0,notes:[]};var p={};c.missing.forEach(function(r){p[r]=!0});var h=o.computeComposite(a,u,d,{missing:p});return{pct:h.overall,missing:c.missing,rawPct:Math.round(h.rawOverall),missingPenalty:h.missingPenalty,notes:o.explainComposite?o.explainComposite(h)||[]:[]}}v.ArisePlacementCalculations={clamp:y,daysUntil:m,readiness:function(a,u){a=a||{},u=Object.assign({applications:10,coding:15,upsolve:10,patterns:10,interviews:20,mocks:10,projects:15,bugs:5,discipline:5},u||{});var o=a.applications||[],c=a.upsolves||[],p=a.patterns||[],h=a.interviewQuestions||[],r=a.mockInterviews||[],f=a.sprintTasks||[],E=a.bugs||[],A={};A.applications=y(8*o.length+7*o.filter(function(w){return["Online Assessment","Technical Interview","HR Interview","Final Round","Offer"].indexOf(w.status)>=0}).length,0,100),A.coding=y(c.length?c.reduce(function(w,C){return w+(C.status==="Solved"?100:C.status==="Attempting"?55:20)},0)/c.length:0,0,100),A.upsolve=A.coding,A.patterns=y(p.length?p.reduce(function(w,C){return w+20*(Number(C.confidence)||1)},0)/p.length:0,0,100),A.interviews=y(h.length?h.reduce(function(w,C){return w+({"Not Prepared":10,Learning:40,Practising:70,"Interview Ready":100}[C.status]||20)},0)/h.length:0,0,100),A.mocks=y(r.length?r.reduce(function(w,C){return w+20*(Number(C.performanceRating)||0)},0)/r.length:0,0,100),A.projects=y(f.length?f.filter(function(w){return w.status==="Completed"}).length/f.length*100:0,0,100),A.bugs=y(E.length?E.filter(function(w){return w.status==="Fixed"||w.status==="Verified"}).length/E.length*100:0,0,100),A.discipline=y(o.length?o.filter(function(w){return!w.nextActionDate||m(w.nextActionDate)>=0}).length/o.length*100:0,0,100);var k=0,S=0;Object.keys(u).forEach(function(w){k+=u[w],S+=(A[w]||0)*u[w]});var R=[];o.length||R.push("applications"),c.length||R.push("contest upsolves"),p.length||R.push("code patterns"),h.length||R.push("interview questions"),f.length||R.push("project sprint tasks");var _=Object.keys(A).sort(function(w,C){return A[w]-A[C]});return{overall:Math.round(S/Math.max(1,k)),categories:A,weights:u,missing:R,highestImpact:_[0]||"interviews"}},actions:function(a,u){a=a||{};var o=[],c=u||new Date;function p(r,f,E,A,k,S,R){o.push({id:f+":"+S,title:r,module:f,reason:E,estimatedTime:A,priority:k,recordId:S,tab:R})}(a.applications||[]).forEach(function(r){var f=m(r.nextActionDate,c),E=m(r.interviewDate,c),A=m(r.deadline,c);f!==null&&f<=1&&p("Follow up with "+(r.company||"company"),"Applications",f<0?"Follow-up is overdue by "+Math.abs(f)+" day(s).":"Follow-up is due "+(f===0?"today":"tomorrow")+".","10 min",f<0?"Critical":"High",r.id,"applications"),E!==null&&E<=4&&E>=0&&p("Prepare for "+(r.company||"company")+" interview","Applications","Interview is in "+E+" day(s).","45 min","Critical",r.id,"interviews"),A!==null&&A<=3&&A>=0&&r.status==="Interested"&&p("Complete application for "+(r.company||"company"),"Applications","Application deadline is in "+A+" day(s).","25 min","High",r.id,"applications")}),(a.upsolves||[]).forEach(function(r){var f=m(r.nextRetryDate,c);r.status!=="Solved"&&(f===null||f<=0)&&p("Upsolve "+(r.problemTitle||"contest problem"),"Contest Upsolve",f!==null&&f<0?"Retry is overdue.":"Problem is still pending.","45 min","High",r.id,"upsolve")}),(a.patterns||[]).forEach(function(r){var f=m(r.nextRevisionDate,c);((Number(r.confidence)||1)<=2||f!==null&&f<=0)&&p("Revise "+(r.name||"code pattern"),"Code Patterns",(Number(r.confidence)||1)<=2?"Confidence is "+(r.confidence||1)+"/5.":"Revision is due.","25 min","Medium",r.id,"patterns")}),(a.interviewQuestions||[]).forEach(function(r){var f=m(r.nextPracticeDate,c);r.status!=="Interview Ready"&&(f===null||f<=0)&&p("Practise "+(r.question||"interview question"),"Interview Prep",r.status==="Not Prepared"?"Question is not prepared yet.":"Practice date is due.","20 min","High",r.id,"interviews")}),(a.bugs||[]).forEach(function(r){r.status!=="Open"&&r.status!=="Investigating"||p("Resolve "+(r.title||"open bug"),"Bug Journal","Bug remains "+r.status.toLowerCase()+".","30 min",r.severity==="Critical"?"Critical":"Medium",r.id,"bugs")}),(a.sprintTasks||[]).forEach(function(r){var f=m(r.deadline,c);r.status==="Blocked"?p("Unblock "+(r.title||"sprint task"),"Project Sprints","Task is blocked"+(r.blocker?": "+r.blocker:"."),"20 min","High",r.id,"sprints"):r.status!=="Completed"&&f!==null&&f<0&&p("Complete overdue task "+(r.title||""),"Project Sprints","Deadline passed "+Math.abs(f)+" day(s) ago.","40 min","Critical",r.id,"sprints")});var h={Critical:0,High:1,Medium:2,Low:3};return o.sort(function(r,f){return h[r.priority]-h[f.priority]}).slice(0,12)},placementProbability:function(a){var u,o={attendanceState:i("arise-attendance-tracker-v1",null),dsaQuestions:i("dsaQuestions",[]),projects:i("projects",[]),exams:i("exams",[]),cpState:i("arise-cp-tracker-v1",null)},c={attendance:n(o.attendanceState),resume:(u=o.cpState,u&&u.readiness?u.readiness.resume?100:0:null),aptitude:l(o.exams),dsa:t(o.dsaQuestions),projects:e(o.projects),mocks:s(a),coding:g(o.cpState)},p=O(c,I),h={};Object.keys(N).forEach(function(f){h[f]=O(c,N[f]).pct});var r=p.missing.map(function(f){return D[f]});return{overall:p.pct,tiers:h,signals:c,missing:r,rawOverall:p.rawPct,missingPenalty:p.missingPenalty,explainNotes:p.notes||[]}}}})(window),(function(){"use strict";var v=window.ArisePlacementCalculations;if(v){v.APPLICATION_STAGES=["Interested","Preparing","Applied","Online Assessment","Technical Interview","HR Interview","Final Round","Offer","Rejected","Withdrawn"],v.STAGE_COLORS={Interested:"var(--text-tertiary)",Preparing:"#64748b",Applied:"#3b82f6","Online Assessment":"#8b5cf6","Technical Interview":"#f59e0b","HR Interview":"#fb923c","Final Round":"#ec4899",Offer:"#22c55e",Rejected:"#ef4444",Withdrawn:"#71717a"};var y=["Technical Interview","HR Interview","Final Round","Offer"],m=["HR Interview","Final Round","Offer"];v.applicationAnalytics=function(i){i=Array.isArray(i)?i:[];var n=i.length,t=i.filter(function(d){return y.indexOf(d.status)>=0}).length,e=i.filter(function(d){return m.indexOf(d.status)>=0}).length,l=i.filter(function(d){return d.status==="Offer"}).length,s=i.filter(function(d){return d.status==="Rejected"}).length,g=l+s,b=g?Math.round(l/g*100):0;return{total:n,oaCleared:t,interviewsCleared:e,offers:l,rejections:s,successRate:b}},v.interviewReminderDue=function(i,n){if(!i||!i.interviewDate||!i.reminderBefore||i.reminderBefore==="None")return!1;var t=v.daysUntil(i.interviewDate,n);return t===null||t<0?!1:i.reminderBefore==="2 days before"?t<=2:i.reminderBefore==="1 day before"?t<=1:t===0},v.daysInStage=function(i,n){if(!i)return null;var t=Array.isArray(i.stageHistory)?i.stageHistory:[],e=t.length?t[t.length-1]:null,l=e&&e.changedAt||i.updatedAt||i.createdAt;if(!l)return null;var s=new Date(l);if(isNaN(s))return null;var g=n?new Date(n):new Date;return s.setHours(0,0,0,0),g.setHours(0,0,0,0),Math.max(0,Math.round((g-s)/864e5))},v.bestFitTier=function(i){var n=Object.keys(i||{});return n.length?n.reduce(function(t,e){return i[e]>i[t]?e:t},n[0]):null},v.stageFunnel=function(i){i=Array.isArray(i)?i:[];for(var n=v.APPLICATION_STAGES.filter(function(l){return l!=="Rejected"&&l!=="Withdrawn"}),t=[],e=0;e<n.length-1;e++)t.push({from:n[e],to:n[e+1],totalDays:0,count:0});return i.forEach(function(l){var s=Array.isArray(l.stageHistory)?l.stageHistory.slice():[];if(s.length){s.sort(function(O,a){return new Date(O.changedAt||0)-new Date(a.changedAt||0)});for(var g=0;g<s.length-1;g++){var b=s[g],d=s[g+1],N=t.find(function(O){return O.from===b.status&&O.to===d.status});if(N){var I=new Date(b.changedAt),D=new Date(d.changedAt);if(!(isNaN(I)||isNaN(D))){var P=Math.round((D-I)/864e5);P<0||(N.totalDays+=P,N.count++)}}}}}),t.map(function(l){return{from:l.from,to:l.to,avgDays:l.count?Math.round(l.totalDays/l.count):null,count:l.count}})},v.offerWeightedScore=function(i,n,t){n=n||{comp:50,growth:30,brand:20};var e=(Number(i.ctcBase)||0)+(Number(i.ctcBonus)||0)+(Number(i.ctcStocks)||0),l=t>0?e/t*100:0,s=(Number(i.growthRating)||0)*20,g=(Number(i.brandRating)||0)*20,b=(n.comp||0)+(n.growth||0)+(n.brand||0);if(b<=0)return 0;var d=(l*(n.comp||0)+s*(n.growth||0)+g*(n.brand||0))/b;return Math.round(v.clamp(d,0,100))}}})(),(function(){"use strict";var v=window.ArisePlacementCalculations;if(!v)return;function y(m){return m.getFullYear()+"-"+(m.getMonth()+1)+"-"+m.getDate()}v.activityStreak=function(m,i){m=m||{};var n=["applications","offers","internships","applicationRounds","upsolves","patterns","bugs","interviewQuestions","mockInterviews","starStories","sprintTasks"],t={};n.forEach(function(s){(m[s]||[]).forEach(function(g){[g.createdAt,g.updatedAt].forEach(function(b){if(b){var d=new Date(b);isNaN(d)||(t[y(d)]=!0)}})})});var e=i?new Date(i):new Date;e.setHours(0,0,0,0);for(var l=0;t[y(e)];)l++,e.setDate(e.getDate()-1);return l},v.upcomingDeadlines=function(m,i){m=m||{};var n=[];(m.applications||[]).forEach(function(e){e.interviewDate&&["Rejected","Withdrawn"].indexOf(e.status)<0&&n.push({type:"Interview",company:e.company||"Untitled",sub:e.role||"",date:e.interviewDate,tab:"applications",id:e.id,icon:"🗓"}),e.deadline&&["Offer","Rejected","Withdrawn"].indexOf(e.status)<0&&n.push({type:"Application deadline",company:e.company||"Untitled",sub:e.role||"",date:e.deadline,tab:"applications",id:e.id,icon:"📝"})}),(m.offers||[]).forEach(function(e){e.decisionDeadline&&["Accepted","Declined","Expired"].indexOf(e.offerStatus)<0&&n.push({type:"Decision deadline",company:e.company||"Untitled",sub:e.role||"",date:e.decisionDeadline,tab:"offers",id:e.id,icon:"⚖️"})}),(m.applicationRounds||[]).forEach(function(e){e.date&&(!e.status||e.status==="Pending")&&n.push({type:e.roundType||"Interview round",company:e.company||"Untitled",sub:e.role||"",date:e.date,tab:"rounds",id:e.id,icon:"🎯"})}),n.forEach(function(e){e.daysUntil=v.daysUntil(e.date,i)}),n=n.filter(function(e){return e.daysUntil!==null}),n.sort(function(e,l){return e.daysUntil-l.daysUntil});var t={overdue:[],today:[],week:[],month:[]};return n.forEach(function(e){e.daysUntil<0?t.overdue.push(e):e.daysUntil===0?t.today.push(e):e.daysUntil<=7?t.week.push(e):e.daysUntil<=30&&t.month.push(e)}),t}})(),(function(){"use strict";var v=window.ArisePlacementCalculations;if(v){v.contestAnalytics=function(m){m=Array.isArray(m)?m:[];var i=m.filter(function(d){return d.status==="Participated"||d.status==="Virtual Completed"}),n=i.filter(function(d){return Number(d.rank)>0}),t=n.length?Math.min.apply(null,n.map(function(d){return Number(d.rank)})):null,e=0;i.forEach(function(d){var N=d.ratingChange!=null?Number(d.ratingChange):Number(d.ratingAfter)&&Number(d.ratingBefore)?Number(d.ratingAfter)-Number(d.ratingBefore):0;e+=isNaN(N)?0:N});var l=i.filter(function(d){return Number(d.problemsSolved)>=0}),s=l.length?Math.round(l.reduce(function(d,N){return d+Number(N.problemsSolved)},0)/l.length):null,g=m.reduce(function(d,N){return d+(Number(N.upsolveCount)||0)},0),b={};return i.forEach(function(d){var N=d.platform||"Other";b[N]=(b[N]||0)+1}),{total:m.length,participated:i.length,bestRank:t,totalRatingGain:Math.round(e),avgSolved:s,totalUpsolves:g,byPlatform:b}};var y=v.placementProbability;y&&(v.placementProbability=function(m,i){var n=y.call(this,m,i);return n})}})(),(function(){"use strict";var v=window.ArisePlacementCalculations;if(v){var y=["Offer","Rejected","Withdrawn"],m=["Final Round","HR Interview","Offer"];v.eligibilityCheck=function(n,t){n=Array.isArray(n)?n:[],t=t||{};var e=t.cgpa!=null?Number(t.cgpa):null,l=Number(t.activeBacklogs)||0;return n.filter(function(s){return s.minCgpaEligibility||s.backlogPolicy&&s.backlogPolicy!=="Not specified"}).map(function(s){var g=[];return s.minCgpaEligibility&&e!=null&&e<Number(s.minCgpaEligibility)&&g.push("CGPA "+e+" is below the "+s.minCgpaEligibility+" cutoff"),s.backlogPolicy==="No active backlogs allowed"&&l>0&&g.push(l+" active backlog(s) on record, no backlogs allowed"),{id:s.id,company:s.company||"Untitled",role:s.role||"",status:s.status,eligible:g.length===0,reasons:g}})},v.lockInWarnings=function(n,t){if(n=Array.isArray(n)?n:[],t=t||{},!t.lockInEnabled)return[];var e=t.dreamExemptionCtc!=null&&t.dreamExemptionCtc!==""?Number(t.dreamExemptionCtc):null,l=function(s){return n.filter(function(g){return g.id!==s&&y.indexOf(g.status)<0})};return n.filter(function(s){return s.driveType==="On-Campus"&&m.indexOf(s.status)>=0}).map(function(s){var g=s.ctcOffered!=null&&s.ctcOffered!==""?Number(s.ctcOffered):null,b=e==null?!0:g==null||g<e,d=l(s.id);return!b||!d.length?null:{id:s.id,company:s.company||"Untitled",status:s.status,ctc:g,threshold:e,otherLiveCount:d.length}}).filter(Boolean)},v.driveTypeSplit=function(n){n=Array.isArray(n)?n:[];var t={"On-Campus":[],"Off-Campus":[]};n.forEach(function(l){var s=l.driveType==="On-Campus"?"On-Campus":l.driveType?"Off-Campus":l.source==="College Placement Cell"?"On-Campus":"Off-Campus";t[s].push(l)});function e(l){var s=l.filter(function(d){return d.status==="Offer"}).length,g=l.filter(function(d){return d.status==="Rejected"}).length,b=s+g;return{total:l.length,offers:s,successRate:b?Math.round(s/b*100):0}}return{onCampus:e(t["On-Campus"]),offCampus:e(t["Off-Campus"])}},v.bondOverview=function(n){return n=Array.isArray(n)?n:[],n.filter(function(t){return t.bondPenalty!=null&&t.bondPenalty!==""&&Number(t.bondPenalty)>0}).map(function(t){var e=(Number(t.ctcBase)||0)+(Number(t.ctcBonus)||0)+(Number(t.ctcStocks)||0),l=Number(t.bondPenalty)||0,s=e*1e5,g=s>0?Math.round(l/s*1e3)/10:null;return{id:t.id,company:t.company||"Untitled",bondPeriod:t.bondPeriod||null,bondPenalty:l,ctcTotal:e,pctOfCtc:g}})};var i=["Applied","Online Assessment","Technical Interview","HR Interview","Final Round","Offer"];v.nocGaps=function(n){return n=Array.isArray(n)?n:[],n.filter(function(t){return t.nocRequired==="Required"&&t.nocStatus!=="Granted"&&i.indexOf(t.status)>=0}).map(function(t){return{id:t.id,company:t.company||"Untitled",status:t.status,nocStatus:t.nocStatus||"Not Requested"}})}}})();
+((function (v) {
+  "use strict";
+  function y(a, u, o) {
+    return ((a = Number(a) || 0), Math.max(u, Math.min(o, a)));
+  }
+  function m(a, u) {
+    if (!a) return null;
+    var o = new Date(a);
+    if (isNaN(o)) return null;
+    var c = u ? new Date(u) : new Date();
+    return (c.setHours(0, 0, 0, 0), o.setHours(0, 0, 0, 0), Math.round((o - c) / 864e5));
+  }
+  function i(a, u) {
+    try {
+      var o = localStorage.getItem(a);
+      if (!o) return u;
+      var c = JSON.parse(o);
+      return c ?? u;
+    } catch {
+      return u;
+    }
+  }
+  function n(a) {
+    var u = a && Array.isArray(a.subjects) ? a.subjects : [];
+    if (!u.length) return null;
+    var o = 0,
+      c = 0;
+    return (
+      u.forEach(function (p) {
+        ((o += Number(p.attended) || 0), (c += Number(p.total) || 0));
+      }),
+      c <= 0 ? null : y((o / c) * 100, 0, 100)
+    );
+  }
+  function t(a) {
+    var u = Array.isArray(a) ? a : [];
+    if (!u.length) return null;
+    var o = window.__READINESS_ENGINE__;
+    return o && o.dsaScore
+      ? o.dsaScore(u)
+      : y(
+          (u.filter(function (c) {
+            return c && c.solved;
+          }).length /
+            u.length) *
+            100,
+          0,
+          100
+        );
+  }
+  function e(a) {
+    var u = Array.isArray(a) ? a : [];
+    if (!u.length) return null;
+    var o = window.__READINESS_ENGINE__;
+    if (o && o.projectScore) return o.projectScore(u);
+    var c = Math.min(5, u.length),
+      p = 0;
+    return (
+      u.forEach(function (h) {
+        var r = Number(h && h.progress);
+        (isNaN(r) && (r = 0), (p += y(r, 0, 100)));
+      }),
+      y(p / c, 0, 100)
+    );
+  }
+  function l(a) {
+    var u =
+      window.__READINESS_ENGINE__ &&
+      window.__READINESS_ENGINE__.aptitudeFromLog &&
+      window.__READINESS_ENGINE__.aptitudeFromLog();
+    if (u) return Math.round(u.score);
+    var o = Array.isArray(a) ? a : [];
+    if (!o.length) return null;
+    var c = window.__READINESS_ENGINE__;
+    if (c && c.examScore) return c.examScore(o);
+    var p = 0,
+      h = 0;
+    return (
+      o.forEach(function (r) {
+        var f = Number(r && r.confidence);
+        isNaN(f) || ((p += y(f, 0, 100)), h++);
+      }),
+      h ? Math.round(p / h) : null
+    );
+  }
+  function s(a) {
+    var u = Array.isArray(a) ? a : [];
+    if (!u.length) return null;
+    var o = 0;
+    return (
+      u.forEach(function (c) {
+        o += y(20 * (Number(c.performanceRating) || 0), 0, 100);
+      }),
+      y(o / u.length, 0, 100)
+    );
+  }
+  function g(a) {
+    var u = a && Array.isArray(a.problems) ? a.problems : [];
+    if (!u.length) return null;
+    var o = Date.now() - 2592e6;
+    return y(
+      (u.filter(function (c) {
+        var p = c && (c.date || c.solvedAt || c.createdAt);
+        if (!p) return !1;
+        var h = new Date(p).getTime();
+        return !isNaN(h) && h >= o;
+      }).length /
+        30) *
+        100,
+      0,
+      100
+    );
+  }
+  var b = (typeof window < "u" && window.__READINESS_SCORING_CONFIG__) || null,
+    d = (b && b.profiles && b.profiles.placement) || {},
+    N = d.tiers || {
+      massRecruiter: {
+        attendance: 22,
+        resume: 20,
+        aptitude: 23,
+        dsa: 10,
+        projects: 10,
+        mocks: 10,
+        coding: 5
+      },
+      service: {
+        attendance: 15,
+        resume: 18,
+        aptitude: 18,
+        dsa: 16,
+        projects: 16,
+        mocks: 12,
+        coding: 5
+      },
+      product: {
+        attendance: 5,
+        resume: 13,
+        aptitude: 9,
+        dsa: 30,
+        projects: 20,
+        mocks: 13,
+        coding: 10
+      },
+      dream: { attendance: 3, resume: 9, aptitude: 5, dsa: 35, projects: 20, mocks: 13, coding: 15 }
+    },
+    I = d.weights || {
+      attendance: 12,
+      resume: 15,
+      aptitude: 14,
+      dsa: 20,
+      projects: 18,
+      mocks: 13,
+      coding: 8
+    },
+    D = {
+      attendance: "Attendance",
+      resume: "Resume",
+      aptitude: "Aptitude",
+      dsa: "DSA Progress",
+      projects: "Projects",
+      mocks: "Mock Interviews",
+      coding: "Coding Activity"
+    };
+  function P(a, u) {
+    var o = 0,
+      c = 0,
+      p = [];
+    return (
+      Object.keys(u).forEach(function (h) {
+        var r = a[h];
+        r != null ? ((o += u[h]), (c += r * u[h])) : p.push(h);
+      }),
+      { pct: o > 0 ? Math.round(c / o) : 0, missing: p }
+    );
+  }
+  function O(a, u) {
+    var o = typeof window < "u" && window.__READINESS_ENGINE__,
+      c = P(a, u);
+    if (!o || !o.computeComposite)
+      return { pct: c.pct, missing: c.missing, rawPct: c.pct, missingPenalty: 0, notes: [] };
+    var p = {};
+    c.missing.forEach(function (r) {
+      p[r] = !0;
+    });
+    var h = o.computeComposite(a, u, d, { missing: p });
+    return {
+      pct: h.overall,
+      missing: c.missing,
+      rawPct: Math.round(h.rawOverall),
+      missingPenalty: h.missingPenalty,
+      notes: o.explainComposite ? o.explainComposite(h) || [] : []
+    };
+  }
+  v.ArisePlacementCalculations = {
+    clamp: y,
+    daysUntil: m,
+    readiness: function (a, u) {
+      ((a = a || {}),
+        (u = Object.assign(
+          {
+            applications: 10,
+            coding: 15,
+            upsolve: 10,
+            patterns: 10,
+            interviews: 20,
+            mocks: 10,
+            projects: 15,
+            bugs: 5,
+            discipline: 5
+          },
+          u || {}
+        )));
+      var o = a.applications || [],
+        c = a.upsolves || [],
+        p = a.patterns || [],
+        h = a.interviewQuestions || [],
+        r = a.mockInterviews || [],
+        f = a.sprintTasks || [],
+        E = a.bugs || [],
+        A = {};
+      ((A.applications = y(
+        8 * o.length +
+          7 *
+            o.filter(function (w) {
+              return (
+                [
+                  "Online Assessment",
+                  "Technical Interview",
+                  "HR Interview",
+                  "Final Round",
+                  "Offer"
+                ].indexOf(w.status) >= 0
+              );
+            }).length,
+        0,
+        100
+      )),
+        (A.coding = y(
+          c.length
+            ? c.reduce(function (w, C) {
+                return w + (C.status === "Solved" ? 100 : C.status === "Attempting" ? 55 : 20);
+              }, 0) / c.length
+            : 0,
+          0,
+          100
+        )),
+        (A.upsolve = A.coding),
+        (A.patterns = y(
+          p.length
+            ? p.reduce(function (w, C) {
+                return w + 20 * (Number(C.confidence) || 1);
+              }, 0) / p.length
+            : 0,
+          0,
+          100
+        )),
+        (A.interviews = y(
+          h.length
+            ? h.reduce(function (w, C) {
+                return (
+                  w +
+                  ({ "Not Prepared": 10, Learning: 40, Practising: 70, "Interview Ready": 100 }[
+                    C.status
+                  ] || 20)
+                );
+              }, 0) / h.length
+            : 0,
+          0,
+          100
+        )),
+        (A.mocks = y(
+          r.length
+            ? r.reduce(function (w, C) {
+                return w + 20 * (Number(C.performanceRating) || 0);
+              }, 0) / r.length
+            : 0,
+          0,
+          100
+        )),
+        (A.projects = y(
+          f.length
+            ? (f.filter(function (w) {
+                return w.status === "Completed";
+              }).length /
+                f.length) *
+                100
+            : 0,
+          0,
+          100
+        )),
+        (A.bugs = y(
+          E.length
+            ? (E.filter(function (w) {
+                return w.status === "Fixed" || w.status === "Verified";
+              }).length /
+                E.length) *
+                100
+            : 0,
+          0,
+          100
+        )),
+        (A.discipline = y(
+          o.length
+            ? (o.filter(function (w) {
+                return !w.nextActionDate || m(w.nextActionDate) >= 0;
+              }).length /
+                o.length) *
+                100
+            : 0,
+          0,
+          100
+        )));
+      var k = 0,
+        S = 0;
+      Object.keys(u).forEach(function (w) {
+        ((k += u[w]), (S += (A[w] || 0) * u[w]));
+      });
+      var R = [];
+      (o.length || R.push("applications"),
+        c.length || R.push("contest upsolves"),
+        p.length || R.push("code patterns"),
+        h.length || R.push("interview questions"),
+        f.length || R.push("project sprint tasks"));
+      var _ = Object.keys(A).sort(function (w, C) {
+        return A[w] - A[C];
+      });
+      return {
+        overall: Math.round(S / Math.max(1, k)),
+        categories: A,
+        weights: u,
+        missing: R,
+        highestImpact: _[0] || "interviews"
+      };
+    },
+    actions: function (a, u) {
+      a = a || {};
+      var o = [],
+        c = u || new Date();
+      function p(r, f, E, A, k, S, R) {
+        o.push({
+          id: f + ":" + S,
+          title: r,
+          module: f,
+          reason: E,
+          estimatedTime: A,
+          priority: k,
+          recordId: S,
+          tab: R
+        });
+      }
+      ((a.applications || []).forEach(function (r) {
+        var f = m(r.nextActionDate, c),
+          E = m(r.interviewDate, c),
+          A = m(r.deadline, c);
+        (f !== null &&
+          f <= 1 &&
+          p(
+            "Follow up with " + (r.company || "company"),
+            "Applications",
+            f < 0
+              ? "Follow-up is overdue by " + Math.abs(f) + " day(s)."
+              : "Follow-up is due " + (f === 0 ? "today" : "tomorrow") + ".",
+            "10 min",
+            f < 0 ? "Critical" : "High",
+            r.id,
+            "applications"
+          ),
+          E !== null &&
+            E <= 4 &&
+            E >= 0 &&
+            p(
+              "Prepare for " + (r.company || "company") + " interview",
+              "Applications",
+              "Interview is in " + E + " day(s).",
+              "45 min",
+              "Critical",
+              r.id,
+              "interviews"
+            ),
+          A !== null &&
+            A <= 3 &&
+            A >= 0 &&
+            r.status === "Interested" &&
+            p(
+              "Complete application for " + (r.company || "company"),
+              "Applications",
+              "Application deadline is in " + A + " day(s).",
+              "25 min",
+              "High",
+              r.id,
+              "applications"
+            ));
+      }),
+        (a.upsolves || []).forEach(function (r) {
+          var f = m(r.nextRetryDate, c);
+          r.status !== "Solved" &&
+            (f === null || f <= 0) &&
+            p(
+              "Upsolve " + (r.problemTitle || "contest problem"),
+              "Contest Upsolve",
+              f !== null && f < 0 ? "Retry is overdue." : "Problem is still pending.",
+              "45 min",
+              "High",
+              r.id,
+              "upsolve"
+            );
+        }),
+        (a.patterns || []).forEach(function (r) {
+          var f = m(r.nextRevisionDate, c);
+          ((Number(r.confidence) || 1) <= 2 || (f !== null && f <= 0)) &&
+            p(
+              "Revise " + (r.name || "code pattern"),
+              "Code Patterns",
+              (Number(r.confidence) || 1) <= 2
+                ? "Confidence is " + (r.confidence || 1) + "/5."
+                : "Revision is due.",
+              "25 min",
+              "Medium",
+              r.id,
+              "patterns"
+            );
+        }),
+        (a.interviewQuestions || []).forEach(function (r) {
+          var f = m(r.nextPracticeDate, c);
+          r.status !== "Interview Ready" &&
+            (f === null || f <= 0) &&
+            p(
+              "Practise " + (r.question || "interview question"),
+              "Interview Prep",
+              r.status === "Not Prepared"
+                ? "Question is not prepared yet."
+                : "Practice date is due.",
+              "20 min",
+              "High",
+              r.id,
+              "interviews"
+            );
+        }),
+        (a.bugs || []).forEach(function (r) {
+          (r.status !== "Open" && r.status !== "Investigating") ||
+            p(
+              "Resolve " + (r.title || "open bug"),
+              "Bug Journal",
+              "Bug remains " + r.status.toLowerCase() + ".",
+              "30 min",
+              r.severity === "Critical" ? "Critical" : "Medium",
+              r.id,
+              "bugs"
+            );
+        }),
+        (a.sprintTasks || []).forEach(function (r) {
+          var f = m(r.deadline, c);
+          r.status === "Blocked"
+            ? p(
+                "Unblock " + (r.title || "sprint task"),
+                "Project Sprints",
+                "Task is blocked" + (r.blocker ? ": " + r.blocker : "."),
+                "20 min",
+                "High",
+                r.id,
+                "sprints"
+              )
+            : r.status !== "Completed" &&
+              f !== null &&
+              f < 0 &&
+              p(
+                "Complete overdue task " + (r.title || ""),
+                "Project Sprints",
+                "Deadline passed " + Math.abs(f) + " day(s) ago.",
+                "40 min",
+                "Critical",
+                r.id,
+                "sprints"
+              );
+        }));
+      var h = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+      return o
+        .sort(function (r, f) {
+          return h[r.priority] - h[f.priority];
+        })
+        .slice(0, 12);
+    },
+    placementProbability: function (a) {
+      var u,
+        o = {
+          attendanceState: i("arise-attendance-tracker-v1", null),
+          dsaQuestions: i("dsaQuestions", []),
+          projects: i("projects", []),
+          exams: i("exams", []),
+          cpState: i("arise-cp-tracker-v1", null)
+        },
+        c = {
+          attendance: n(o.attendanceState),
+          resume: ((u = o.cpState), u && u.readiness ? (u.readiness.resume ? 100 : 0) : null),
+          aptitude: l(o.exams),
+          dsa: t(o.dsaQuestions),
+          projects: e(o.projects),
+          mocks: s(a),
+          coding: g(o.cpState)
+        },
+        p = O(c, I),
+        h = {};
+      Object.keys(N).forEach(function (f) {
+        h[f] = O(c, N[f]).pct;
+      });
+      var r = p.missing.map(function (f) {
+        return D[f];
+      });
+      return {
+        overall: p.pct,
+        tiers: h,
+        signals: c,
+        missing: r,
+        rawOverall: p.rawPct,
+        missingPenalty: p.missingPenalty,
+        explainNotes: p.notes || []
+      };
+    }
+  };
+})(window),
+  (function () {
+    "use strict";
+    var v = window.ArisePlacementCalculations;
+    if (v) {
+      ((v.APPLICATION_STAGES = [
+        "Interested",
+        "Preparing",
+        "Applied",
+        "Online Assessment",
+        "Technical Interview",
+        "HR Interview",
+        "Final Round",
+        "Offer",
+        "Rejected",
+        "Withdrawn"
+      ]),
+        (v.STAGE_COLORS = {
+          Interested: "var(--text-tertiary)",
+          Preparing: "#64748b",
+          Applied: "#3b82f6",
+          "Online Assessment": "#8b5cf6",
+          "Technical Interview": "#f59e0b",
+          "HR Interview": "#fb923c",
+          "Final Round": "#ec4899",
+          Offer: "#22c55e",
+          Rejected: "#ef4444",
+          Withdrawn: "#71717a"
+        }));
+      var y = ["Technical Interview", "HR Interview", "Final Round", "Offer"],
+        m = ["HR Interview", "Final Round", "Offer"];
+      ((v.applicationAnalytics = function (i) {
+        i = Array.isArray(i) ? i : [];
+        var n = i.length,
+          t = i.filter(function (d) {
+            return y.indexOf(d.status) >= 0;
+          }).length,
+          e = i.filter(function (d) {
+            return m.indexOf(d.status) >= 0;
+          }).length,
+          l = i.filter(function (d) {
+            return d.status === "Offer";
+          }).length,
+          s = i.filter(function (d) {
+            return d.status === "Rejected";
+          }).length,
+          g = l + s,
+          b = g ? Math.round((l / g) * 100) : 0;
+        return {
+          total: n,
+          oaCleared: t,
+          interviewsCleared: e,
+          offers: l,
+          rejections: s,
+          successRate: b
+        };
+      }),
+        (v.interviewReminderDue = function (i, n) {
+          if (!i || !i.interviewDate || !i.reminderBefore || i.reminderBefore === "None") return !1;
+          var t = v.daysUntil(i.interviewDate, n);
+          return t === null || t < 0
+            ? !1
+            : i.reminderBefore === "2 days before"
+              ? t <= 2
+              : i.reminderBefore === "1 day before"
+                ? t <= 1
+                : t === 0;
+        }),
+        (v.daysInStage = function (i, n) {
+          if (!i) return null;
+          var t = Array.isArray(i.stageHistory) ? i.stageHistory : [],
+            e = t.length ? t[t.length - 1] : null,
+            l = (e && e.changedAt) || i.updatedAt || i.createdAt;
+          if (!l) return null;
+          var s = new Date(l);
+          if (isNaN(s)) return null;
+          var g = n ? new Date(n) : new Date();
+          return (
+            s.setHours(0, 0, 0, 0),
+            g.setHours(0, 0, 0, 0),
+            Math.max(0, Math.round((g - s) / 864e5))
+          );
+        }),
+        (v.bestFitTier = function (i) {
+          var n = Object.keys(i || {});
+          return n.length
+            ? n.reduce(function (t, e) {
+                return i[e] > i[t] ? e : t;
+              }, n[0])
+            : null;
+        }),
+        (v.stageFunnel = function (i) {
+          i = Array.isArray(i) ? i : [];
+          for (
+            var n = v.APPLICATION_STAGES.filter(function (l) {
+                return l !== "Rejected" && l !== "Withdrawn";
+              }),
+              t = [],
+              e = 0;
+            e < n.length - 1;
+            e++
+          )
+            t.push({ from: n[e], to: n[e + 1], totalDays: 0, count: 0 });
+          return (
+            i.forEach(function (l) {
+              var s = Array.isArray(l.stageHistory) ? l.stageHistory.slice() : [];
+              if (s.length) {
+                s.sort(function (O, a) {
+                  return new Date(O.changedAt || 0) - new Date(a.changedAt || 0);
+                });
+                for (var g = 0; g < s.length - 1; g++) {
+                  var b = s[g],
+                    d = s[g + 1],
+                    N = t.find(function (O) {
+                      return O.from === b.status && O.to === d.status;
+                    });
+                  if (N) {
+                    var I = new Date(b.changedAt),
+                      D = new Date(d.changedAt);
+                    if (!(isNaN(I) || isNaN(D))) {
+                      var P = Math.round((D - I) / 864e5);
+                      P < 0 || ((N.totalDays += P), N.count++);
+                    }
+                  }
+                }
+              }
+            }),
+            t.map(function (l) {
+              return {
+                from: l.from,
+                to: l.to,
+                avgDays: l.count ? Math.round(l.totalDays / l.count) : null,
+                count: l.count
+              };
+            })
+          );
+        }),
+        (v.offerWeightedScore = function (i, n, t) {
+          n = n || { comp: 50, growth: 30, brand: 20 };
+          var e = (Number(i.ctcBase) || 0) + (Number(i.ctcBonus) || 0) + (Number(i.ctcStocks) || 0),
+            l = t > 0 ? (e / t) * 100 : 0,
+            s = (Number(i.growthRating) || 0) * 20,
+            g = (Number(i.brandRating) || 0) * 20,
+            b = (n.comp || 0) + (n.growth || 0) + (n.brand || 0);
+          if (b <= 0) return 0;
+          var d = (l * (n.comp || 0) + s * (n.growth || 0) + g * (n.brand || 0)) / b;
+          return Math.round(v.clamp(d, 0, 100));
+        }));
+    }
+  })(),
+  (function () {
+    "use strict";
+    var v = window.ArisePlacementCalculations;
+    if (!v) return;
+    function y(m) {
+      return m.getFullYear() + "-" + (m.getMonth() + 1) + "-" + m.getDate();
+    }
+    ((v.activityStreak = function (m, i) {
+      m = m || {};
+      var n = [
+          "applications",
+          "offers",
+          "internships",
+          "applicationRounds",
+          "upsolves",
+          "patterns",
+          "bugs",
+          "interviewQuestions",
+          "mockInterviews",
+          "starStories",
+          "sprintTasks"
+        ],
+        t = {};
+      n.forEach(function (s) {
+        (m[s] || []).forEach(function (g) {
+          [g.createdAt, g.updatedAt].forEach(function (b) {
+            if (b) {
+              var d = new Date(b);
+              isNaN(d) || (t[y(d)] = !0);
+            }
+          });
+        });
+      });
+      var e = i ? new Date(i) : new Date();
+      e.setHours(0, 0, 0, 0);
+      for (var l = 0; t[y(e)];) (l++, e.setDate(e.getDate() - 1));
+      return l;
+    }),
+      (v.upcomingDeadlines = function (m, i) {
+        m = m || {};
+        var n = [];
+        ((m.applications || []).forEach(function (e) {
+          (e.interviewDate &&
+            ["Rejected", "Withdrawn"].indexOf(e.status) < 0 &&
+            n.push({
+              type: "Interview",
+              company: e.company || "Untitled",
+              sub: e.role || "",
+              date: e.interviewDate,
+              tab: "applications",
+              id: e.id,
+              icon: "🗓"
+            }),
+            e.deadline &&
+              ["Offer", "Rejected", "Withdrawn"].indexOf(e.status) < 0 &&
+              n.push({
+                type: "Application deadline",
+                company: e.company || "Untitled",
+                sub: e.role || "",
+                date: e.deadline,
+                tab: "applications",
+                id: e.id,
+                icon: "📝"
+              }));
+        }),
+          (m.offers || []).forEach(function (e) {
+            e.decisionDeadline &&
+              ["Accepted", "Declined", "Expired"].indexOf(e.offerStatus) < 0 &&
+              n.push({
+                type: "Decision deadline",
+                company: e.company || "Untitled",
+                sub: e.role || "",
+                date: e.decisionDeadline,
+                tab: "offers",
+                id: e.id,
+                icon: "⚖️"
+              });
+          }),
+          (m.applicationRounds || []).forEach(function (e) {
+            e.date &&
+              (!e.status || e.status === "Pending") &&
+              n.push({
+                type: e.roundType || "Interview round",
+                company: e.company || "Untitled",
+                sub: e.role || "",
+                date: e.date,
+                tab: "rounds",
+                id: e.id,
+                icon: "🎯"
+              });
+          }),
+          n.forEach(function (e) {
+            e.daysUntil = v.daysUntil(e.date, i);
+          }),
+          (n = n.filter(function (e) {
+            return e.daysUntil !== null;
+          })),
+          n.sort(function (e, l) {
+            return e.daysUntil - l.daysUntil;
+          }));
+        var t = { overdue: [], today: [], week: [], month: [] };
+        return (
+          n.forEach(function (e) {
+            e.daysUntil < 0
+              ? t.overdue.push(e)
+              : e.daysUntil === 0
+                ? t.today.push(e)
+                : e.daysUntil <= 7
+                  ? t.week.push(e)
+                  : e.daysUntil <= 30 && t.month.push(e);
+          }),
+          t
+        );
+      }));
+  })(),
+  (function () {
+    "use strict";
+    var v = window.ArisePlacementCalculations;
+    if (v) {
+      v.contestAnalytics = function (m) {
+        m = Array.isArray(m) ? m : [];
+        var i = m.filter(function (d) {
+            return d.status === "Participated" || d.status === "Virtual Completed";
+          }),
+          n = i.filter(function (d) {
+            return Number(d.rank) > 0;
+          }),
+          t = n.length
+            ? Math.min.apply(
+                null,
+                n.map(function (d) {
+                  return Number(d.rank);
+                })
+              )
+            : null,
+          e = 0;
+        i.forEach(function (d) {
+          var N =
+            d.ratingChange != null
+              ? Number(d.ratingChange)
+              : Number(d.ratingAfter) && Number(d.ratingBefore)
+                ? Number(d.ratingAfter) - Number(d.ratingBefore)
+                : 0;
+          e += isNaN(N) ? 0 : N;
+        });
+        var l = i.filter(function (d) {
+            return Number(d.problemsSolved) >= 0;
+          }),
+          s = l.length
+            ? Math.round(
+                l.reduce(function (d, N) {
+                  return d + Number(N.problemsSolved);
+                }, 0) / l.length
+              )
+            : null,
+          g = m.reduce(function (d, N) {
+            return d + (Number(N.upsolveCount) || 0);
+          }, 0),
+          b = {};
+        return (
+          i.forEach(function (d) {
+            var N = d.platform || "Other";
+            b[N] = (b[N] || 0) + 1;
+          }),
+          {
+            total: m.length,
+            participated: i.length,
+            bestRank: t,
+            totalRatingGain: Math.round(e),
+            avgSolved: s,
+            totalUpsolves: g,
+            byPlatform: b
+          }
+        );
+      };
+      var y = v.placementProbability;
+      y &&
+        (v.placementProbability = function (m, i) {
+          var n = y.call(this, m, i);
+          return n;
+        });
+    }
+  })(),
+  (function () {
+    "use strict";
+    var v = window.ArisePlacementCalculations;
+    if (v) {
+      var y = ["Offer", "Rejected", "Withdrawn"],
+        m = ["Final Round", "HR Interview", "Offer"];
+      ((v.eligibilityCheck = function (n, t) {
+        ((n = Array.isArray(n) ? n : []), (t = t || {}));
+        var e = t.cgpa != null ? Number(t.cgpa) : null,
+          l = Number(t.activeBacklogs) || 0;
+        return n
+          .filter(function (s) {
+            return s.minCgpaEligibility || (s.backlogPolicy && s.backlogPolicy !== "Not specified");
+          })
+          .map(function (s) {
+            var g = [];
+            return (
+              s.minCgpaEligibility &&
+                e != null &&
+                e < Number(s.minCgpaEligibility) &&
+                g.push("CGPA " + e + " is below the " + s.minCgpaEligibility + " cutoff"),
+              s.backlogPolicy === "No active backlogs allowed" &&
+                l > 0 &&
+                g.push(l + " active backlog(s) on record, no backlogs allowed"),
+              {
+                id: s.id,
+                company: s.company || "Untitled",
+                role: s.role || "",
+                status: s.status,
+                eligible: g.length === 0,
+                reasons: g
+              }
+            );
+          });
+      }),
+        (v.lockInWarnings = function (n, t) {
+          if (((n = Array.isArray(n) ? n : []), (t = t || {}), !t.lockInEnabled)) return [];
+          var e =
+              t.dreamExemptionCtc != null && t.dreamExemptionCtc !== ""
+                ? Number(t.dreamExemptionCtc)
+                : null,
+            l = function (s) {
+              return n.filter(function (g) {
+                return g.id !== s && y.indexOf(g.status) < 0;
+              });
+            };
+          return n
+            .filter(function (s) {
+              return s.driveType === "On-Campus" && m.indexOf(s.status) >= 0;
+            })
+            .map(function (s) {
+              var g = s.ctcOffered != null && s.ctcOffered !== "" ? Number(s.ctcOffered) : null,
+                b = e == null ? !0 : g == null || g < e,
+                d = l(s.id);
+              return !b || !d.length
+                ? null
+                : {
+                    id: s.id,
+                    company: s.company || "Untitled",
+                    status: s.status,
+                    ctc: g,
+                    threshold: e,
+                    otherLiveCount: d.length
+                  };
+            })
+            .filter(Boolean);
+        }),
+        (v.driveTypeSplit = function (n) {
+          n = Array.isArray(n) ? n : [];
+          var t = { "On-Campus": [], "Off-Campus": [] };
+          n.forEach(function (l) {
+            var s =
+              l.driveType === "On-Campus"
+                ? "On-Campus"
+                : l.driveType
+                  ? "Off-Campus"
+                  : l.source === "College Placement Cell"
+                    ? "On-Campus"
+                    : "Off-Campus";
+            t[s].push(l);
+          });
+          function e(l) {
+            var s = l.filter(function (d) {
+                return d.status === "Offer";
+              }).length,
+              g = l.filter(function (d) {
+                return d.status === "Rejected";
+              }).length,
+              b = s + g;
+            return { total: l.length, offers: s, successRate: b ? Math.round((s / b) * 100) : 0 };
+          }
+          return { onCampus: e(t["On-Campus"]), offCampus: e(t["Off-Campus"]) };
+        }),
+        (v.bondOverview = function (n) {
+          return (
+            (n = Array.isArray(n) ? n : []),
+            n
+              .filter(function (t) {
+                return t.bondPenalty != null && t.bondPenalty !== "" && Number(t.bondPenalty) > 0;
+              })
+              .map(function (t) {
+                var e =
+                    (Number(t.ctcBase) || 0) +
+                    (Number(t.ctcBonus) || 0) +
+                    (Number(t.ctcStocks) || 0),
+                  l = Number(t.bondPenalty) || 0,
+                  s = e * 1e5,
+                  g = s > 0 ? Math.round((l / s) * 1e3) / 10 : null;
+                return {
+                  id: t.id,
+                  company: t.company || "Untitled",
+                  bondPeriod: t.bondPeriod || null,
+                  bondPenalty: l,
+                  ctcTotal: e,
+                  pctOfCtc: g
+                };
+              })
+          );
+        }));
+      var i = [
+        "Applied",
+        "Online Assessment",
+        "Technical Interview",
+        "HR Interview",
+        "Final Round",
+        "Offer"
+      ];
+      v.nocGaps = function (n) {
+        return (
+          (n = Array.isArray(n) ? n : []),
+          n
+            .filter(function (t) {
+              return (
+                t.nocRequired === "Required" &&
+                t.nocStatus !== "Granted" &&
+                i.indexOf(t.status) >= 0
+              );
+            })
+            .map(function (t) {
+              return {
+                id: t.id,
+                company: t.company || "Untitled",
+                status: t.status,
+                nocStatus: t.nocStatus || "Not Requested"
+              };
+            })
+        );
+      };
+    }
+  })());

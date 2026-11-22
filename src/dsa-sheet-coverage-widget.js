@@ -27,27 +27,36 @@
     f = !0;
     var seq = ++requestSeq;
     try {
-      Promise.resolve(s && s.fetchInterviewSheets
-        ? s.fetchInterviewSheets({ force: !!force })
-        : fetch("./assets/interview_sheets_data.json", { cache: "force-cache" }).then(function (e) {
-            return e && e.ok ? e.json() : null;
-          }))
-        .then(function (e) {
-          if (seq !== requestSeq) return;
-          if (e && typeof e === "object" && !Array.isArray(e)) {
-            i = e;
-            lastError = !1;
-          } else {
-            // Keep the last usable data visible if a refresh fails.
-            lastError = !0;
+      Promise.resolve(
+        s && s.fetchInterviewSheets
+          ? s.fetchInterviewSheets({ force: !!force })
+          : fetch("./assets/interview_sheets_data.json", { cache: "force-cache" }).then(
+              function (e) {
+                return e && e.ok ? e.json() : null;
+              }
+            )
+      )
+        .then(
+          function (e) {
+            if (seq !== requestSeq) return;
+            if (e && typeof e === "object" && !Array.isArray(e)) {
+              i = e;
+              lastError = !1;
+            } else {
+              // Keep the last usable data visible if a refresh fails.
+              lastError = !0;
+            }
+          },
+          function () {
+            if (seq === requestSeq) lastError = !0;
           }
-        }, function () {
-          if (seq === requestSeq) lastError = !0;
-        })
+        )
         .then(function () {
           if (seq !== requestSeq) return;
           l = !0;
-          try { v(); } catch {}
+          try {
+            v();
+          } catch {}
         });
     } catch {
       lastError = !0;
@@ -66,9 +75,16 @@
         p = (n && n.name) || t.fallbackLabel,
         o = 0,
         a = t.key + "::";
-      for (var c in e) Object.prototype.hasOwnProperty.call(e, c) && e[c] && c.indexOf(a) === 0 && o++;
+      for (var c in e)
+        Object.prototype.hasOwnProperty.call(e, c) && e[c] && c.indexOf(a) === 0 && o++;
       var _ = d > 0 ? Math.min(100, Math.round((o / d) * 100)) : 0;
-      return { label: p, solved: o, total: d, pct: _, available: !!(n && Array.isArray(n.questions)) };
+      return {
+        label: p,
+        solved: o,
+        total: d,
+        pct: _,
+        available: !!(n && Array.isArray(n.questions))
+      };
     });
   }
 
@@ -108,7 +124,8 @@
     if (s && typeof s.smoothScroll === "function") {
       s.smoothScroll(e, { block: "start" });
     } else {
-      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var reduce =
+        window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       e.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     }
   }
@@ -119,7 +136,11 @@
     if (!r) return;
     var t = document.getElementById(m),
       n = !t;
-    n && ((t = document.createElement("div")), (t.id = m), (t.className = "dsc-block"), r.appendChild(t));
+    n &&
+      ((t = document.createElement("div")),
+      (t.id = m),
+      (t.className = "dsc-block"),
+      r.appendChild(t));
 
     if (!l && !i) {
       t.setAttribute("aria-busy", "true");
@@ -166,22 +187,38 @@
     t.__uxaLastSig = sig;
     var refreshStatus = refreshing
       ? '<span class="uxa-loading-state uxa-loading-state-inline" role="status"><span class="uxa-spinner uxa-spinner--xs" aria-hidden="true"></span>Refreshing…</span>'
-      : '';
-    var refreshError = lastError && i
-      ? '<div class="dsc-empty" role="alert"><span>Could not refresh sheet data. Showing the last available results.</span><button type="button" class="uxa-retry-btn" data-dsc-retry="1">Retry</button></div>'
-      : '';
-    if (i && e.every(function (a) { return a.total === 0; })) {
-      t.innerHTML = '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span>' + refreshStatus +
-        '</div><div class="dsc-empty">No sheet questions are available yet.</div>' + refreshError;
+      : "";
+    var refreshError =
+      lastError && i
+        ? '<div class="dsc-empty" role="alert"><span>Could not refresh sheet data. Showing the last available results.</span><button type="button" class="uxa-retry-btn" data-dsc-retry="1">Retry</button></div>'
+        : "";
+    if (
+      i &&
+      e.every(function (a) {
+        return a.total === 0;
+      })
+    ) {
+      t.innerHTML =
+        '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span>' +
+        refreshStatus +
+        '</div><div class="dsc-empty">No sheet questions are available yet.</div>' +
+        refreshError;
       var emptyRetry = t.querySelector("[data-dsc-retry]");
-      if (emptyRetry) emptyRetry.onclick = function () { b(!0); v(); };
+      if (emptyRetry)
+        emptyRetry.onclick = function () {
+          b(!0);
+          v();
+        };
       return;
     }
     var p = e
       .map(function (a) {
         if (!a.available) {
-          return '<div class="dsc-row"><span class="dsc-name">' + a.label +
-            '</span><span class="dsc-track" aria-hidden="true"></span><span class="dsc-meta" aria-label="Data unavailable" title="Data unavailable">—</span></div>';
+          return (
+            '<div class="dsc-row"><span class="dsc-name">' +
+            a.label +
+            '</span><span class="dsc-track" aria-hidden="true"></span><span class="dsc-meta" aria-label="Data unavailable" title="Data unavailable">—</span></div>'
+          );
         }
         var c = y(a.pct);
         return (
@@ -202,13 +239,20 @@
       })
       .join("");
     t.innerHTML =
-      '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span>' + refreshStatus +
+      '<div class="dsc-head"><span class="dsc-title">Sheet Coverage</span>' +
+      refreshStatus +
       '<button type="button" class="dsc-link" data-dsc-open>Open Sheets &#8594;</button></div><div class="dsc-rows">' +
-      p + "</div>" + refreshError;
+      p +
+      "</div>" +
+      refreshError;
     var o = t.querySelector("[data-dsc-open]");
     o && (o.onclick = x);
     var retry = t.querySelector("[data-dsc-retry]");
-    if (retry) retry.onclick = function () { b(!0); v(); };
+    if (retry)
+      retry.onclick = function () {
+        b(!0);
+        v();
+      };
   }
 
   function v() {

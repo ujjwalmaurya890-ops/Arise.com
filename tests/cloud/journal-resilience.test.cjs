@@ -25,7 +25,7 @@ const { JSDOM } = require("jsdom");
 
 const root = path.resolve(__dirname, "../..");
 // Values come out of the jsdom realm, so compare them structurally.
-const plain = (value) => JSON.parse(JSON.stringify(value));
+const plain = value => JSON.parse(JSON.stringify(value));
 
 function boot() {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -46,16 +46,25 @@ function boot() {
 }
 
 const journalKey = (key, file) =>
-  "arise:" + (file ? "file-journal:" : "journal:") + encodeURIComponent("uid-1") + ":" + encodeURIComponent(key);
+  "arise:" +
+  (file ? "file-journal:" : "journal:") +
+  encodeURIComponent("uid-1") +
+  ":" +
+  encodeURIComponent(key);
 
-const entry = (overrides) =>
-  JSON.stringify(Object.assign({
-    key: "notes",
-    opId: "0123456789abcdef",
-    baseVersion: 3,
-    occurredAt: "2026-01-02T03:04:05.000Z",
-    journalKind: "local"
-  }, overrides || {}));
+const entry = overrides =>
+  JSON.stringify(
+    Object.assign(
+      {
+        key: "notes",
+        opId: "0123456789abcdef",
+        baseVersion: 3,
+        occurredAt: "2026-01-02T03:04:05.000Z",
+        journalKind: "local"
+      },
+      overrides || {}
+    )
+  );
 
 test("a truncated journal value no longer throws out of recoverJournal", () => {
   const b = boot();
@@ -89,20 +98,37 @@ test("valid entries still round-trip, in occurrence order, and survive one bad n
   const b = boot();
   // Write through the facade so the value lands under the account prefix.
   b.w.localStorage.setItem("notes", JSON.stringify(["kept"]));
-  b.native.setItem(journalKey("notes"), entry({ occurredAt: "2026-01-02T03:04:05.000Z", opId: "bbbbbbbbbbbbbbbb" }));
-  b.native.setItem(journalKey("expenses"), entry({ key: "tasks", occurredAt: "2026-01-01T00:00:00.000Z", opId: "aaaaaaaaaaaaaaaa" }));
+  b.native.setItem(
+    journalKey("notes"),
+    entry({ occurredAt: "2026-01-02T03:04:05.000Z", opId: "bbbbbbbbbbbbbbbb" })
+  );
+  b.native.setItem(
+    journalKey("expenses"),
+    entry({ key: "tasks", occurredAt: "2026-01-01T00:00:00.000Z", opId: "aaaaaaaaaaaaaaaa" })
+  );
   b.native.setItem(journalKey("tasks"), "{{{ broken");
   const recovered = b.storage.recoverJournal();
-  assert.deepEqual(plain(recovered.map((item) => item.key)), ["tasks", "notes"]);
+  assert.deepEqual(plain(recovered.map(item => item.key)), ["tasks", "notes"]);
   assert.equal(recovered[1].value, JSON.stringify(["kept"]));
   assert.equal(b.storage.journalHealth().count, 1);
 });
 
 test("a file journal entry must carry database and id", () => {
   const b = boot();
-  b.native.setItem(journalKey("idb:arise-local-files-db-v1:WyJzdHJpbmciLCJmMSJd", true), entry({ key: "idb:arise-local-files-db-v1:WyJzdHJpbmciLCJmMSJd", journalKind: "file" }));
+  b.native.setItem(
+    journalKey("idb:arise-local-files-db-v1:WyJzdHJpbmciLCJmMSJd", true),
+    entry({ key: "idb:arise-local-files-db-v1:WyJzdHJpbmciLCJmMSJd", journalKind: "file" })
+  );
   assert.deepEqual(plain(b.storage.recoverFileJournal()), []);
-  b.native.setItem(journalKey("idb:arise-local-files-db-v1:WyJzdHJpbmciLCJmMSJd", true), entry({ key: "idb:arise-local-files-db-v1:WyJzdHJpbmciLCJmMSJd", database: "arise-local-files-db-v1", id: "f1", journalKind: "file" }));
+  b.native.setItem(
+    journalKey("idb:arise-local-files-db-v1:WyJzdHJpbmciLCJmMSJd", true),
+    entry({
+      key: "idb:arise-local-files-db-v1:WyJzdHJpbmciLCJmMSJd",
+      database: "arise-local-files-db-v1",
+      id: "f1",
+      journalKind: "file"
+    })
+  );
   assert.equal(b.storage.recoverFileJournal().length, 1);
 });
 
@@ -110,9 +136,14 @@ test("cleanJournal does not throw on a corrupt marker and does not remove it by 
   const b = boot();
   b.native.setItem(journalKey("notes"), "not json at all");
   let removed;
-  assert.doesNotThrow(() => { removed = b.storage.cleanJournal("notes", "0123456789abcdef", "local"); });
+  assert.doesNotThrow(() => {
+    removed = b.storage.cleanJournal("notes", "0123456789abcdef", "local");
+  });
   assert.equal(removed, false);
-  assert.ok(b.native.getItem(journalKey("notes")), "an unreadable marker must be left for the user, not silently deleted");
+  assert.ok(
+    b.native.getItem(journalKey("notes")),
+    "an unreadable marker must be left for the user, not silently deleted"
+  );
   assert.equal(b.storage.journalHealth().count, 1);
 });
 
@@ -131,7 +162,7 @@ test("a negative or non-numeric baseVersion is normalised instead of poisoning a
   const [recovered] = b.storage.recoverJournal();
   assert.equal(recovered.baseVersion, 0);
   b.native.setItem(journalKey("tasks"), entry({ key: "tasks", baseVersion: -4 }));
-  const byKey = Object.fromEntries(b.storage.recoverJournal().map((item) => [item.key, item]));
+  const byKey = Object.fromEntries(b.storage.recoverJournal().map(item => [item.key, item]));
   assert.equal(byKey.tasks.baseVersion, 0);
   assert.equal(byKey.notes.baseVersion, 0);
 });
@@ -141,7 +172,10 @@ test("sync-engine initialize survives a corrupt journal and still queues valid w
   const b = boot();
   b.native.setItem(journalKey("notes"), "{ broken");
   b.native.setItem(journalKey("tasks"), entry({ key: "tasks", opId: "cccccccccccccccc" }));
-  b.native.setItem("arise:account:" + encodeURIComponent("uid-1") + ":" + encodeURIComponent("tasks"), JSON.stringify([{ id: 1 }]));
+  b.native.setItem(
+    "arise:account:" + encodeURIComponent("uid-1") + ":" + encodeURIComponent("tasks"),
+    JSON.stringify([{ id: 1 }])
+  );
   const saved = [];
   const schema = b.w.AriseSyncSchema;
   const engine = new CloudSync({
@@ -149,7 +183,9 @@ test("sync-engine initialize survives a corrupt journal and still queues valid w
     storage: Object.assign({}, b.storage, {
       uid: "uid-1",
       load: async () => [],
-      save: async (key, value) => { saved.push([key, value]); },
+      save: async (key, value) => {
+        saved.push([key, value]);
+      },
       snapshot: async () => ({ localStorage: {} }),
       localSnapshot: () => ({}),
       apply: () => {},
@@ -165,6 +201,6 @@ test("sync-engine initialize survives a corrupt journal and still queues valid w
   // persisted on the way there: the valid journal entry must have been in it.
   const queuedKeys = saved
     .filter(([key]) => key === "queue:uid-1")
-    .flatMap(([, snapshot]) => plain(snapshot).map((op) => op.key));
+    .flatMap(([, snapshot]) => plain(snapshot).map(op => op.key));
   assert.ok(queuedKeys.includes("tasks"), "the valid journal entry must still be queued");
 });

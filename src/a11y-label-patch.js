@@ -108,11 +108,17 @@
       if (wrapperText) return wrapperText;
     }
     // 2. Scan the surrounding form/panel for a button with a file-picker verb.
-    var scope = (el.closest && (el.closest("form") || el.closest("[class]") || el.parentElement)) || el.parentElement;
+    var scope =
+      (el.closest && (el.closest("form") || el.closest("[class]") || el.parentElement)) ||
+      el.parentElement;
     if (scope) {
       var candidates = scope.querySelectorAll("button,[role=button],label");
       for (var i = 0; i < candidates.length; i++) {
-        var text = (candidates[i].getAttribute("aria-label") || candidates[i].textContent || "").trim();
+        var text = (
+          candidates[i].getAttribute("aria-label") ||
+          candidates[i].textContent ||
+          ""
+        ).trim();
         if (text && FILE_TRIGGER_RE.test(text)) return humanise(text.replace(/\u2026|\.\.\.$/, ""));
       }
     }
@@ -168,7 +174,11 @@
     var placeholder = (el.getAttribute("placeholder") || "").replace(/\u2026|\.\.\.$/, "").trim();
     if (placeholder && !isExampleOnly(placeholder)) return placeholder;
     // 3. Fall back to the semantic attribute the widget already authorises on.
-    var raw = el.getAttribute("name") || el.getAttribute("data-role") || el.getAttribute("data-action") || "";
+    var raw =
+      el.getAttribute("name") ||
+      el.getAttribute("data-role") ||
+      el.getAttribute("data-action") ||
+      "";
     return raw ? humanise(raw) : "";
   }
 

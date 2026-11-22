@@ -23,7 +23,7 @@ The initial integration run exposed two regression assumptions: old backup tests
 
 ## Coverage of the requested cases
 
-1. **Five approved logins:** server and DOM controller tests loop over all five mocked verified Google identities. No production token bypass exists.
+1. **Approved logins:** server and DOM controller tests loop over the five mocked verified Google identities used by the fixtures, and also cover fail-soft policies (shrunk, grown and partially malformed allowlists). No production token bypass exists.
 2. **Sixth rejection:** API denies reads/writes; deletion is unsupported/denied; DOM gate never unlocks and signs out the denied identity.
 3. **Missing/invalid policy:** missing, disabled, 4/6 entries, duplicates, malformed/placeholder values and unavailable database all fail closed.
 4. **Refresh restoration:** provider-session adapter plus cloud-first initialization restores previous UID data before runtime starts.

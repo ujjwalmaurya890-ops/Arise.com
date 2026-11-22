@@ -38,9 +38,13 @@
     var label = name.replace(/^__mount/, "").replace(/([a-z])([A-Z])/g, "$1 $2") || "Widget";
     el.innerHTML =
       '<div class="uxa-error-state" data-uxa-mount-error="1" role="alert">' +
-        '<div class="uxa-state-title">' + escapeHtml(label) + " encountered an error</div>" +
-        '<div class="uxa-state-desc">This module could not finish rendering. Your saved progress is unaffected.</div>' +
-        '<button type="button" class="uxa-retry-btn" data-uxa-mount-retry="1">Retry ' + escapeHtml(label) + "</button>" +
+      '<div class="uxa-state-title">' +
+      escapeHtml(label) +
+      " encountered an error</div>" +
+      '<div class="uxa-state-desc">This module could not finish rendering. Your saved progress is unaffected.</div>' +
+      '<button type="button" class="uxa-retry-btn" data-uxa-mount-retry="1">Retry ' +
+      escapeHtml(label) +
+      "</button>" +
       "</div>";
     var btn = el.querySelector("[data-uxa-mount-retry]");
     if (btn && typeof retryFn === "function") {
@@ -59,7 +63,10 @@
       var generation = targetEl ? (mountGenerations.get(targetEl) || 0) + 1 : 0;
       if (targetEl) mountGenerations.set(targetEl, generation);
       var isCurrent = function () {
-        return !targetEl || (targetEl.isConnected !== false && mountGenerations.get(targetEl) === generation);
+        return (
+          !targetEl ||
+          (targetEl.isConnected !== false && mountGenerations.get(targetEl) === generation)
+        );
       };
       var retry = function () {
         safe.apply(window, args);
@@ -72,7 +79,9 @@
       try {
         var out = fn.apply(this, arguments);
         if (out && typeof out.then === "function") {
-          return out.then(function (val) { return val; }, fail);
+          return out.then(function (val) {
+            return val;
+          }, fail);
         }
         // The widget owns aria-busy: a synchronous mount can start an async
         // request and must remain busy until that request actually settles.
@@ -90,22 +99,34 @@
     var keys = Object.keys(window);
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i];
-      if ((k.indexOf("__mount") === 0 || k.indexOf("__unmount") === 0) && typeof window[k] === "function") {
+      if (
+        (k.indexOf("__mount") === 0 || k.indexOf("__unmount") === 0) &&
+        typeof window[k] === "function"
+      ) {
         window[k] = wrap(k, window[k]);
       }
     }
   }
 
   window.__ariseWrapMounts = scan;
-  if (typeof window.__ariseFlushReadyMounts === "function" && !window.__ariseFlushReadyMounts.__msWrapped) {
+  if (
+    typeof window.__ariseFlushReadyMounts === "function" &&
+    !window.__ariseFlushReadyMounts.__msWrapped
+  ) {
     var origReady = window.__ariseFlushReadyMounts;
-    var wrappedReady = function () { scan(); return origReady.apply(this, arguments); };
+    var wrappedReady = function () {
+      scan();
+      return origReady.apply(this, arguments);
+    };
     wrappedReady.__msWrapped = true;
     window.__ariseFlushReadyMounts = wrappedReady;
   }
   if (typeof window.__ariseFlushMounts === "function" && !window.__ariseFlushMounts.__msWrapped) {
     var origAll = window.__ariseFlushMounts;
-    var wrappedAll = function () { scan(); return origAll.apply(this, arguments); };
+    var wrappedAll = function () {
+      scan();
+      return origAll.apply(this, arguments);
+    };
     wrappedAll.__msWrapped = true;
     window.__ariseFlushMounts = wrappedAll;
   }

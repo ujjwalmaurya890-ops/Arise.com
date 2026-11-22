@@ -29,7 +29,7 @@ const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
 const root = path.resolve(__dirname, "..");
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 let passed = 0;
 const failures = [];
@@ -58,7 +58,11 @@ const SHELL = `<!doctype html><html><body>
 </body></html>`;
 
 function boot(storage) {
-  const dom = new JSDOM(SHELL, { url: "https://arise.test/", runScripts: "outside-only", pretendToBeVisual: true });
+  const dom = new JSDOM(SHELL, {
+    url: "https://arise.test/",
+    runScripts: "outside-only",
+    pretendToBeVisual: true
+  });
   const w = dom.window;
   w.AriseIcons = { svg: () => "" };
   w.scrollTo = () => {};
@@ -82,8 +86,8 @@ function type(w, value) {
   return input;
 }
 
-const items = (w) => [...w.document.querySelectorAll("#upp-command-list [data-upp-palette-item]")];
-const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
+const items = w => [...w.document.querySelectorAll("#upp-command-list [data-upp-palette-item]")];
+const titleOf = el => el.querySelector(".upp-command-title").textContent;
 
 /* ------------------------------------------------------------------ suites -- */
 
@@ -92,24 +96,38 @@ const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
   const w = boot({ "arise-command-recents-v1": JSON.stringify(["section:notes & personal wiki"]) });
   openPalette(w);
   type(w, "");
-  const sections = [...w.document.querySelectorAll(".upp-command-section-title")].map((el) => el.textContent);
+  const sections = [...w.document.querySelectorAll(".upp-command-section-title")].map(
+    el => el.textContent
+  );
   ok(sections[0] === "Recently used", "with no query the palette opens on a 'Recently used' group");
-  ok(titleOf(items(w)[0]) === "Notes & Personal Wiki", "the remembered command is the first result");
+  ok(
+    titleOf(items(w)[0]) === "Notes & Personal Wiki",
+    "the remembered command is the first result"
+  );
   w.close();
 }
 
 // 2. Executing an entry moves it to the front, de-duplicated, capped at five.
 {
-  const seeded = ["section:notes & personal wiki", "section:learning", "section:dsa tracker", "section:projects", "section:expenses"];
+  const seeded = [
+    "section:notes & personal wiki",
+    "section:learning",
+    "section:dsa tracker",
+    "section:projects",
+    "section:expenses"
+  ];
   const w = boot({ "arise-command-recents-v1": JSON.stringify(seeded) });
   openPalette(w);
   type(w, "settings");
-  const target = items(w).find((el) => titleOf(el).includes("Settings"));
+  const target = items(w).find(el => titleOf(el).includes("Settings"));
   ok(!!target, "query finds a module result to execute");
   target.dispatchEvent(new w.MouseEvent("click", { bubbles: true }));
   const stored = JSON.parse(w.localStorage.getItem("arise-command-recents-v1"));
   ok(stored.length === 5, "history is capped at five entries");
-  ok(stored[0] === "section:settings & backup", "executing an entry promotes it to the front: " + stored[0]);
+  ok(
+    stored[0] === "section:settings & backup",
+    "executing an entry promotes it to the front: " + stored[0]
+  );
   ok(new Set(stored).size === stored.length, "history never contains duplicates");
   ok(!stored.includes("section:expenses"), "the oldest entry falls out when the cap is reached");
   w.close();
@@ -120,13 +138,20 @@ const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
   const w = boot({ "arise-command-recents-v1": JSON.stringify(["section:notes & personal wiki"]) });
   openPalette(w);
   type(w, "command history");
-  const clear = items(w).find((el) => titleOf(el) === "Clear Command History");
+  const clear = items(w).find(el => titleOf(el) === "Clear Command History");
   ok(!!clear, "the palette exposes a 'Clear Command History' action");
   clear.dispatchEvent(new w.MouseEvent("click", { bubbles: true }));
-  ok(w.localStorage.getItem("arise-command-recents-v1") === null, "clearing removes the stored history key");
+  ok(
+    w.localStorage.getItem("arise-command-recents-v1") === null,
+    "clearing removes the stored history key"
+  );
   type(w, "");
-  ok(![...w.document.querySelectorAll(".upp-command-section-title")].some((el) => el.textContent === "Recently used"),
-    "an empty history no longer shows a 'Recently used' group");
+  ok(
+    ![...w.document.querySelectorAll(".upp-command-section-title")].some(
+      el => el.textContent === "Recently used"
+    ),
+    "an empty history no longer shows a 'Recently used' group"
+  );
   w.close();
 }
 
@@ -137,10 +162,19 @@ const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
   type(w, "note");
   const marks = [...w.document.querySelectorAll("mark.upp-command-hit")];
   ok(marks.length >= 2, "the query is highlighted in several results");
-  ok(marks.every((el) => el.textContent.toLowerCase() === "note"), "only the matched text is wrapped");
+  ok(
+    marks.every(el => el.textContent.toLowerCase() === "note"),
+    "only the matched text is wrapped"
+  );
   type(w, "<img src=x onerror=alert(1)>");
-  ok(w.document.querySelectorAll("#upp-command-list img").length === 0, "a hostile query cannot inject markup");
-  ok(/No matches/.test(w.document.getElementById("upp-command-list").textContent), "an unmatched query explains itself");
+  ok(
+    w.document.querySelectorAll("#upp-command-list img").length === 0,
+    "a hostile query cannot inject markup"
+  );
+  ok(
+    /No matches/.test(w.document.getElementById("upp-command-list").textContent),
+    "an unmatched query explains itself"
+  );
   w.close();
 }
 
@@ -151,14 +185,25 @@ const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
   const input = type(w, "");
   const list = w.document.getElementById("upp-command-list");
   ok(list.getAttribute("role") === "listbox", "the result list is a listbox");
-  ok(input.getAttribute("role") === "combobox" && input.getAttribute("aria-expanded") === "true",
-    "the search field is an expanded combobox");
-  ok(input.getAttribute("aria-controls") === "upp-command-list", "the combobox is bound to the listbox");
+  ok(
+    input.getAttribute("role") === "combobox" && input.getAttribute("aria-expanded") === "true",
+    "the search field is an expanded combobox"
+  );
+  ok(
+    input.getAttribute("aria-controls") === "upp-command-list",
+    "the combobox is bound to the listbox"
+  );
   const first = input.getAttribute("aria-activedescendant");
   ok(!!first && !!w.document.getElementById(first), "the combobox points at a real active option");
-  ok(w.document.getElementById(first).getAttribute("aria-selected") === "true", "the active option is aria-selected");
+  ok(
+    w.document.getElementById(first).getAttribute("aria-selected") === "true",
+    "the active option is aria-selected"
+  );
 
-  const press = (key, init) => input.dispatchEvent(new w.KeyboardEvent("keydown", Object.assign({ key, bubbles: true, cancelable: true }, init)));
+  const press = (key, init) =>
+    input.dispatchEvent(
+      new w.KeyboardEvent("keydown", Object.assign({ key, bubbles: true, cancelable: true }, init))
+    );
   press("ArrowDown");
   const second = input.getAttribute("aria-activedescendant");
   ok(second !== first, "ArrowDown moves the active option");
@@ -166,13 +211,20 @@ const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
   const lastId = input.getAttribute("aria-activedescendant");
   ok(lastId === items(w).at(-1).id, "End jumps to the last result");
   press("Home");
-  ok(input.getAttribute("aria-activedescendant") === items(w)[0].id, "Home returns to the first result");
+  ok(
+    input.getAttribute("aria-activedescendant") === items(w)[0].id,
+    "Home returns to the first result"
+  );
   press("PageDown");
-  ok(items(w).findIndex((el) => el.id === input.getAttribute("aria-activedescendant")) >= 5,
-    "PageDown advances by a page of results");
+  ok(
+    items(w).findIndex(el => el.id === input.getAttribute("aria-activedescendant")) >= 5,
+    "PageDown advances by a page of results"
+  );
   press("PageUp");
-  ok(items(w).findIndex((el) => el.id === input.getAttribute("aria-activedescendant")) <= 1,
-    "PageUp returns towards the top");
+  ok(
+    items(w).findIndex(el => el.id === input.getAttribute("aria-activedescendant")) <= 1,
+    "PageUp returns towards the top"
+  );
   w.close();
 }
 
@@ -182,10 +234,15 @@ const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
   openPalette(w);
   const input = type(w, "theme");
   const labels = items(w).map(titleOf);
-  input.dispatchEvent(new w.KeyboardEvent("keydown", { key: "2", altKey: true, bubbles: true, cancelable: true }));
+  input.dispatchEvent(
+    new w.KeyboardEvent("keydown", { key: "2", altKey: true, bubbles: true, cancelable: true })
+  );
   const stored = JSON.parse(w.localStorage.getItem("arise-command-recents-v1") || "[]");
   ok(stored.length === 1, "Alt+2 executes the second result and records it");
-  ok(stored[0].endsWith(labels[1].toLowerCase().slice(0, 80)), "the recorded command is the second result: " + stored[0]);
+  ok(
+    stored[0].endsWith(labels[1].toLowerCase().slice(0, 80)),
+    "the recorded command is the second result: " + stored[0]
+  );
   w.close();
 }
 
@@ -194,12 +251,23 @@ const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
   const w = boot();
   openPalette(w);
   type(w, "");
-  ok(w.document.querySelectorAll("#upp-command-overlay").length === 1, "exactly one command overlay exists");
-  ok(w.document.querySelectorAll(".upp-command-input").length === 1, "exactly one palette search field exists");
+  ok(
+    w.document.querySelectorAll("#upp-command-overlay").length === 1,
+    "exactly one command overlay exists"
+  );
+  ok(
+    w.document.querySelectorAll(".upp-command-input").length === 1,
+    "exactly one palette search field exists"
+  );
   const footer = w.document.querySelector(".upp-command-foot");
-  ok(!!footer && /Alt/.test(footer.textContent) && /Esc/.test(footer.textContent),
-    "the dialog documents its own keyboard contract");
-  ok(items(w).filter((el) => el.querySelector(".upp-command-key")).length >= 3, "the first nine rows show their Alt shortcut");
+  ok(
+    !!footer && /Alt/.test(footer.textContent) && /Esc/.test(footer.textContent),
+    "the dialog documents its own keyboard contract"
+  );
+  ok(
+    items(w).filter(el => el.querySelector(".upp-command-key")).length >= 3,
+    "the first nine rows show their Alt shortcut"
+  );
   w.close();
 }
 
@@ -207,10 +275,15 @@ const titleOf = (el) => el.querySelector(".upp-command-title").textContent;
 {
   const schema = read("src/cloud/storage-schema.js");
   const keys = read("src/storage-keys.js");
-  ok(schema.includes('"arise-command-recents-v1"'), "storage-schema allows the recents key to sync");
+  ok(
+    schema.includes('"arise-command-recents-v1"'),
+    "storage-schema allows the recents key to sync"
+  );
   ok(keys.includes("arise-command-recents-v1"), "the key manifest documents the recents key");
 }
 
 /* ------------------------------------------------------------------ report -- */
-console.log("\nCommand palette v2: " + passed + " assertions passed, " + failures.length + " failed.");
+console.log(
+  "\nCommand palette v2: " + passed + " assertions passed, " + failures.length + " failed."
+);
 if (failures.length) process.exit(1);

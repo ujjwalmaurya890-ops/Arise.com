@@ -39,7 +39,9 @@
     });
   }
 
-  function pad(v) { return (v < 10 ? "0" : "") + v; }
+  function pad(v) {
+    return (v < 10 ? "0" : "") + v;
+  }
 
   function dayKey(value) {
     var d = value instanceof Date ? value : new Date(value);
@@ -58,7 +60,9 @@
     }
   }
 
-  function list(value) { return Array.isArray(value) ? value : []; }
+  function list(value) {
+    return Array.isArray(value) ? value : [];
+  }
 
   // Exams live in the tracker; the syllabus widget may override a date, and the
   // override wins at read time (it is only written when the user diverges).
@@ -66,44 +70,63 @@
   // day that has already happened.
   function exams(options) {
     var includePast = !!(options && options.includePast);
+    // `now` is injectable so "upcoming" can be verified at a fixed moment.
+    var now = (options && options.now) || new Date();
     var store = read(EXAM_KEY) || {};
     var overrides = read(EXAM_DATES_KEY) || {};
-    return list(store.exams).map(function (exam) {
-      if (!exam || !exam.id) return null;
-      var override = overrides[exam.id];
-      var date = typeof override === "string" && /^\d{4}-\d{2}-\d{2}/.test(override) ? override : exam.examDate;
-      if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(date)) return null;
-      var topics = list(exam.topics).map(function (topic) {
-        if (!topic) return null;
-        if (typeof topic === "string") return { title: topic, done: false, confidence: 0 };
-        var status = String(topic.status || "");
-        var confidence = Number(topic.confidence);
+    return list(store.exams)
+      .map(function (exam) {
+        if (!exam || !exam.id) return null;
+        var override = overrides[exam.id];
+        var date =
+          typeof override === "string" && /^\d{4}-\d{2}-\d{2}/.test(override)
+            ? override
+            : exam.examDate;
+        if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(date)) return null;
+        var topics = list(exam.topics)
+          .map(function (topic) {
+            if (!topic) return null;
+            if (typeof topic === "string") return { title: topic, done: false, confidence: 0 };
+            var status = String(topic.status || "");
+            var confidence = Number(topic.confidence);
+            return {
+              title: String(topic.title || topic.name || "Topic"),
+              done: status === "Completed" || status === "Done",
+              confidence: isFinite(confidence) ? Math.max(0, Math.min(5, confidence)) : 0
+            };
+          })
+          .filter(Boolean);
         return {
-          title: String(topic.title || topic.name || "Topic"),
-          done: status === "Completed" || status === "Done",
-          confidence: isFinite(confidence) ? Math.max(0, Math.min(5, confidence)) : 0
+          id: String(exam.id),
+          title: String(exam.examName || "Exam"),
+          subject: String(exam.subjectName || exam.subjectCode || ""),
+          day: dayKey(date),
+          topics: topics,
+          openTopics: topics.filter(function (topic) {
+            return !topic.done;
+          }).length,
+          // A topic the user rated 1-2/5 needs the most time; unrated topics get
+          // the default. This keeps the estimate explainable.
+          weakTopics: topics.filter(function (topic) {
+            return !topic.done && topic.confidence > 0 && topic.confidence <= 2;
+          }).length,
+          weightage: isFinite(Number(exam.weightage)) ? Number(exam.weightage) : null
         };
-      }).filter(Boolean);
-      return {
-        id: String(exam.id),
-        title: String(exam.examName || "Exam"),
-        subject: String(exam.subjectName || exam.subjectCode || ""),
-        day: dayKey(date),
-        topics: topics,
-        openTopics: topics.filter(function (topic) { return !topic.done; }).length,
-        // A topic the user rated 1-2/5 needs the most time; unrated topics get
-        // the default. This keeps the estimate explainable.
-        weakTopics: topics.filter(function (topic) { return !topic.done && topic.confidence > 0 && topic.confidence <= 2; }).length,
-        weightage: isFinite(Number(exam.weightage)) ? Number(exam.weightage) : null
-      };
-    }).filter(Boolean).filter(function (exam) {
-      return includePast || exam.day >= dayKey(new Date());
-    }).sort(function (a, b) { return a.day.localeCompare(b.day); });
+      })
+      .filter(Boolean)
+      .filter(function (exam) {
+        return includePast || exam.day >= dayKey(now);
+      })
+      .sort(function (a, b) {
+        return a.day.localeCompare(b.day);
+      });
   }
 
   function dsaBacklog() {
     var questions = list(read(DSA_KEY));
-    var open = questions.filter(function (q) { return q && q.solved !== true; }).length;
+    var open = questions.filter(function (q) {
+      return q && q.solved !== true;
+    }).length;
     var goal = Number((read(GOAL_KEY) || {}).target);
     return { open: open, perDay: isFinite(goal) && goal > 0 ? Math.min(20, Math.round(goal)) : 2 };
   }
@@ -126,10 +149,15 @@
       if (byDay[key]) totals.push(byDay[key]);
     }
     if (!totals.length) return { minutes: DEFAULT_CAPACITY, basis: "default", sample: 0 };
-    var average = totals.reduce(function (sum, value) { return sum + value; }, 0) / totals.length;
+    var average =
+      totals.reduce(function (sum, value) {
+        return sum + value;
+      }, 0) / totals.length;
     // A single heroic Sunday should not set the expectation for the next two
     // weeks, so the median of active days is used instead of the mean.
-    var sorted = totals.slice().sort(function (a, b) { return a - b; });
+    var sorted = totals.slice().sort(function (a, b) {
+      return a - b;
+    });
     var median = sorted[Math.floor(sorted.length / 2)];
     return {
       minutes: Math.max(30, Math.min(480, Math.round(median || average))),
@@ -143,7 +171,7 @@
     var now = opts.now instanceof Date ? opts.now : new Date(opts.now || Date.now());
     var span = Math.max(1, Math.min(60, Number(opts.days) || HORIZON));
     var cap = capacity({ now: now });
-    var examList = exams();
+    var examList = exams({ now: now, includePast: true });
     var backlog = dsaBacklog();
     var todayKey = dayKey(now);
     var out = [];
@@ -157,24 +185,37 @@
         if (exam.day < todayKey) return;
         // The gap must be measured from the day being planned, not from today,
         // or prep work would follow the exam into the following week.
-        var gap = Math.round((new Date(exam.day + "T00:00:00") - new Date(key + "T00:00:00")) / 86400000);
+        var gap = Math.round(
+          (new Date(exam.day + "T00:00:00") - new Date(key + "T00:00:00")) / 86400000
+        );
         if (gap < 0) return;
         if (exam.day === key) {
           var examCost = 180;
           needed += examCost;
-          drivers.push({ kind: "exam", label: exam.title + (exam.subject ? " · " + exam.subject : ""), minutes: examCost, note: "exam today" });
+          drivers.push({
+            kind: "exam",
+            label: exam.title + (exam.subject ? " · " + exam.subject : ""),
+            minutes: examCost,
+            note: "exam today"
+          });
           return;
         }
         // Study load is spread over the days before the exam: weak topics cost
         // more, and the last two days are reserved for revision.
         if (gap > 0 && gap <= 7 && exam.openTopics > 0) {
-          var spread = exam.openTopics * TOPIC_MINUTES * (exam.weakTopics ? 1.5 : 1) / Math.min(gap, 7);
+          var spread =
+            (exam.openTopics * TOPIC_MINUTES * (exam.weakTopics ? 1.5 : 1)) / Math.min(gap, 7);
           var cost = Math.round(spread);
           if (cost <= 0) return;
           needed += cost;
           drivers.push({
             kind: gap <= 2 ? "revision" : "prep",
-            label: exam.title + " · " + exam.openTopics + " open topic" + (exam.openTopics === 1 ? "" : "s"),
+            label:
+              exam.title +
+              " · " +
+              exam.openTopics +
+              " open topic" +
+              (exam.openTopics === 1 ? "" : "s"),
             minutes: cost,
             note: gap === 1 ? "exam tomorrow" : "exam in " + gap + " days"
           });
@@ -192,7 +233,9 @@
         });
       }
 
-      drivers.sort(function (a, b) { return b.minutes - a.minutes; });
+      drivers.sort(function (a, b) {
+        return b.minutes - a.minutes;
+      });
       var ratio = cap.minutes ? needed / cap.minutes : 0;
       out.push({
         key: key,
@@ -209,18 +252,29 @@
 
   function summary(options) {
     var rows = days(options);
-    var overloaded = rows.filter(function (row) { return row.load === "overloaded"; });
-    var heaviest = rows.slice().sort(function (a, b) { return b.minutesNeeded - a.minutesNeeded; })[0] || null;
-    var nextExam = exams().filter(function (exam) { return exam.day >= dayKey(new Date()); })[0] || null;
+    var overloaded = rows.filter(function (row) {
+      return row.load === "overloaded";
+    });
+    var heaviest =
+      rows.slice().sort(function (a, b) {
+        return b.minutesNeeded - a.minutesNeeded;
+      })[0] || null;
+    var now = (options && options.now) || new Date();
+    var nextExam =
+      exams({ now: now }).filter(function (exam) {
+        return exam.day >= dayKey(now);
+      })[0] || null;
     return {
       rows: rows,
       overloaded: overloaded,
       heaviest: heaviest,
       nextExam: nextExam,
       totals: {
-        minutes: rows.reduce(function (sum, row) { return sum + row.minutesNeeded; }, 0),
+        minutes: rows.reduce(function (sum, row) {
+          return sum + row.minutesNeeded;
+        }, 0),
         days: rows.length,
-        capacity: capacity()
+        capacity: capacity({ now: now })
       }
     };
   }
@@ -241,8 +295,12 @@
   function host() {
     var main = document.getElementById("arise-main");
     if (!main) return null;
-    return main.querySelector(".space-y-6") || main.querySelector(".space-y-5") ||
-      (main.querySelector(":scope > div.flex-1 > div > div") || main.querySelector(":scope > div.flex-1 > div"));
+    return (
+      main.querySelector(".space-y-6") ||
+      main.querySelector(".space-y-5") ||
+      main.querySelector(":scope > div.flex-1 > div > div") ||
+      main.querySelector(":scope > div.flex-1 > div")
+    );
   }
 
   function loadLabel(load) {
@@ -250,45 +308,99 @@
   }
 
   function cardHtml(state) {
-    var rows = state.rows.map(function (row) {
-      var date = new Date(row.key + "T00:00:00");
-      var label = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
-      var drivers = row.drivers.map(function (driver) {
-        return '<li class="sh-driver"><span class="sh-driver-kind">' + esc(driver.kind) + "</span>" +
-          esc(driver.label) + '<span class="sh-driver-cost">' + driver.minutes + "m · " + esc(driver.note) + "</span></li>";
-      }).join("");
-      return '<li class="sh-day" data-load="' + esc(row.load) + '" data-today="' + (row.isToday ? "true" : "false") + '">' +
-        '<div class="sh-day-head"><span class="sh-day-label">' + label + " " + esc(row.key.slice(8)) + "</span>" +
-        '<span class="sh-day-load">' + esc(loadLabel(row.load)) + "</span>" +
-        '<span class="sh-day-cost">' + (row.minutesNeeded ? row.minutesNeeded + "m / " + row.capacity + "m" : "nothing planned") + "</span></div>" +
-        (drivers ? '<ul class="sh-drivers">' + drivers + "</ul>" : "") +
-        "</li>";
-    }).join("");
+    var rows = state.rows
+      .map(function (row) {
+        var date = new Date(row.key + "T00:00:00");
+        var label = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
+        var drivers = row.drivers
+          .map(function (driver) {
+            return (
+              '<li class="sh-driver"><span class="sh-driver-kind">' +
+              esc(driver.kind) +
+              "</span>" +
+              esc(driver.label) +
+              '<span class="sh-driver-cost">' +
+              driver.minutes +
+              "m · " +
+              esc(driver.note) +
+              "</span></li>"
+            );
+          })
+          .join("");
+        return (
+          '<li class="sh-day" data-load="' +
+          esc(row.load) +
+          '" data-today="' +
+          (row.isToday ? "true" : "false") +
+          '">' +
+          '<div class="sh-day-head"><span class="sh-day-label">' +
+          label +
+          " " +
+          esc(row.key.slice(8)) +
+          "</span>" +
+          '<span class="sh-day-load">' +
+          esc(loadLabel(row.load)) +
+          "</span>" +
+          '<span class="sh-day-cost">' +
+          (row.minutesNeeded
+            ? row.minutesNeeded + "m / " + row.capacity + "m"
+            : "nothing planned") +
+          "</span></div>" +
+          (drivers ? '<ul class="sh-drivers">' + drivers + "</ul>" : "") +
+          "</li>"
+        );
+      })
+      .join("");
 
     var headline = state.overloaded.length
-      ? state.overloaded.length + " of the next " + state.totals.days + " days ask for more than you can realistically study."
-      : "Every day in the next " + state.totals.days + " days fits inside your recent daily capacity.";
+      ? state.overloaded.length +
+        " of the next " +
+        state.totals.days +
+        " days ask for more than you can realistically study."
+      : "Every day in the next " +
+        state.totals.days +
+        " days fits inside your recent daily capacity.";
 
     var nextExam = state.nextExam
-      ? "Next exam: " + state.nextExam.title + " on " + state.nextExam.day +
-        (state.nextExam.openTopics ? " · " + state.nextExam.openTopics + " open topic" + (state.nextExam.openTopics === 1 ? "" : "s") : "")
+      ? "Next exam: " +
+        state.nextExam.title +
+        " on " +
+        state.nextExam.day +
+        (state.nextExam.openTopics
+          ? " · " +
+            state.nextExam.openTopics +
+            " open topic" +
+            (state.nextExam.openTopics === 1 ? "" : "s")
+          : "")
       : "No dated exam in the tracker.";
 
-    return '<div class="sh-head"><div><h2 class="sh-title" id="sh-title">Two-week horizon</h2>' +
-      '<p class="sh-sub">' + esc(nextExam) + "</p></div>" +
-      '<span class="sh-cap">' + state.totals.capacity.minutes + "m/day</span></div>" +
-      '<p class="sh-summary">' + esc(headline) + "</p>" +
-      '<ul class="sh-days">' + rows + "</ul>" +
-      '<p class="sh-hint">Capacity is the median of your active study days in the last week. Exam cost uses 12 minutes per open topic (more when the topic confidence is 1–2), 20 minutes per DSA problem. Nothing here writes to a widget.</p>';
+    return (
+      '<div class="sh-head"><div><h2 class="sh-title" id="sh-title">Two-week horizon</h2>' +
+      '<p class="sh-sub">' +
+      esc(nextExam) +
+      "</p></div>" +
+      '<span class="sh-cap">' +
+      state.totals.capacity.minutes +
+      "m/day</span></div>" +
+      '<p class="sh-summary">' +
+      esc(headline) +
+      "</p>" +
+      '<ul class="sh-days">' +
+      rows +
+      "</ul>" +
+      '<p class="sh-hint">Capacity is the median of your active study days in the last week. Exam cost uses 12 minutes per open topic (more when the topic confidence is 1–2), 20 minutes per DSA problem. Nothing here writes to a widget.</p>'
+    );
   }
 
-  function render() {
+  function render(options) {
     if (!mounted) return;
     var body = mounted.querySelector(".sh-body");
-    if (body) body.innerHTML = cardHtml(summary({ days: HORIZON }));
+    // `now` is injectable so rendering can be verified at a fixed moment.
+    var opts = options || {};
+    if (body) body.innerHTML = cardHtml(summary({ days: HORIZON, now: opts.now }));
   }
 
-  function mount() {
+  function mount(options) {
     if (!routeWantsCard()) return false;
     var target = host();
     if (!target) return false;
@@ -300,7 +412,7 @@
       mounted.innerHTML = '<div class="sh-body"></div>';
     }
     if (mounted.parentElement !== target) target.appendChild(mounted);
-    render();
+    render(options);
     return true;
   }
 
@@ -332,7 +444,10 @@
 
   function schedule() {
     if (pending) return;
-    pending = setTimeout(function () { pending = null; tick(); }, 240);
+    pending = setTimeout(function () {
+      pending = null;
+      tick();
+    }, 240);
   }
 
   function start() {

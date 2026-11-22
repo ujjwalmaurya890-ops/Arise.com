@@ -4,7 +4,14 @@
 
   var S = "interviewSheetsProgress",
     n = null,
-    e = { activeSheet: "blind75", search: "", topic: "All", difficulty: "All", status: "All", company: "All" },
+    e = {
+      activeSheet: "blind75",
+      search: "",
+      topic: "All",
+      difficulty: "All",
+      status: "All",
+      company: "All"
+    },
     c = null,
     A = !1,
     loadError = !1,
@@ -80,13 +87,21 @@
       return { list: companiesObj[i] || [], sheetKey: "companies::" + i, companyName: i };
     }
     var r = c && c[e.activeSheet];
-    return { list: r && Array.isArray(r.questions) ? r.questions : [], sheetKey: e.activeSheet, companyName: null };
+    return {
+      list: r && Array.isArray(r.questions) ? r.questions : [],
+      sheetKey: e.activeSheet,
+      companyName: null
+    };
   }
 
   function renderLoadingSkeleton() {
     var system = window.AriseAnimationUpgrade;
     if (system && typeof system.renderSkeleton === "function") {
-      return system.renderSkeleton({ variant: "table", header: false, label: "Loading curated interview problem sheets…" });
+      return system.renderSkeleton({
+        variant: "table",
+        header: false,
+        label: "Loading curated interview problem sheets…"
+      });
     }
     var pills = [1, 2, 3, 4, 5]
       .map(function () {
@@ -151,7 +166,8 @@
       : e.activeSheet === "companies" &&
         (y =
           "<div class='ish-desc'>Frequently-referenced problems commonly associated with each company's interviews (community-sourced patterns, not an official per-company LeetCode list).</div>");
-    var hasActiveFilters = e.search.trim() !== "" || e.topic !== "All" || e.difficulty !== "All" || e.status !== "All";
+    var hasActiveFilters =
+      e.search.trim() !== "" || e.topic !== "All" || e.difficulty !== "All" || e.status !== "All";
     var b,
       w = g
         .map(function (a) {
@@ -197,7 +213,9 @@
     if (g.length === 0) {
       w =
         "<div class='ish-empty'><div>" +
-        (hasActiveFilters ? "No questions match your filters." : "No questions are available in this sheet yet.") +
+        (hasActiveFilters
+          ? "No questions match your filters."
+          : "No questions are available in this sheet yet.") +
         "</div>" +
         (hasActiveFilters
           ? "<button type='button' class='uxa-retry-btn' style='margin-top:.55rem' data-ish-clear-filters='1'>Reset filters</button>"
@@ -278,7 +296,15 @@
           "<option value='All'>All Topics</option>" +
           a
             .map(function (s) {
-              return "<option value='" + l(s) + "'" + (e.topic === s ? " selected" : "") + ">" + l(s) + "</option>";
+              return (
+                "<option value='" +
+                l(s) +
+                "'" +
+                (e.topic === s ? " selected" : "") +
+                ">" +
+                l(s) +
+                "</option>"
+              );
             })
             .join("");
         return (
@@ -391,7 +417,12 @@
         if (window.AriseLoading && window.AriseLoading.announce && n) {
           var rows = n.querySelectorAll(".ish-row").length;
           window.AriseLoading.announce(
-            rows ? rows + (rows === 1 ? " question matches your filters." : " questions match your filters.") : "No questions match your filters."
+            rows
+              ? rows +
+                  (rows === 1
+                    ? " question matches your filters."
+                    : " questions match your filters.")
+              : "No questions match your filters."
           );
         }
       }, 120);
@@ -418,7 +449,9 @@
     n.removeAttribute("aria-busy");
     n.innerHTML =
       "<div class='ish-wrap'><div class='ish-header'><div class='ish-title'><span>📑</span> Interview Sheets</div><div class='ish-subtitle'>Built-in curated sheets on top of your DSA tracker — Blind 75, NeetCode 150, LeetCode Top Interview 150, Striver A2Z &amp; company-wise lists.</div></div>" +
-      (Object.keys(c).length ? L() : "<div class='uxa-empty-state'><div class='uxa-state-title'>No interview sheets available</div><div class='uxa-state-desc'>The sheet collection is empty. Your saved progress is unchanged.</div></div>") +
+      (Object.keys(c).length
+        ? L()
+        : "<div class='uxa-empty-state'><div class='uxa-state-title'>No interview sheets available</div><div class='uxa-state-desc'>The sheet collection is empty. Your saved progress is unchanged.</div></div>") +
       "</div>";
   }
 

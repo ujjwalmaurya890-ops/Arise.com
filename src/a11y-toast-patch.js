@@ -1,1 +1,69 @@
-(function(){"use strict";if(window.__ARISE_A11Y_TOAST_PATCH__)return;window.__ARISE_A11Y_TOAST_PATCH__=!0;var c=[{sel:".htw-toast",attrs:{role:"status","aria-live":"polite","aria-atomic":"true"}},{sel:"#arise-xp-breakdown-toast",attrs:{role:"status","aria-live":"polite"}},{sel:"#cp-toast",attrs:{role:"status","aria-live":"polite","aria-atomic":"true"}},{sel:".water-reminder-toast",attrs:{role:"status","aria-live":"polite","aria-atomic":"true"}},{sel:".et-toast",attrs:{role:"status","aria-live":"polite"}},{sel:"#upp-toast",attrs:{role:"status","aria-live":"polite"}}];function u(e){!e||e.nodeType!==1&&e.nodeType!==9||c.forEach(function(r){for(var o=e.querySelectorAll?e.querySelectorAll(r.sel):[],n=0;n<o.length;n++){var s=o[n];Object.keys(r.attrs).forEach(function(t){s.hasAttribute(t)||s.setAttribute(t,r.attrs[t])})}})}function l(){if(u(document),!!window.MutationObserver){let n=function(){e=0;var t=r;if(r=[],!document.hidden){var i=function(){if(t.length>40){u(document);return}for(var a=0;a<t.length;a++)t[a].isConnected&&u(t[a])};o&&o.mute?o.mute(i):i()}},s=function(){e||(e=setTimeout(n,250))};var e=0,r=[],o=window.__ARISE_MUTATION_BUS__;o?o.subscribe(function(t){for(var i=0;i<t.length;i++)for(var a=0;a<t[i].addedNodes.length;a++){var d=t[i].addedNodes[a];d.nodeType===1&&r.push(d)}r.length&&s()}):new MutationObserver(function(){r.push(document),s()}).observe(document.documentElement,{childList:!0,subtree:!0})}}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",l):l()})();
+(function () {
+  "use strict";
+  if (window.__ARISE_A11Y_TOAST_PATCH__) return;
+  window.__ARISE_A11Y_TOAST_PATCH__ = !0;
+  var c = [
+    { sel: ".htw-toast", attrs: { role: "status", "aria-live": "polite", "aria-atomic": "true" } },
+    { sel: "#arise-xp-breakdown-toast", attrs: { role: "status", "aria-live": "polite" } },
+    { sel: "#cp-toast", attrs: { role: "status", "aria-live": "polite", "aria-atomic": "true" } },
+    {
+      sel: ".water-reminder-toast",
+      attrs: { role: "status", "aria-live": "polite", "aria-atomic": "true" }
+    },
+    { sel: ".et-toast", attrs: { role: "status", "aria-live": "polite" } },
+    { sel: "#upp-toast", attrs: { role: "status", "aria-live": "polite" } }
+  ];
+  function u(e) {
+    !e ||
+      (e.nodeType !== 1 && e.nodeType !== 9) ||
+      c.forEach(function (r) {
+        for (
+          var o = e.querySelectorAll ? e.querySelectorAll(r.sel) : [], n = 0;
+          n < o.length;
+          n++
+        ) {
+          var s = o[n];
+          Object.keys(r.attrs).forEach(function (t) {
+            s.hasAttribute(t) || s.setAttribute(t, r.attrs[t]);
+          });
+        }
+      });
+  }
+  function l() {
+    if ((u(document), !!window.MutationObserver)) {
+      let n = function () {
+          e = 0;
+          var t = r;
+          if (((r = []), !document.hidden)) {
+            var i = function () {
+              if (t.length > 40) {
+                u(document);
+                return;
+              }
+              for (var a = 0; a < t.length; a++) t[a].isConnected && u(t[a]);
+            };
+            o && o.mute ? o.mute(i) : i();
+          }
+        },
+        s = function () {
+          e || (e = setTimeout(n, 250));
+        };
+      var e = 0,
+        r = [],
+        o = window.__ARISE_MUTATION_BUS__;
+      o
+        ? o.subscribe(function (t) {
+            for (var i = 0; i < t.length; i++)
+              for (var a = 0; a < t[i].addedNodes.length; a++) {
+                var d = t[i].addedNodes[a];
+                d.nodeType === 1 && r.push(d);
+              }
+            r.length && s();
+          })
+        : new MutationObserver(function () {
+            (r.push(document), s());
+          }).observe(document.documentElement, { childList: !0, subtree: !0 });
+    }
+  }
+  document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", l) : l();
+})();

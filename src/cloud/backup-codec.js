@@ -1,6 +1,6 @@
-import { blobBytes, base64, unbase64 } from './sync-engine.js';
-import { zip, unzip, strToU8, strFromU8 } from 'fflate';
-export { fingerprint } from './sync-engine.js';
+import { blobBytes, base64, unbase64 } from "./sync-engine.js";
+import { zip, unzip, strToU8, strFromU8 } from "fflate";
+export { fingerprint } from "./sync-engine.js";
 
 /* Backup operations report measured progress, never a synthetic timer:
    - `encode` counts values actually encoded (blobs included; empty containers
@@ -14,13 +14,13 @@ export { fingerprint } from './sync-engine.js';
    been decoded or restored yet). Once a restore has started, aborting would be
    dishonest, so the signal is ignored past that point. */
 
-const ABORT_MESSAGE = 'Backup cancelled before anything changed.';
-const SKIP_KEYS = ['__proto__', 'constructor', 'prototype'];
+const ABORT_MESSAGE = "Backup cancelled before anything changed.";
+const SKIP_KEYS = ["__proto__", "constructor", "prototype"];
 const MAX_BACKUP_BYTES = 512 * 1024 * 1024;
 
 function abortError() {
   const error = new Error(ABORT_MESSAGE);
-  error.name = 'AbortError';
+  error.name = "AbortError";
   return error;
 }
 
@@ -29,7 +29,7 @@ function throwIfAborted(signal) {
 }
 
 function report(onProgress, payload) {
-  if (typeof onProgress !== 'function') return;
+  if (typeof onProgress !== "function") return;
   try {
     onProgress(payload);
   } catch (_) {
@@ -37,7 +37,7 @@ function report(onProgress, payload) {
   }
 }
 
-const isBlob = (value) => typeof Blob !== 'undefined' && value instanceof Blob;
+const isBlob = value => typeof Blob !== "undefined" && value instanceof Blob;
 
 /** Count of scalar/blob values and empty containers an encode pass will process. */
 export function countBackupUnits(value) {
@@ -49,7 +49,8 @@ export function countBackupUnits(value) {
       return;
     }
     if (Array.isArray(entry)) {
-      if (ancestors.has(entry)) throw new TypeError('Backup snapshot contains a circular reference.');
+      if (ancestors.has(entry))
+        throw new TypeError("Backup snapshot contains a circular reference.");
       if (entry.length === 0) total += 1;
       else {
         ancestors.add(entry);
@@ -58,8 +59,9 @@ export function countBackupUnits(value) {
       }
       return;
     }
-    if (entry && typeof entry === 'object') {
-      if (ancestors.has(entry)) throw new TypeError('Backup snapshot contains a circular reference.');
+    if (entry && typeof entry === "object") {
+      if (ancestors.has(entry))
+        throw new TypeError("Backup snapshot contains a circular reference.");
       const keys = Object.keys(entry).filter(key => !SKIP_KEYS.includes(key));
       if (keys.length === 0) total += 1;
       else {
@@ -75,6 +77,48 @@ export function countBackupUnits(value) {
 }
 
 /**
+ * Projected archive size for a snapshot, measured before anything is encoded.
+ * Binary attachments are base64-encoded inside the JSON, so each blob grows by
+ * 4/3 plus JSON framing. Checking this first keeps an oversized export from
+ * first allocating the whole base64 string and only then failing the limit —
+ * that ordering used to be the OOM path.
+ */
+export function estimateBackupBytes(value) {
+  let blobBytesTotal = 0;
+  const ancestors = new Set();
+  (function walk(entry) {
+    if (isBlob(entry)) {
+      blobBytesTotal += entry.size;
+      return;
+    }
+    if (Array.isArray(entry)) {
+      if (ancestors.has(entry))
+        throw new TypeError("Backup snapshot contains a circular reference.");
+      ancestors.add(entry);
+      entry.forEach(walk);
+      ancestors.delete(entry);
+      return;
+    }
+    if (entry && typeof entry === "object") {
+      if (ancestors.has(entry))
+        throw new TypeError("Backup snapshot contains a circular reference.");
+      ancestors.add(entry);
+      for (const key of Object.keys(entry)) if (!SKIP_KEYS.includes(key)) walk(entry[key]);
+      ancestors.delete(entry);
+    }
+  })(value);
+  // base64 = ceil(n/3)*4, plus a small allowance for JSON keys and metadata.
+  return Math.ceil(blobBytesTotal / 3) * 4 + 64 * 1024;
+}
+
+export function assertBackupFits(value) {
+  if (estimateBackupBytes(value) > MAX_BACKUP_BYTES)
+    throw new Error(
+      "This backup would exceed the 512 MiB limit. Export JSON, or reduce attached files first; nothing was changed."
+    );
+}
+
+/**
  * Lossless JSON encoding of a snapshot.
  * @param {*} value snapshot
  * @param {{ onProgress?: (info: {phase: string, done?: number, total?: number, fraction: number|null}) => void,
@@ -82,13 +126,15 @@ export function countBackupUnits(value) {
  */
 export async function encodeBackup(value, options = {}) {
   const { onProgress, signal } = options;
+  // Fail on size before allocating; see estimateBackupBytes().
+  assertBackupFits(value);
   const total = Math.max(countBackupUnits(value), 1);
   let done = 0;
   const step = () => {
     throwIfAborted(signal);
     done += 1;
     if (done === total || done % 8 === 0) {
-      report(onProgress, { phase: 'encode', done, total, fraction: Math.min(done / total, 1) });
+      report(onProgress, { phase: "encode", done, total, fraction: Math.min(done / total, 1) });
     }
   };
   async function walk(entry) {
@@ -104,7 +150,7 @@ export async function encodeBackup(value, options = {}) {
       if (entry.length === 0) step();
       return result;
     }
-    if (entry && typeof entry === 'object') {
+    if (entry && typeof entry === "object") {
       const result = {};
       let eligible = 0;
       for (const [key, child] of Object.entries(entry)) {
@@ -119,26 +165,39 @@ export async function encodeBackup(value, options = {}) {
     return entry;
   }
   const encoded = await walk(value);
-  report(onProgress, { phase: 'encode', done: total, total, fraction: 1 });
+  report(onProgress, { phase: "encode", done: total, total, fraction: 1 });
   return encoded;
 }
 
 export function decodeBackup(value) {
-  if (value && value.$ariseBlob === 1 && typeof value.data === 'string') return new Blob([unbase64(value.data)], { type: value.type || '' });
+  if (value && value.$ariseBlob === 1 && typeof value.data === "string")
+    return new Blob([unbase64(value.data)], { type: value.type || "" });
   if (Array.isArray(value)) return value.map(decodeBackup);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => !['__proto__', 'constructor', 'prototype'].includes(key)).map(([key, entry]) => [key, decodeBackup(entry)]));
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !["__proto__", "constructor", "prototype"].includes(key))
+        .map(([key, entry]) => [key, decodeBackup(entry)])
+    );
   return value;
 }
 
-export async function downloadBackup(snapshot, filename = 'arise-secure-backup', options = {}) {
+export async function downloadBackup(snapshot, filename = "arise-secure-backup", options = {}) {
   const data = await encodeBackup(snapshot, options);
   throwIfAborted(options.signal);
   // JSON.stringify is synchronous and has no measurable byte/step callback.
-  report(options.onProgress, { phase: 'serialize', fraction: null });
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-  const link = document.createElement('a'); link.href = url; link.download = filename + '-' + new Date().toISOString().slice(0, 10) + '.json';
-  document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
-  report(options.onProgress, { phase: 'done', fraction: 1 });
+  report(options.onProgress, { phase: "serialize", fraction: null });
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename + "-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  report(options.onProgress, { phase: "done", fraction: 1 });
 }
 
 // ZIP is a wrapper around the same lossless JSON, never a separate restore path.
@@ -148,19 +207,26 @@ export async function backupZip(snapshot, options = {}) {
   const encoded = await encodeBackup(snapshot, { onProgress, signal });
   throwIfAborted(signal);
   // Stringification and UTF-8 conversion have no incremental progress API.
-  report(onProgress, { phase: 'serialize', fraction: null });
+  report(onProgress, { phase: "serialize", fraction: null });
   const data = strToU8(JSON.stringify(encoded));
-  if (data.byteLength > MAX_BACKUP_BYTES) throw new Error('Backup JSON exceeds the 512 MiB archive limit. Export JSON or ask the owner to split the backed-up data safely.');
+  if (data.byteLength > MAX_BACKUP_BYTES)
+    throw new Error(
+      "Backup JSON exceeds the 512 MiB archive limit. Export JSON or ask the owner to split the backed-up data safely."
+    );
   // Compression has no honest percentage: report the phase, not a number.
-  report(onProgress, { phase: 'compress', fraction: null });
-  const bytes = await new Promise((resolve, reject) => zip({ 'backup.json': data }, { level: 6 }, (error, result) => error ? reject(error) : resolve(result)));
+  report(onProgress, { phase: "compress", fraction: null });
+  const bytes = await new Promise((resolve, reject) =>
+    zip({ "backup.json": data }, { level: 6 }, (error, result) =>
+      error ? reject(error) : resolve(result)
+    )
+  );
   throwIfAborted(signal);
-  report(onProgress, { phase: 'done', fraction: 1 });
-  return new Blob([bytes], { type: 'application/zip' });
+  report(onProgress, { phase: "done", fraction: 1 });
+  return new Blob([bytes], { type: "application/zip" });
 }
 
 async function readBytes(file, { onProgress, signal }) {
-  if (file.size > 0 && typeof file.stream === 'function') {
+  if (file.size > 0 && typeof file.stream === "function") {
     const reader = file.stream().getReader();
     const chunks = [];
     let loaded = 0;
@@ -172,10 +238,17 @@ async function readBytes(file, { onProgress, signal }) {
         if (done) break;
         chunks.push(value);
         loaded += value.byteLength;
-        report(onProgress, { phase: 'read', loaded, total, fraction: total ? Math.min(loaded / total, 1) : 0 });
+        report(onProgress, {
+          phase: "read",
+          loaded,
+          total,
+          fraction: total ? Math.min(loaded / total, 1) : 0
+        });
       }
     } finally {
-      try { await reader.cancel(); } catch (_) {}
+      try {
+        await reader.cancel();
+      } catch (_) {}
     }
     const bytes = new Uint8Array(loaded);
     let offset = 0;
@@ -183,38 +256,61 @@ async function readBytes(file, { onProgress, signal }) {
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    report(onProgress, { phase: 'read', loaded, total, fraction: 1 });
+    report(onProgress, { phase: "read", loaded, total, fraction: 1 });
     return bytes;
   }
   const buffer = await blobBytes(file);
   throwIfAborted(signal);
   const bytes = new Uint8Array(buffer);
-  report(onProgress, { phase: 'read', loaded: bytes.byteLength, total: bytes.byteLength, fraction: 1 });
+  report(onProgress, {
+    phase: "read",
+    loaded: bytes.byteLength,
+    total: bytes.byteLength,
+    fraction: 1
+  });
   return bytes;
 }
 
 export async function readBackupFile(file, options = {}) {
   const { onProgress, signal } = options;
-  if (!file || file.size > MAX_BACKUP_BYTES) throw new Error('Backup exceeds the 512 MiB import limit. Keep the file and ask the owner for a safe split; current data is unchanged.');
+  if (!file || file.size > MAX_BACKUP_BYTES)
+    throw new Error(
+      "Backup exceeds the 512 MiB import limit. Keep the file and ask the owner for a safe split; current data is unchanged."
+    );
   throwIfAborted(signal);
   const bytes = await readBytes(file, { onProgress, signal });
   throwIfAborted(signal);
   let text;
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
-    report(onProgress, { phase: 'unpack', fraction: null });
-    const entries = await new Promise((resolve, reject) => unzip(bytes, { filter: entry => entry.name === 'backup.json' && entry.originalSize <= MAX_BACKUP_BYTES }, (error, result) => error ? reject(error) : resolve(result)));
-    if (!entries['backup.json'] || entries['backup.json'].length > MAX_BACKUP_BYTES) throw new Error('ZIP must contain a backup.json no larger than 512 MiB. Nothing was restored.');
-    text = strFromU8(entries['backup.json']);
+    report(onProgress, { phase: "unpack", fraction: null });
+    const entries = await new Promise((resolve, reject) =>
+      unzip(
+        bytes,
+        { filter: entry => entry.name === "backup.json" && entry.originalSize <= MAX_BACKUP_BYTES },
+        (error, result) => (error ? reject(error) : resolve(result))
+      )
+    );
+    if (!entries["backup.json"] || entries["backup.json"].length > MAX_BACKUP_BYTES)
+      throw new Error(
+        "ZIP must contain a backup.json no larger than 512 MiB. Nothing was restored."
+      );
+    text = strFromU8(entries["backup.json"]);
   } else text = strFromU8(bytes);
   throwIfAborted(signal);
-  report(onProgress, { phase: 'parse', fraction: null });
-  const parsed = JSON.parse(text.replace(/^\uFEFF/, ''));
-  report(onProgress, { phase: 'done', fraction: 1 });
+  report(onProgress, { phase: "parse", fraction: null });
+  const parsed = JSON.parse(text.replace(/^\uFEFF/, ""));
+  report(onProgress, { phase: "done", fraction: 1 });
   return parsed;
 }
 
 export async function downloadZip(snapshot, options = {}) {
-  const blob = await backupZip(snapshot, options), url = URL.createObjectURL(blob), link = document.createElement('a');
-  link.href = url; link.download = 'arise-account-backup-' + new Date().toISOString().slice(0, 10) + '.zip';
-  document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  const blob = await backupZip(snapshot, options),
+    url = URL.createObjectURL(blob),
+    link = document.createElement("a");
+  link.href = url;
+  link.download = "arise-account-backup-" + new Date().toISOString().slice(0, 10) + ".zip";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }

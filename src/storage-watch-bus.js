@@ -1,14 +1,22 @@
 (function () {
   if (window.__ARISE_STORAGE_WATCH_BUS__) return;
-  var n = [], l = null, pending = Object.create(null), queued = false;
+  var n = [],
+    l = null,
+    pending = Object.create(null),
+    queued = false;
   var eventDriven = !!(window.AriseStorage && typeof window.AriseStorage.onChange === "function");
 
   function f() {
     for (var e = 0; e < n.length; e++) {
-      var i = n[e], t = null;
-      try { t = localStorage.getItem(i.key); } catch {}
-      if (t !== i.lastValue && (i.lastValue = t, t !== null)) {
-        try { i.callback(t); } catch {}
+      var i = n[e],
+        t = null;
+      try {
+        t = localStorage.getItem(i.key);
+      } catch {}
+      if (t !== i.lastValue && ((i.lastValue = t), t !== null)) {
+        try {
+          i.callback(t);
+        } catch {}
       }
     }
   }
@@ -24,10 +32,14 @@
       var t = map[i.key];
       if (t === undefined) {
         t = null;
-        try { t = localStorage.getItem(i.key); } catch {}
+        try {
+          t = localStorage.getItem(i.key);
+        } catch {}
       }
-      if (t !== i.lastValue && (i.lastValue = t, t !== null)) {
-        try { i.callback(t); } catch {}
+      if (t !== i.lastValue && ((i.lastValue = t), t !== null)) {
+        try {
+          i.callback(t);
+        } catch {}
       }
     }
   }
@@ -59,23 +71,29 @@
     l || !n.length || (l = setInterval(f, 1200));
   }
   function u() {
-    l && (clearInterval(l), l = null);
+    l && (clearInterval(l), (l = null));
   }
   document.addEventListener("visibilitychange", function () {
-    document.hidden ? u() : (eventDriven ? f() : r());
+    document.hidden ? u() : eventDriven ? f() : r();
   });
 
   window.__ARISE_STORAGE_WATCH_BUS__ = {
     watch: function (e, i) {
       if (typeof e != "string" || typeof i != "function") return function () {};
       var t = null;
-      try { t = localStorage.getItem(e); } catch {}
+      try {
+        t = localStorage.getItem(e);
+      } catch {}
       var c = { key: e, lastValue: t, callback: i };
-      return n.push(c), document.hidden || r(), function () {
-        var a = n.indexOf(c);
-        a !== -1 && n.splice(a, 1);
-        n.length || u();
-      };
+      return (
+        n.push(c),
+        document.hidden || r(),
+        function () {
+          var a = n.indexOf(c);
+          a !== -1 && n.splice(a, 1);
+          n.length || u();
+        }
+      );
     }
   };
 })();

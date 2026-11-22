@@ -1,1 +1,214 @@
-(function(){"use strict";if(window.__ARISE_A11Y_COLOR_PATCH__)return;window.__ARISE_A11Y_COLOR_PATCH__=!0;var v="uxa-a11y-sr-only";function g(){if(!document.getElementById("uxa-a11y-color-patch-style")){var e=document.createElement("style");e.id="uxa-a11y-color-patch-style",e.textContent="."+v+"{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}",document.head.appendChild(e)}}function A(e,a){var r=e.querySelector("[data-uxa-tone-label]");if(r){r.textContent!==a&&(r.textContent=a);return}var t=document.createElement("span");t.className=v,t.setAttribute("data-uxa-tone-label","1"),t.textContent=a,e.insertBefore(t,e.firstChild)}var f=["None","Low","Medium","High","Very high"],y=[".lh-cell[data-level]:not(.lh-cell-pad):not(.lh-legend-cell)",".dmh-cell[data-level]:not(.dmh-cell-pad):not(.dmh-legend-cell)",".hh-cell[data-level]:not(.hh-cell-pad):not(.hh-legend-cell)",".exwi-hcell[data-level]:not(.exwi-hlegend-cell)"].join(",");function m(e){for(var a=e.querySelectorAll||e.querySelector?e.querySelectorAll(y):[],r=0;r<a.length;r++){var t=a[r],i=parseInt(t.getAttribute("data-level"),10);if(!isNaN(i)){var n=f[i]||"Unknown",l=t.getAttribute("title")||t.getAttribute("data-title")||"",o=l?l+" (activity level: "+n+")":"Activity level: "+n;t.getAttribute("aria-label")!==o&&t.setAttribute("aria-label",o),t.getAttribute("role")||t.setAttribute("role","img")}}}var p={success:"Safe",warning:"Warning",danger:"At risk",critical:"Critical",info:"Info"},w=[".att-zone-badge[data-tone]",".att-alert-group-title[data-tone]",".att-alert-chip[data-tone]",".att-risk-item[data-tone]",".att-sub-card[data-tone]",".bd-alert[data-tone]"];function S(e){w.forEach(function(a){for(var r=e.querySelectorAll?e.querySelectorAll(a):[],t=0;t<r.length;t++){var i=r[t],n=i.getAttribute("data-tone"),l=n&&p[n];l&&A(i,"["+l+"] ")}})}function x(e){for(var a=e.querySelectorAll?e.querySelectorAll(".bd-score-ring"):[],r=0;r<a.length;r++){var t=a[r],i=t.closest?t.closest(".bd-score-card"):null;if(i){var n=i.querySelector(".bd-score-value"),l=i.querySelector(".bd-score-level");if(!(!n||!l)){var o=n.textContent?n.textContent.trim():"",u=l.textContent?l.textContent.trim():"",d="Burnout risk score: "+o+" — "+u;if(t.getAttribute("aria-label")!==d){t.setAttribute("aria-label",d);var c=t.querySelector("svg");c&&!c.getAttribute("aria-hidden")&&c.setAttribute("aria-hidden","true")}}}}}function C(e){for(var a=e.querySelectorAll?e.querySelectorAll(".cr-growth-up"):[],r=0;r<a.length;r++){var t=a[r];if(!t.getAttribute("aria-label")){var i=t.textContent?t.textContent.trim():"";t.setAttribute("aria-label","Growth increased: "+i.replace("↑","").trim())}}for(var n=e.querySelectorAll?e.querySelectorAll(".cr-growth-down"):[],l=0;l<n.length;l++){var o=n[l];if(!o.getAttribute("aria-label")){var u=o.textContent?o.textContent.trim():"";o.setAttribute("aria-label","Growth decreased: "+u.replace("↓","").trim())}}for(var d=e.querySelectorAll?e.querySelectorAll(".cr-growth-flat[data-cr-growth]"):[],c=0;c<d.length;c++){var h=d[c];h.getAttribute("aria-label")||h.setAttribute("aria-label","No change this week")}}function _(e){for(var a=e.querySelectorAll?e.querySelectorAll(".hh-pct-up"):[],r=0;r<a.length;r++){var t=a[r];t.getAttribute("aria-label")||t.setAttribute("aria-label","Up "+(t.textContent||"").trim())}for(var i=e.querySelectorAll?e.querySelectorAll(".hh-pct-down"):[],n=0;n<i.length;n++){var l=i[n];l.getAttribute("aria-label")||l.setAttribute("aria-label","Down "+(l.textContent||"").trim())}}function s(e){!e||e.nodeType!==1&&e.nodeType!==9||(m(e),S(e),x(e),C(e),_(e))}function b(){if(g(),s(document),!!window.MutationObserver){let n=function(){if(e=0,document.hidden){a=[],r=!1;return}var o=a;a=[];var u=r;r=!1;var d=function(){if(u||o.length>40){s(document);return}for(var c=0;c<o.length;c++)o[c].isConnected&&s(o[c])};t&&t.mute?t.mute(d):d()},l=function(){e||(e=setTimeout(n,300))};var e=0,a=[],r=!1,t=window.__ARISE_MUTATION_BUS__;if(t)t.subscribe(function(o){for(var u=0;u<o.length;u++){var d=o[u];if(d.type==="attributes"){r=!0;continue}for(var c=0;c<d.addedNodes.length;c++){var h=d.addedNodes[c];h.nodeType===1&&a.push(h)}}(a.length||r)&&l()});else{var i=new MutationObserver(function(){r=!0,l()});i.observe(document.documentElement,{childList:!0,subtree:!0,attributes:!0,attributeFilter:["data-tone","data-level"]})}}}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",b):b()})();
+(function () {
+  "use strict";
+  if (window.__ARISE_A11Y_COLOR_PATCH__) return;
+  window.__ARISE_A11Y_COLOR_PATCH__ = !0;
+  var v = "uxa-a11y-sr-only";
+  function g() {
+    if (!document.getElementById("uxa-a11y-color-patch-style")) {
+      var e = document.createElement("style");
+      ((e.id = "uxa-a11y-color-patch-style"),
+        (e.textContent =
+          "." +
+          v +
+          "{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}"),
+        document.head.appendChild(e));
+    }
+  }
+  function A(e, a) {
+    var r = e.querySelector("[data-uxa-tone-label]");
+    if (r) {
+      r.textContent !== a && (r.textContent = a);
+      return;
+    }
+    var t = document.createElement("span");
+    ((t.className = v),
+      t.setAttribute("data-uxa-tone-label", "1"),
+      (t.textContent = a),
+      e.insertBefore(t, e.firstChild));
+  }
+  var f = ["None", "Low", "Medium", "High", "Very high"],
+    y = [
+      ".lh-cell[data-level]:not(.lh-cell-pad):not(.lh-legend-cell)",
+      ".dmh-cell[data-level]:not(.dmh-cell-pad):not(.dmh-legend-cell)",
+      ".hh-cell[data-level]:not(.hh-cell-pad):not(.hh-legend-cell)",
+      ".exwi-hcell[data-level]:not(.exwi-hlegend-cell)"
+    ].join(",");
+  function m(e) {
+    for (
+      var a = e.querySelectorAll || e.querySelector ? e.querySelectorAll(y) : [], r = 0;
+      r < a.length;
+      r++
+    ) {
+      var t = a[r],
+        i = parseInt(t.getAttribute("data-level"), 10);
+      if (!isNaN(i)) {
+        var n = f[i] || "Unknown",
+          l = t.getAttribute("title") || t.getAttribute("data-title") || "",
+          o = l ? l + " (activity level: " + n + ")" : "Activity level: " + n;
+        (t.getAttribute("aria-label") !== o && t.setAttribute("aria-label", o),
+          t.getAttribute("role") || t.setAttribute("role", "img"));
+      }
+    }
+  }
+  var p = {
+      success: "Safe",
+      warning: "Warning",
+      danger: "At risk",
+      critical: "Critical",
+      info: "Info"
+    },
+    w = [
+      ".att-zone-badge[data-tone]",
+      ".att-alert-group-title[data-tone]",
+      ".att-alert-chip[data-tone]",
+      ".att-risk-item[data-tone]",
+      ".att-sub-card[data-tone]",
+      ".bd-alert[data-tone]"
+    ];
+  function S(e) {
+    w.forEach(function (a) {
+      for (var r = e.querySelectorAll ? e.querySelectorAll(a) : [], t = 0; t < r.length; t++) {
+        var i = r[t],
+          n = i.getAttribute("data-tone"),
+          l = n && p[n];
+        l && A(i, "[" + l + "] ");
+      }
+    });
+  }
+  function x(e) {
+    for (
+      var a = e.querySelectorAll ? e.querySelectorAll(".bd-score-ring") : [], r = 0;
+      r < a.length;
+      r++
+    ) {
+      var t = a[r],
+        i = t.closest ? t.closest(".bd-score-card") : null;
+      if (i) {
+        var n = i.querySelector(".bd-score-value"),
+          l = i.querySelector(".bd-score-level");
+        if (!(!n || !l)) {
+          var o = n.textContent ? n.textContent.trim() : "",
+            u = l.textContent ? l.textContent.trim() : "",
+            d = "Burnout risk score: " + o + " — " + u;
+          if (t.getAttribute("aria-label") !== d) {
+            t.setAttribute("aria-label", d);
+            var c = t.querySelector("svg");
+            c && !c.getAttribute("aria-hidden") && c.setAttribute("aria-hidden", "true");
+          }
+        }
+      }
+    }
+  }
+  function C(e) {
+    for (
+      var a = e.querySelectorAll ? e.querySelectorAll(".cr-growth-up") : [], r = 0;
+      r < a.length;
+      r++
+    ) {
+      var t = a[r];
+      if (!t.getAttribute("aria-label")) {
+        var i = t.textContent ? t.textContent.trim() : "";
+        t.setAttribute("aria-label", "Growth increased: " + i.replace("↑", "").trim());
+      }
+    }
+    for (
+      var n = e.querySelectorAll ? e.querySelectorAll(".cr-growth-down") : [], l = 0;
+      l < n.length;
+      l++
+    ) {
+      var o = n[l];
+      if (!o.getAttribute("aria-label")) {
+        var u = o.textContent ? o.textContent.trim() : "";
+        o.setAttribute("aria-label", "Growth decreased: " + u.replace("↓", "").trim());
+      }
+    }
+    for (
+      var d = e.querySelectorAll ? e.querySelectorAll(".cr-growth-flat[data-cr-growth]") : [],
+        c = 0;
+      c < d.length;
+      c++
+    ) {
+      var h = d[c];
+      h.getAttribute("aria-label") || h.setAttribute("aria-label", "No change this week");
+    }
+  }
+  function _(e) {
+    for (
+      var a = e.querySelectorAll ? e.querySelectorAll(".hh-pct-up") : [], r = 0;
+      r < a.length;
+      r++
+    ) {
+      var t = a[r];
+      t.getAttribute("aria-label") ||
+        t.setAttribute("aria-label", "Up " + (t.textContent || "").trim());
+    }
+    for (
+      var i = e.querySelectorAll ? e.querySelectorAll(".hh-pct-down") : [], n = 0;
+      n < i.length;
+      n++
+    ) {
+      var l = i[n];
+      l.getAttribute("aria-label") ||
+        l.setAttribute("aria-label", "Down " + (l.textContent || "").trim());
+    }
+  }
+  function s(e) {
+    !e || (e.nodeType !== 1 && e.nodeType !== 9) || (m(e), S(e), x(e), C(e), _(e));
+  }
+  function b() {
+    if ((g(), s(document), !!window.MutationObserver)) {
+      let n = function () {
+          if (((e = 0), document.hidden)) {
+            ((a = []), (r = !1));
+            return;
+          }
+          var o = a;
+          a = [];
+          var u = r;
+          r = !1;
+          var d = function () {
+            if (u || o.length > 40) {
+              s(document);
+              return;
+            }
+            for (var c = 0; c < o.length; c++) o[c].isConnected && s(o[c]);
+          };
+          t && t.mute ? t.mute(d) : d();
+        },
+        l = function () {
+          e || (e = setTimeout(n, 300));
+        };
+      var e = 0,
+        a = [],
+        r = !1,
+        t = window.__ARISE_MUTATION_BUS__;
+      if (t)
+        t.subscribe(function (o) {
+          for (var u = 0; u < o.length; u++) {
+            var d = o[u];
+            if (d.type === "attributes") {
+              r = !0;
+              continue;
+            }
+            for (var c = 0; c < d.addedNodes.length; c++) {
+              var h = d.addedNodes[c];
+              h.nodeType === 1 && a.push(h);
+            }
+          }
+          (a.length || r) && l();
+        });
+      else {
+        var i = new MutationObserver(function () {
+          ((r = !0), l());
+        });
+        i.observe(document.documentElement, {
+          childList: !0,
+          subtree: !0,
+          attributes: !0,
+          attributeFilter: ["data-tone", "data-level"]
+        });
+      }
+    }
+  }
+  document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", b) : b();
+})();

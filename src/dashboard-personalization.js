@@ -52,11 +52,21 @@
         var out = [];
         for (var i = 0; i < list.length; i++) {
           var entry = list[i];
-          if (typeof entry === "string" && entry && entry.length <= MAX_KEY && out.indexOf(entry) === -1) out.push(entry);
+          if (
+            typeof entry === "string" &&
+            entry &&
+            entry.length <= MAX_KEY &&
+            out.indexOf(entry) === -1
+          )
+            out.push(entry);
         }
         return out;
       }
-      return { order: cleanList(parsed && parsed.order), hidden: cleanList(parsed && parsed.hidden), pinned: cleanList(parsed && parsed.pinned) };
+      return {
+        order: cleanList(parsed && parsed.order),
+        hidden: cleanList(parsed && parsed.hidden),
+        pinned: cleanList(parsed && parsed.pinned)
+      };
     } catch {
       return { order: [], hidden: [], pinned: [] };
     }
@@ -64,7 +74,15 @@
 
   function save(state) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, order: state.order, hidden: state.hidden, pinned: state.pinned }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          version: 1,
+          order: state.order,
+          hidden: state.hidden,
+          pinned: state.pinned
+        })
+      );
       return true;
     } catch {
       return false;
@@ -115,12 +133,21 @@
     var id = el.id || "";
     if (id === "arise-career-readiness-slot") return "Career readiness widget";
     if (id === "arise-readiness-planner-slot") return "Readiness planner widget";
-    var heading = el.matches && el.matches("h1,h2,h3") ? el : el.querySelector ? el.querySelector("h1, h2, h3, .stat-label, [data-card-title]") : null;
+    var heading =
+      el.matches && el.matches("h1,h2,h3")
+        ? el
+        : el.querySelector
+          ? el.querySelector("h1, h2, h3, .stat-label, [data-card-title]")
+          : null;
     if (heading) {
-      var text = String(heading.textContent || "").replace(/\s+/g, " ").trim();
+      var text = String(heading.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
       if (text) return text.slice(0, 60);
     }
-    var text2 = String(el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
+    var text2 = String(el.innerText || el.textContent || "")
+      .replace(/\s+/g, " ")
+      .trim();
     if (text2) return text2.split(" ").slice(0, 5).join(" ").slice(0, 60);
     return "Section";
   }
@@ -132,7 +159,12 @@
    */
   function keyOf(el, label, seen) {
     if (el.id) return "id:" + el.id;
-    var slug = String(label || "section").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "section";
+    var slug =
+      String(label || "section")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 48) || "section";
     var key = "label:" + slug;
     if (seen[key]) key += "#" + (seen[key] + 1);
     seen[key.split("#")[0]] = (seen[key.split("#")[0]] || 0) + 1;
@@ -146,7 +178,8 @@
   function snapshot() {
     var stack = cardStack();
     if (!stack) return [];
-    var out = [], seen = {};
+    var out = [],
+      seen = {};
     for (var i = 0; i < stack.children.length; i++) {
       var el = stack.children[i];
       if (!looksLikeCard(el)) continue;
@@ -160,10 +193,14 @@
     var cards = snapshot();
     var prefs = getAll();
     var known = {};
-    cards.forEach(function (card) { known[card.key] = true; });
+    cards.forEach(function (card) {
+      known[card.key] = true;
+    });
 
     // Keep only preferences that still match a live card.
-    var order = prefs.order.filter(function (key) { return known[key]; });
+    var order = prefs.order.filter(function (key) {
+      return known[key];
+    });
     cards.forEach(function (card) {
       if (order.indexOf(card.key) === -1) order.push(card.key);
     });
@@ -171,8 +208,12 @@
     return {
       cards: cards,
       order: order,
-      hidden: prefs.hidden.filter(function (key) { return known[key]; }),
-      pinned: prefs.pinned.filter(function (key) { return known[key]; })
+      hidden: prefs.hidden.filter(function (key) {
+        return known[key];
+      }),
+      pinned: prefs.pinned.filter(function (key) {
+        return known[key];
+      })
     };
   }
 
@@ -189,7 +230,9 @@
   function captureAuthorOrder() {
     if (authorOrder) return authorOrder;
     var cards = snapshot();
-    authorOrder = cards.map(function (card) { return card.node; });
+    authorOrder = cards.map(function (card) {
+      return card.node;
+    });
     return authorOrder;
   }
 
@@ -212,7 +255,9 @@
     try {
       return runMuted(function () {
         var byKey = {};
-        snapshotState.cards.forEach(function (card) { byKey[card.key] = card; });
+        snapshotState.cards.forEach(function (card) {
+          byKey[card.key] = card;
+        });
 
         var ordered = snapshotState.order.slice().sort(function (a, b) {
           var pa = snapshotState.pinned.indexOf(a) === -1 ? 1 : 0;
@@ -233,15 +278,22 @@
           var hidden = snapshotState.hidden.indexOf(card.key) !== -1;
           if (hidden) {
             if (!card.node.hidden) card.node.hidden = true;
-            if (card.node.getAttribute("data-arise-card-hidden") !== "true") card.node.setAttribute("data-arise-card-hidden", "true");
-            try { if (!card.node.inert) card.node.inert = true; } catch {}
+            if (card.node.getAttribute("data-arise-card-hidden") !== "true")
+              card.node.setAttribute("data-arise-card-hidden", "true");
+            try {
+              if (!card.node.inert) card.node.inert = true;
+            } catch {}
           } else {
             if (card.node.hidden) card.node.hidden = false;
-            if (card.node.hasAttribute("data-arise-card-hidden")) card.node.removeAttribute("data-arise-card-hidden");
-            try { if (card.node.inert) card.node.inert = false; } catch {}
+            if (card.node.hasAttribute("data-arise-card-hidden"))
+              card.node.removeAttribute("data-arise-card-hidden");
+            try {
+              if (card.node.inert) card.node.inert = false;
+            } catch {}
           }
           if (snapshotState.pinned.indexOf(card.key) !== -1) {
-            if (card.node.getAttribute("data-arise-card-pinned") !== "true") card.node.setAttribute("data-arise-card-pinned", "true");
+            if (card.node.getAttribute("data-arise-card-pinned") !== "true")
+              card.node.setAttribute("data-arise-card-pinned", "true");
           } else if (card.node.hasAttribute("data-arise-card-pinned")) {
             card.node.removeAttribute("data-arise-card-pinned");
           }
@@ -308,7 +360,9 @@
   }
 
   function reset() {
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
     var stack = cardStack();
     var order = captureAuthorOrder() || [];
     order.forEach(function (node) {
@@ -317,7 +371,9 @@
       node.removeAttribute("data-arise-card-hidden");
       node.removeAttribute("data-arise-card-pinned");
       node.removeAttribute("data-arise-card-key");
-      try { node.inert = false; } catch {}
+      try {
+        node.inert = false;
+      } catch {}
       stack.appendChild(node);
     });
     close();
@@ -339,7 +395,8 @@
   }
 
   function notify(saved) {
-    if (!saved) announce("Could not save the dashboard layout. This browser is blocking local storage.");
+    if (!saved)
+      announce("Could not save the dashboard layout. This browser is blocking local storage.");
     announce("Dashboard layout updated.");
   }
 
@@ -352,29 +409,61 @@
     if (!host) return;
     var prefs = state();
     if (!prefs.cards.length) {
-      host.querySelector(".adl-list").innerHTML = '<p class="adl-empty">No dashboard cards were found on this screen.</p>';
+      host.querySelector(".adl-list").innerHTML =
+        '<p class="adl-empty">No dashboard cards were found on this screen.</p>';
       return;
     }
-    var rows = prefs.order.map(function (key) {
-      var card = null;
-      for (var i = 0; i < prefs.cards.length; i++) if (prefs.cards[i].key === key) card = prefs.cards[i];
-      if (!card) return "";
-      var hidden = prefs.hidden.indexOf(key) !== -1;
-      var pinned = prefs.pinned.indexOf(key) !== -1;
-      return '<li class="adl-row" data-key="' + esc(key) + '"' + (hidden ? ' data-hidden="true"' : "") + '>' +
-        '<span class="adl-row-main"><span class="adl-row-title">' + esc(card.label) + "</span>" +
-        (pinned ? '<span class="adl-badge">Pinned</span>' : "") +
-        (hidden ? '<span class="adl-badge adl-badge-muted">Hidden</span>' : "") + "</span>" +
-        '<span class="adl-row-actions">' +
-        '<button type="button" class="adl-btn" data-adl="up" aria-label="Move ' + esc(card.label) + ' up">↑</button>' +
-        '<button type="button" class="adl-btn" data-adl="down" aria-label="Move ' + esc(card.label) + ' down">↓</button>' +
-        '<button type="button" class="adl-btn" data-adl="pin" aria-pressed="' + (pinned ? "true" : "false") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(card.label) + '">' + (pinned ? "Unpin" : "Pin") + "</button>" +
-        '<button type="button" class="adl-btn" data-adl="toggle" aria-pressed="' + (hidden ? "false" : "true") + '" aria-label="' + (hidden ? "Show " : "Hide ") + esc(card.label) + '">' + (hidden ? "Show" : "Hide") + "</button>" +
-        "</span></li>";
-    }).join("");
+    var rows = prefs.order
+      .map(function (key) {
+        var card = null;
+        for (var i = 0; i < prefs.cards.length; i++)
+          if (prefs.cards[i].key === key) card = prefs.cards[i];
+        if (!card) return "";
+        var hidden = prefs.hidden.indexOf(key) !== -1;
+        var pinned = prefs.pinned.indexOf(key) !== -1;
+        return (
+          '<li class="adl-row" data-key="' +
+          esc(key) +
+          '"' +
+          (hidden ? ' data-hidden="true"' : "") +
+          ">" +
+          '<span class="adl-row-main"><span class="adl-row-title">' +
+          esc(card.label) +
+          "</span>" +
+          (pinned ? '<span class="adl-badge">Pinned</span>' : "") +
+          (hidden ? '<span class="adl-badge adl-badge-muted">Hidden</span>' : "") +
+          "</span>" +
+          '<span class="adl-row-actions">' +
+          '<button type="button" class="adl-btn" data-adl="up" aria-label="Move ' +
+          esc(card.label) +
+          ' up">↑</button>' +
+          '<button type="button" class="adl-btn" data-adl="down" aria-label="Move ' +
+          esc(card.label) +
+          ' down">↓</button>' +
+          '<button type="button" class="adl-btn" data-adl="pin" aria-pressed="' +
+          (pinned ? "true" : "false") +
+          '" aria-label="' +
+          (pinned ? "Unpin " : "Pin ") +
+          esc(card.label) +
+          '">' +
+          (pinned ? "Unpin" : "Pin") +
+          "</button>" +
+          '<button type="button" class="adl-btn" data-adl="toggle" aria-pressed="' +
+          (hidden ? "false" : "true") +
+          '" aria-label="' +
+          (hidden ? "Show " : "Hide ") +
+          esc(card.label) +
+          '">' +
+          (hidden ? "Show" : "Hide") +
+          "</button>" +
+          "</span></li>"
+        );
+      })
+      .join("");
     host.querySelector(".adl-list").innerHTML = rows;
     var count = prefs.cards.length - prefs.hidden.length;
-    host.querySelector(".adl-status").textContent = count + " of " + prefs.cards.length + " cards visible";
+    host.querySelector(".adl-status").textContent =
+      count + " of " + prefs.cards.length + " cards visible";
   }
 
   function open() {
@@ -415,7 +504,11 @@
     host.setAttribute("aria-hidden", "true");
     var previous = host.__previous;
     if (previous && typeof previous.focus === "function" && previous.isConnected) {
-      try { previous.focus({ preventScroll: true }); } catch { previous.focus(); }
+      try {
+        previous.focus({ preventScroll: true });
+      } catch {
+        previous.focus();
+      }
     }
     return true;
   }
@@ -446,10 +539,18 @@
     }
     if (event.key !== "Tab") return;
     var dialog = host.querySelector(".adl-dialog");
-    var focusable = dialog ? Array.prototype.slice.call(dialog.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"))
-      .filter(isVisible) : [];
+    var focusable = dialog
+      ? Array.prototype.slice
+          .call(
+            dialog.querySelectorAll(
+              "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"
+            )
+          )
+          .filter(isVisible)
+      : [];
     if (!focusable.length) return;
-    var first = focusable[0], last = focusable[focusable.length - 1];
+    var first = focusable[0],
+      last = focusable[focusable.length - 1];
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
@@ -496,13 +597,24 @@
       if (applying) return;
       var stack = cardStack();
       if (!stack) {
-        if (lastAppliedStack) { lastAppliedStack = null; lastAppliedCount = -1; }
+        if (lastAppliedStack) {
+          lastAppliedStack = null;
+          lastAppliedCount = -1;
+        }
         return;
       }
       if (stack === lastAppliedStack && stack.children.length === lastAppliedCount) {
-        if (!Array.isArray(records) || records.every(function (r) {
-          return r && r.target !== stack && (r.target.nodeType !== 1 || !r.target.contains || !r.target.contains(stack));
-        })) return;
+        if (
+          !Array.isArray(records) ||
+          records.every(function (r) {
+            return (
+              r &&
+              r.target !== stack &&
+              (r.target.nodeType !== 1 || !r.target.contains || !r.target.contains(stack))
+            );
+          })
+        )
+          return;
       }
       schedule();
     }
@@ -520,7 +632,14 @@
     cards: function () {
       var prefs = state();
       return prefs.cards.map(function (card) {
-        return { key: card.key, label: card.label, node: card.node, hidden: prefs.hidden.indexOf(card.key) !== -1, pinned: prefs.pinned.indexOf(card.key) !== -1, nodeIndex: card.nodeIndex };
+        return {
+          key: card.key,
+          label: card.label,
+          node: card.node,
+          hidden: prefs.hidden.indexOf(card.key) !== -1,
+          pinned: prefs.pinned.indexOf(card.key) !== -1,
+          nodeIndex: card.nodeIndex
+        };
       });
     },
     move: move,

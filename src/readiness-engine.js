@@ -1,1 +1,448 @@
-(function(){if(!window.__READINESS_ENGINE__){var ae={Easy:1,Medium:3,Hard:5},y={weights:{dsa:20,aptitude:15,projects:15,resume:10,interview:15,consistency:15,contest:10},dataFreshnessDays:30,penalties:{perMissingFactor:8,maxMissingPenalty:24,perOutdatedFactor:4,maxOutdatedPenalty:12},bonuses:{perAchievementRarity:{Common:.5,Rare:1,Epic:2,Legendary:4},maxBonus:10},diminishingReturns:{threshold:70,retainedFraction:.6}},ie={dsa:"DSA Progress",aptitude:"Aptitude",projects:"Projects",resume:"Resume",interview:"Interview Prep",consistency:"Coding Consistency",contest:"Contest Performance"};window.__READINESS_ENGINE__={aptitudeFromLog:I,dsaScore:H,devScore:z,consistencyScore:K,projectScore:U,examScore:W,resumeScore:X,interviewScore:Z,contestScore:ee,readContestStats:$,computeReadinessV2:function(e,r){e=e||{};var t=r||window.__READINESS_SCORING_CONFIG__||y,n=t&&t.weights||y.weights,a=t&&t.penalties||y.penalties,s=t&&t.bonuses||y.bonuses,i=t&&t.diminishingReturns||y.diminishingReturns,d=t&&t.dataFreshnessDays||y.dataFreshnessDays,h=Array.isArray(e.dsaQuestions)?e.dsaQuestions:[],b=Array.isArray(e.devTasks)?e.devTasks:[],M=Array.isArray(e.projects)?e.projects:[],N=Array.isArray(e.examEntries)?e.examEntries:[],J=Array.isArray(e.achievements)?e.achievements:[],A=Number(e.streak)||0,P=Number(e.notesCount)||0,S=Number(e.examsCount)||0,R=u(e.dsaScoreValue)?e.dsaScoreValue:H(h),w=u(e.devScoreValue)?e.devScoreValue:z(b),x=u(e.projectScoreValue)?e.projectScoreValue:U(M),q=u(e.aptitudeScoreValue)?e.aptitudeScoreValue:(I()||{score:W(N)}).score,L=u(e.resumeScoreValue)?e.resumeScoreValue:X(R,w,x),Q=u(e.interviewScoreValue)?e.interviewScoreValue:Z(R,w,x),k=u(e.consistencyScoreValue)?e.consistencyScoreValue:K(A,P,S),V=$(),T=ee(V),j={dsa:g(R),aptitude:g(q),projects:g(x),resume:g(L),interview:g(Q),consistency:g(k),contest:g(T)},_=["dsa","aptitude","projects","resume","interview","consistency","contest"],O=0,C=0;_.forEach(function(l){var f=Number(n[l])||0;O+=f,C+=j[l]*f});var E=O>0?C/O:0,o=E;if(i&&E>i.threshold){var m=E-i.threshold;o=i.threshold+m*(u(i.retainedFraction)?i.retainedFraction:1)}var p=Y(),v={dsa:h.length===0,aptitude:N.length===0&&!I(),projects:M.length===0,resume:h.length===0&&b.length===0&&M.length===0,interview:p===null,consistency:A<=0,contest:!V},F={dsa:!v.dsa&&B(G(h,["dateSolved"]),d),aptitude:!v.aptitude&&B(I()?I().latest:G(N,["date","createdAt","updatedAt"]),d),projects:!v.projects&&B(G(M,["updatedAt","createdAt","deadline"]),d)},se=_.reduce(function(l,f){return l+(v[f]?1:0)},0),oe=Object.keys(F).reduce(function(l,f){return l+(F[f]?1:0)},0),re=Math.min(u(a.maxMissingPenalty)?a.maxMissingPenalty:24,se*(u(a.perMissingFactor)?a.perMissingFactor:8)),te=Math.min(u(a.maxOutdatedPenalty)?a.maxOutdatedPenalty:12,oe*(u(a.perOutdatedFactor)?a.perOutdatedFactor:4)),ue=s&&s.perAchievementRarity||y.bonuses.perAchievementRarity,ce=J.reduce(function(l,f){if(!f||!f.unlocked)return l;var D=ue[f.rarity];return l+(u(D)?D:0)},0),ne=Math.min(u(s.maxBonus)?s.maxBonus:10,ce),le=o-re-te+ne,me=Math.round(g(le)),de=_.map(function(l){var f=Number(n[l])||0,D=O>0?c(j[l]/100*(f/O)*100):0;return{key:l,label:ie[l],score:j[l],weight:f,contribution:D,missing:!!v[l],outdated:!!F[l]}});return{overall:me,factors:j,weights:n,rawOverall:c(E),afterDiminishingReturns:c(o),missing:v,outdated:F,missingPenalty:c(re),outdatedPenalty:c(te),bonus:c(ne),breakdown:de}},computeComposite:function(e,r,t,n){e=e||{},r=r||{},n=n||{};var a=t||{},s=typeof window<"u"&&window.__READINESS_SCORING_CONFIG__||null,i=a.penalties||s&&s.penalties||y.penalties,d=a.bonuses||s&&s.bonuses||y.bonuses,h=a.diminishingReturns||s&&s.diminishingReturns||y.diminishingReturns,b=Object.keys(r),M=n.missing||{},N=n.outdated||{},J=Array.isArray(n.achievements)?n.achievements:[],A={},P={},S=0,R=0;b.forEach(function(o){var m=e[o],p=Object.prototype.hasOwnProperty.call(M,o)?!!M[o]:m==null,v=p?0:g(Number(m)||0);P[o]=p,A[o]=v;var F=Number(r[o])||0;S+=F,R+=v*F});var w=S>0?R/S:0,x=w;if(h&&w>h.threshold){var q=w-h.threshold;x=h.threshold+q*(u(h.retainedFraction)?h.retainedFraction:1)}var L=b.reduce(function(o,m){return o+(P[m]?1:0)},0),Q=b.reduce(function(o,m){return o+(N[m]?1:0)},0),k=Math.min(u(i.maxMissingPenalty)?i.maxMissingPenalty:24,L*(u(i.perMissingFactor)?i.perMissingFactor:8)),V=Math.min(u(i.maxOutdatedPenalty)?i.maxOutdatedPenalty:12,Q*(u(i.perOutdatedFactor)?i.perOutdatedFactor:4)),T=d&&d.perAchievementRarity||y.bonuses.perAchievementRarity,j=J.reduce(function(o,m){if(!m||!m.unlocked)return o;var p=T[m.rarity];return o+(u(p)?p:0)},0),_=Math.min(u(d.maxBonus)?d.maxBonus:10,j),O=x-k-V+_,C=Math.round(g(O)),E=b.map(function(o){var m=Number(r[o])||0,p=S>0?c(A[o]/100*(m/S)*100):0;return{key:o,score:A[o],weight:m,contribution:p,missing:!!P[o],outdated:!!N[o]}});return{overall:C,factors:A,weights:r,rawOverall:c(w),afterDiminishingReturns:c(x),missing:P,outdated:N,missingPenalty:c(k),outdatedPenalty:c(V),bonus:c(_),breakdown:E}},explainComposite:function(e){if(!e)return null;var r=[],t=Number(e.rawOverall)||0,n=Number(e.afterDiminishingReturns);if(isFinite(n)&&t-n>.05&&r.push("Raw score is "+c(t)+", capped to "+c(n)+" - gains above the diminishing-returns threshold count for less so no single factor can carry the whole score."),e.missingPenalty>0){var a=Object.keys(e.missing||{}).filter(function(i){return e.missing[i]});r.push("-"+c(e.missingPenalty)+" pts for "+a.length+" missing factor"+(a.length===1?"":"s")+" ("+a.join(", ")+").")}if(e.outdatedPenalty>0){var s=Object.keys(e.outdated||{}).filter(function(i){return e.outdated[i]});r.push("-"+c(e.outdatedPenalty)+" pts for "+s.length+" stale factor"+(s.length===1?"":"s")+" ("+s.join(", ")+").")}return e.bonus>0&&r.push("+"+c(e.bonus)+" pts from unlocked achievements."),r}}}function H(e){for(var r=Array.isArray(e)?e:[],t=0,n=0,a=0;a<r.length;a++){var s=r[a];if(s){var i=ae[s.difficulty]||0;n+=i,s.solved&&(t+=i)}}if(n<=0)return 0;var d=t/n*100;return Math.min(100,Math.max(0,d))}function z(e){var r=Array.isArray(e)?e:[];if(r.length===0)return 0;for(var t={Beginner:1,Intermediate:3,Advanced:5},n=0,a=0,s=0;s<r.length;s++){var i=r[s];if(i){var d=t[i.difficulty]||0;n+=d,i.completed&&(a+=d)}}if(n<=0)return 0;var h=a/n*100;return Math.min(100,Math.max(0,h))}function K(e,r,t){var n=Math.min(1,Math.max(0,Number(e)||0)/30),a=Math.min(1,((Number(r)||0)+(Number(t)||0))/10);return Math.round(100*(.7*n+.3*a))}function U(e){var r=Array.isArray(e)?e:[];if(r.length===0)return 0;for(var t=Math.min(5,r.length),n=0,a=0;a<r.length;a++){var s=r[a];if(s){var i=Number(s.progress);isNaN(i)&&(i=0),n+=Math.min(100,Math.max(0,i))}}return Math.min(100,n/t)}function W(e){for(var r=Array.isArray(e)?e:[],t=0,n=0,a=0;a<r.length;a++){var s=r[a];if(s){var i=Number(s.confidence);isNaN(i)||(t+=Math.min(100,Math.max(0,i)),n++)}}return n===0?0:Math.round(t/n)}function X(e,r,t){var n=.4*(Number(e)||0)+.35*(Number(r)||0)+.25*(Number(t)||0);return Math.min(100,Math.max(0,n))}function Y(){try{if(typeof localStorage>"u")return null;var e=localStorage.getItem("interviewSheetsProgress");if(!e)return null;var r=JSON.parse(e);if(!r||typeof r!="object")return null;var t=0;for(var n in r)Object.prototype.hasOwnProperty.call(r,n)&&r[n]===!0&&t++;return t}catch{return null}}function Z(e,r,t){var n=Y();if(n===null){var a=.4*(Number(e)||0)+.3*(Number(r)||0)+.3*(Number(t)||0);return Math.min(100,Math.max(0,a))}var s=Math.min(1,Math.max(0,n)/40);return Math.round(100*s)}function c(e){return Math.round(10*(Number(e)||0))/10}function u(e){return typeof e=="number"&&isFinite(e)}function g(e){return Math.min(100,Math.max(0,Number(e)||0))}function $(){try{if(typeof localStorage>"u")return null;var e=localStorage.getItem("arise-cp-tracker-v1");if(!e)return null;var r=JSON.parse(e);if(!r||typeof r!="object")return null;var t=Array.isArray(r.problems)?r.problems:[],n=Array.isArray(r.contests)?r.contests:[],a=Array.isArray(r.ratings)?r.ratings:[],s=null;if(a.length){var i=a[a.length-1];s=i&&isFinite(Number(i.rating))?Number(i.rating):null}return t.length===0&&n.length===0&&s===null?null:{solved:t.length,contests:n.length,rating:s}}catch{return null}}function ee(e){if(!e)return 0;var r=Math.min(100,Math.max(0,(Number(e.solved)||0)/200*100)),t=Math.min(100,Math.max(0,(Number(e.contests)||0)/15*100)),n=Math.min(100,Math.max(0,(Number(e.rating)||0)/1600*100));return Math.round(.6*r+.25*t+.15*n)}function G(e,r){var t=null;return(Array.isArray(e)?e:[]).forEach(function(n){if(n)for(var a=0;a<r.length;a++){var s=n[r[a]];if(s){var i=new Date(s).getTime();!isNaN(i)&&(t===null||i>t)&&(t=i)}}}),t}function I(){try{var e=localStorage.getItem("arise-aptitude-summary-v1");if(!e)return null;var r=JSON.parse(e);if(!r||typeof r.score!="number"||!isFinite(r.score)||!(r.questions>=30))return null;var t=Number(r.latest);return{score:Math.min(100,Math.max(0,r.score)),questions:r.questions,latest:isFinite(t)&&t>0?t:null}}catch{return null}}function B(e,r){return e!==null&&(Date.now()-e)/864e5>r}})();
+(function () {
+  if (!window.__READINESS_ENGINE__) {
+    var ae = { Easy: 1, Medium: 3, Hard: 5 },
+      y = {
+        weights: {
+          dsa: 20,
+          aptitude: 15,
+          projects: 15,
+          resume: 10,
+          interview: 15,
+          consistency: 15,
+          contest: 10
+        },
+        dataFreshnessDays: 30,
+        penalties: {
+          perMissingFactor: 8,
+          maxMissingPenalty: 24,
+          perOutdatedFactor: 4,
+          maxOutdatedPenalty: 12
+        },
+        bonuses: {
+          perAchievementRarity: { Common: 0.5, Rare: 1, Epic: 2, Legendary: 4 },
+          maxBonus: 10
+        },
+        diminishingReturns: { threshold: 70, retainedFraction: 0.6 }
+      },
+      ie = {
+        dsa: "DSA Progress",
+        aptitude: "Aptitude",
+        projects: "Projects",
+        resume: "Resume",
+        interview: "Interview Prep",
+        consistency: "Coding Consistency",
+        contest: "Contest Performance"
+      };
+    window.__READINESS_ENGINE__ = {
+      aptitudeFromLog: I,
+      dsaScore: H,
+      devScore: z,
+      consistencyScore: K,
+      projectScore: U,
+      examScore: W,
+      resumeScore: X,
+      interviewScore: Z,
+      contestScore: ee,
+      readContestStats: $,
+      computeReadinessV2: function (e, r) {
+        e = e || {};
+        var t = r || window.__READINESS_SCORING_CONFIG__ || y,
+          n = (t && t.weights) || y.weights,
+          a = (t && t.penalties) || y.penalties,
+          s = (t && t.bonuses) || y.bonuses,
+          i = (t && t.diminishingReturns) || y.diminishingReturns,
+          d = (t && t.dataFreshnessDays) || y.dataFreshnessDays,
+          h = Array.isArray(e.dsaQuestions) ? e.dsaQuestions : [],
+          b = Array.isArray(e.devTasks) ? e.devTasks : [],
+          M = Array.isArray(e.projects) ? e.projects : [],
+          N = Array.isArray(e.examEntries) ? e.examEntries : [],
+          J = Array.isArray(e.achievements) ? e.achievements : [],
+          A = Number(e.streak) || 0,
+          P = Number(e.notesCount) || 0,
+          S = Number(e.examsCount) || 0,
+          R = u(e.dsaScoreValue) ? e.dsaScoreValue : H(h),
+          w = u(e.devScoreValue) ? e.devScoreValue : z(b),
+          x = u(e.projectScoreValue) ? e.projectScoreValue : U(M),
+          q = u(e.aptitudeScoreValue) ? e.aptitudeScoreValue : (I() || { score: W(N) }).score,
+          L = u(e.resumeScoreValue) ? e.resumeScoreValue : X(R, w, x),
+          Q = u(e.interviewScoreValue) ? e.interviewScoreValue : Z(R, w, x),
+          k = u(e.consistencyScoreValue) ? e.consistencyScoreValue : K(A, P, S),
+          V = $(),
+          T = ee(V),
+          j = {
+            dsa: g(R),
+            aptitude: g(q),
+            projects: g(x),
+            resume: g(L),
+            interview: g(Q),
+            consistency: g(k),
+            contest: g(T)
+          },
+          _ = ["dsa", "aptitude", "projects", "resume", "interview", "consistency", "contest"],
+          O = 0,
+          C = 0;
+        _.forEach(function (l) {
+          var f = Number(n[l]) || 0;
+          ((O += f), (C += j[l] * f));
+        });
+        var E = O > 0 ? C / O : 0,
+          o = E;
+        if (i && E > i.threshold) {
+          var m = E - i.threshold;
+          o = i.threshold + m * (u(i.retainedFraction) ? i.retainedFraction : 1);
+        }
+        var p = Y(),
+          v = {
+            dsa: h.length === 0,
+            aptitude: N.length === 0 && !I(),
+            projects: M.length === 0,
+            resume: h.length === 0 && b.length === 0 && M.length === 0,
+            interview: p === null,
+            consistency: A <= 0,
+            contest: !V
+          },
+          F = {
+            dsa: !v.dsa && B(G(h, ["dateSolved"]), d),
+            aptitude:
+              !v.aptitude && B(I() ? I().latest : G(N, ["date", "createdAt", "updatedAt"]), d),
+            projects: !v.projects && B(G(M, ["updatedAt", "createdAt", "deadline"]), d)
+          },
+          se = _.reduce(function (l, f) {
+            return l + (v[f] ? 1 : 0);
+          }, 0),
+          oe = Object.keys(F).reduce(function (l, f) {
+            return l + (F[f] ? 1 : 0);
+          }, 0),
+          re = Math.min(
+            u(a.maxMissingPenalty) ? a.maxMissingPenalty : 24,
+            se * (u(a.perMissingFactor) ? a.perMissingFactor : 8)
+          ),
+          te = Math.min(
+            u(a.maxOutdatedPenalty) ? a.maxOutdatedPenalty : 12,
+            oe * (u(a.perOutdatedFactor) ? a.perOutdatedFactor : 4)
+          ),
+          ue = (s && s.perAchievementRarity) || y.bonuses.perAchievementRarity,
+          ce = J.reduce(function (l, f) {
+            if (!f || !f.unlocked) return l;
+            var D = ue[f.rarity];
+            return l + (u(D) ? D : 0);
+          }, 0),
+          ne = Math.min(u(s.maxBonus) ? s.maxBonus : 10, ce),
+          le = o - re - te + ne,
+          me = Math.round(g(le)),
+          de = _.map(function (l) {
+            var f = Number(n[l]) || 0,
+              D = O > 0 ? c((j[l] / 100) * (f / O) * 100) : 0;
+            return {
+              key: l,
+              label: ie[l],
+              score: j[l],
+              weight: f,
+              contribution: D,
+              missing: !!v[l],
+              outdated: !!F[l]
+            };
+          });
+        return {
+          overall: me,
+          factors: j,
+          weights: n,
+          rawOverall: c(E),
+          afterDiminishingReturns: c(o),
+          missing: v,
+          outdated: F,
+          missingPenalty: c(re),
+          outdatedPenalty: c(te),
+          bonus: c(ne),
+          breakdown: de
+        };
+      },
+      computeComposite: function (e, r, t, n) {
+        ((e = e || {}), (r = r || {}), (n = n || {}));
+        var a = t || {},
+          s = (typeof window < "u" && window.__READINESS_SCORING_CONFIG__) || null,
+          i = a.penalties || (s && s.penalties) || y.penalties,
+          d = a.bonuses || (s && s.bonuses) || y.bonuses,
+          h = a.diminishingReturns || (s && s.diminishingReturns) || y.diminishingReturns,
+          b = Object.keys(r),
+          M = n.missing || {},
+          N = n.outdated || {},
+          J = Array.isArray(n.achievements) ? n.achievements : [],
+          A = {},
+          P = {},
+          S = 0,
+          R = 0;
+        b.forEach(function (o) {
+          var m = e[o],
+            p = Object.prototype.hasOwnProperty.call(M, o) ? !!M[o] : m == null,
+            v = p ? 0 : g(Number(m) || 0);
+          ((P[o] = p), (A[o] = v));
+          var F = Number(r[o]) || 0;
+          ((S += F), (R += v * F));
+        });
+        var w = S > 0 ? R / S : 0,
+          x = w;
+        if (h && w > h.threshold) {
+          var q = w - h.threshold;
+          x = h.threshold + q * (u(h.retainedFraction) ? h.retainedFraction : 1);
+        }
+        var L = b.reduce(function (o, m) {
+            return o + (P[m] ? 1 : 0);
+          }, 0),
+          Q = b.reduce(function (o, m) {
+            return o + (N[m] ? 1 : 0);
+          }, 0),
+          k = Math.min(
+            u(i.maxMissingPenalty) ? i.maxMissingPenalty : 24,
+            L * (u(i.perMissingFactor) ? i.perMissingFactor : 8)
+          ),
+          V = Math.min(
+            u(i.maxOutdatedPenalty) ? i.maxOutdatedPenalty : 12,
+            Q * (u(i.perOutdatedFactor) ? i.perOutdatedFactor : 4)
+          ),
+          T = (d && d.perAchievementRarity) || y.bonuses.perAchievementRarity,
+          j = J.reduce(function (o, m) {
+            if (!m || !m.unlocked) return o;
+            var p = T[m.rarity];
+            return o + (u(p) ? p : 0);
+          }, 0),
+          _ = Math.min(u(d.maxBonus) ? d.maxBonus : 10, j),
+          O = x - k - V + _,
+          C = Math.round(g(O)),
+          E = b.map(function (o) {
+            var m = Number(r[o]) || 0,
+              p = S > 0 ? c((A[o] / 100) * (m / S) * 100) : 0;
+            return {
+              key: o,
+              score: A[o],
+              weight: m,
+              contribution: p,
+              missing: !!P[o],
+              outdated: !!N[o]
+            };
+          });
+        return {
+          overall: C,
+          factors: A,
+          weights: r,
+          rawOverall: c(w),
+          afterDiminishingReturns: c(x),
+          missing: P,
+          outdated: N,
+          missingPenalty: c(k),
+          outdatedPenalty: c(V),
+          bonus: c(_),
+          breakdown: E
+        };
+      },
+      explainComposite: function (e) {
+        if (!e) return null;
+        var r = [],
+          t = Number(e.rawOverall) || 0,
+          n = Number(e.afterDiminishingReturns);
+        if (
+          (isFinite(n) &&
+            t - n > 0.05 &&
+            r.push(
+              "Raw score is " +
+                c(t) +
+                ", capped to " +
+                c(n) +
+                " - gains above the diminishing-returns threshold count for less so no single factor can carry the whole score."
+            ),
+          e.missingPenalty > 0)
+        ) {
+          var a = Object.keys(e.missing || {}).filter(function (i) {
+            return e.missing[i];
+          });
+          r.push(
+            "-" +
+              c(e.missingPenalty) +
+              " pts for " +
+              a.length +
+              " missing factor" +
+              (a.length === 1 ? "" : "s") +
+              " (" +
+              a.join(", ") +
+              ")."
+          );
+        }
+        if (e.outdatedPenalty > 0) {
+          var s = Object.keys(e.outdated || {}).filter(function (i) {
+            return e.outdated[i];
+          });
+          r.push(
+            "-" +
+              c(e.outdatedPenalty) +
+              " pts for " +
+              s.length +
+              " stale factor" +
+              (s.length === 1 ? "" : "s") +
+              " (" +
+              s.join(", ") +
+              ")."
+          );
+        }
+        return (e.bonus > 0 && r.push("+" + c(e.bonus) + " pts from unlocked achievements."), r);
+      }
+    };
+  }
+  function H(e) {
+    for (var r = Array.isArray(e) ? e : [], t = 0, n = 0, a = 0; a < r.length; a++) {
+      var s = r[a];
+      if (s) {
+        var i = ae[s.difficulty] || 0;
+        ((n += i), s.solved && (t += i));
+      }
+    }
+    if (n <= 0) return 0;
+    var d = (t / n) * 100;
+    return Math.min(100, Math.max(0, d));
+  }
+  function z(e) {
+    var r = Array.isArray(e) ? e : [];
+    if (r.length === 0) return 0;
+    for (
+      var t = { Beginner: 1, Intermediate: 3, Advanced: 5 }, n = 0, a = 0, s = 0;
+      s < r.length;
+      s++
+    ) {
+      var i = r[s];
+      if (i) {
+        var d = t[i.difficulty] || 0;
+        ((n += d), i.completed && (a += d));
+      }
+    }
+    if (n <= 0) return 0;
+    var h = (a / n) * 100;
+    return Math.min(100, Math.max(0, h));
+  }
+  function K(e, r, t) {
+    var n = Math.min(1, Math.max(0, Number(e) || 0) / 30),
+      a = Math.min(1, ((Number(r) || 0) + (Number(t) || 0)) / 10);
+    return Math.round(100 * (0.7 * n + 0.3 * a));
+  }
+  function U(e) {
+    var r = Array.isArray(e) ? e : [];
+    if (r.length === 0) return 0;
+    for (var t = Math.min(5, r.length), n = 0, a = 0; a < r.length; a++) {
+      var s = r[a];
+      if (s) {
+        var i = Number(s.progress);
+        (isNaN(i) && (i = 0), (n += Math.min(100, Math.max(0, i))));
+      }
+    }
+    return Math.min(100, n / t);
+  }
+  function W(e) {
+    for (var r = Array.isArray(e) ? e : [], t = 0, n = 0, a = 0; a < r.length; a++) {
+      var s = r[a];
+      if (s) {
+        var i = Number(s.confidence);
+        isNaN(i) || ((t += Math.min(100, Math.max(0, i))), n++);
+      }
+    }
+    return n === 0 ? 0 : Math.round(t / n);
+  }
+  function X(e, r, t) {
+    var n = 0.4 * (Number(e) || 0) + 0.35 * (Number(r) || 0) + 0.25 * (Number(t) || 0);
+    return Math.min(100, Math.max(0, n));
+  }
+  function Y() {
+    try {
+      if (typeof localStorage > "u") return null;
+      var e = localStorage.getItem("interviewSheetsProgress");
+      if (!e) return null;
+      var r = JSON.parse(e);
+      if (!r || typeof r != "object") return null;
+      var t = 0;
+      for (var n in r) Object.prototype.hasOwnProperty.call(r, n) && r[n] === !0 && t++;
+      return t;
+    } catch {
+      return null;
+    }
+  }
+  function Z(e, r, t) {
+    var n = Y();
+    if (n === null) {
+      var a = 0.4 * (Number(e) || 0) + 0.3 * (Number(r) || 0) + 0.3 * (Number(t) || 0);
+      return Math.min(100, Math.max(0, a));
+    }
+    var s = Math.min(1, Math.max(0, n) / 40);
+    return Math.round(100 * s);
+  }
+  function c(e) {
+    return Math.round(10 * (Number(e) || 0)) / 10;
+  }
+  function u(e) {
+    return typeof e == "number" && isFinite(e);
+  }
+  function g(e) {
+    return Math.min(100, Math.max(0, Number(e) || 0));
+  }
+  function $() {
+    try {
+      if (typeof localStorage > "u") return null;
+      var e = localStorage.getItem("arise-cp-tracker-v1");
+      if (!e) return null;
+      var r = JSON.parse(e);
+      if (!r || typeof r != "object") return null;
+      var t = Array.isArray(r.problems) ? r.problems : [],
+        n = Array.isArray(r.contests) ? r.contests : [],
+        a = Array.isArray(r.ratings) ? r.ratings : [],
+        s = null;
+      if (a.length) {
+        var i = a[a.length - 1];
+        s = i && isFinite(Number(i.rating)) ? Number(i.rating) : null;
+      }
+      return t.length === 0 && n.length === 0 && s === null
+        ? null
+        : { solved: t.length, contests: n.length, rating: s };
+    } catch {
+      return null;
+    }
+  }
+  function ee(e) {
+    if (!e) return 0;
+    var r = Math.min(100, Math.max(0, ((Number(e.solved) || 0) / 200) * 100)),
+      t = Math.min(100, Math.max(0, ((Number(e.contests) || 0) / 15) * 100)),
+      n = Math.min(100, Math.max(0, ((Number(e.rating) || 0) / 1600) * 100));
+    return Math.round(0.6 * r + 0.25 * t + 0.15 * n);
+  }
+  function G(e, r) {
+    var t = null;
+    return (
+      (Array.isArray(e) ? e : []).forEach(function (n) {
+        if (n)
+          for (var a = 0; a < r.length; a++) {
+            var s = n[r[a]];
+            if (s) {
+              var i = new Date(s).getTime();
+              !isNaN(i) && (t === null || i > t) && (t = i);
+            }
+          }
+      }),
+      t
+    );
+  }
+  function I() {
+    try {
+      var e = localStorage.getItem("arise-aptitude-summary-v1");
+      if (!e) return null;
+      var r = JSON.parse(e);
+      if (!r || typeof r.score != "number" || !isFinite(r.score) || !(r.questions >= 30))
+        return null;
+      var t = Number(r.latest);
+      return {
+        score: Math.min(100, Math.max(0, r.score)),
+        questions: r.questions,
+        latest: isFinite(t) && t > 0 ? t : null
+      };
+    } catch {
+      return null;
+    }
+  }
+  function B(e, r) {
+    return e !== null && (Date.now() - e) / 864e5 > r;
+  }
+})();

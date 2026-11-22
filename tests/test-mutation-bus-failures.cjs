@@ -24,7 +24,10 @@ const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
 const root = path.resolve(__dirname, "..");
-const source = fs.readFileSync(path.join(root, "src/mutation-bus.js"), "utf8");
+const rawSource = fs.readFileSync(path.join(root, "src/mutation-bus.js"), "utf8");
+// Source-shape guards compare normalised whitespace, so re-formatting the file
+// (Prettier) cannot fail a behavioural test.
+const source = rawSource.replace(/\s+/g, " ");
 
 let passed = 0;
 const failures = [];
@@ -44,9 +47,9 @@ async function runQueued() {
     }
   }
 }
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const tick = () => sleep(220); // the bus debounces at 250 ms before widgets-ready
-const plain = (value) => JSON.parse(JSON.stringify(value));
+const plain = value => JSON.parse(JSON.stringify(value));
 
 function boot() {
   const dom = new JSDOM("<!doctype html><html><body></body></html>", {
@@ -60,7 +63,7 @@ function boot() {
   w.__ariseReportWidgetError = (src, reason) => w.__reported.push([src, reason]);
   w.__consoleErrors = [];
   w.console.error = (...args) => w.__consoleErrors.push(args.map(String).join(" "));
-  w.eval(source);
+  w.eval(rawSource);
   return w;
 }
 
@@ -76,9 +79,15 @@ async function main() {
   await test("a throwing updater does not stop its neighbours", async () => {
     const w = boot();
     let ran = 0;
-    w.__ARISE_MUTATION_BUS__.subscribe(() => { throw new Error("boom"); });
-    w.__ARISE_MUTATION_BUS__.subscribe(() => { ran += 1; });
-    w.__ARISE_MUTATION_BUS__.subscribe(() => { ran += 1; });
+    w.__ARISE_MUTATION_BUS__.subscribe(() => {
+      throw new Error("boom");
+    });
+    w.__ARISE_MUTATION_BUS__.subscribe(() => {
+      ran += 1;
+    });
+    w.__ARISE_MUTATION_BUS__.subscribe(() => {
+      ran += 1;
+    });
     mutate(w);
     await tick();
     assert.equal(ran, 2, "both healthy subscribers must still run");
@@ -86,9 +95,13 @@ async function main() {
 
   await test("the bus keeps working after a failure", async () => {
     const w = boot();
-    w.__ARISE_MUTATION_BUS__.subscribe(() => { throw new Error("boom"); });
+    w.__ARISE_MUTATION_BUS__.subscribe(() => {
+      throw new Error("boom");
+    });
     let ran = 0;
-    w.__ARISE_MUTATION_BUS__.subscribe(() => { ran += 1; });
+    w.__ARISE_MUTATION_BUS__.subscribe(() => {
+      ran += 1;
+    });
     mutate(w);
     await tick();
     mutate(w);
@@ -100,7 +113,9 @@ async function main() {
 
   await test("records the failing updater with a useful name", async () => {
     const w = boot();
-    w.__ARISE_MUTATION_BUS__.subscribe(function learningHeatmapUpdater() { throw new Error("r.filter is not a function"); });
+    w.__ARISE_MUTATION_BUS__.subscribe(function learningHeatmapUpdater() {
+      throw new Error("r.filter is not a function");
+    });
     mutate(w);
     await tick();
     const [entry] = w.__ARISE_MUTATION_BUS__.failures();
@@ -113,7 +128,9 @@ async function main() {
 
   await test("aggregates repeats instead of growing a list per burst", async () => {
     const w = boot();
-    w.__ARISE_MUTATION_BUS__.subscribe(function flakyUpdater() { throw new Error("boom"); });
+    w.__ARISE_MUTATION_BUS__.subscribe(function flakyUpdater() {
+      throw new Error("boom");
+    });
     mutate(w);
     await tick();
     mutate(w);
@@ -127,7 +144,9 @@ async function main() {
 
   await test("forwards the failure to the widget error hook the UI already reads", async () => {
     const w = boot();
-    w.__ARISE_MUTATION_BUS__.subscribe(function namedUpdater() { throw new Error("kaboom"); });
+    w.__ARISE_MUTATION_BUS__.subscribe(function namedUpdater() {
+      throw new Error("kaboom");
+    });
     mutate(w);
     await tick();
     assert.deepEqual(plain(w.__reported), [["updater:namedUpdater", "kaboom"]]);
@@ -135,15 +154,22 @@ async function main() {
 
   await test("still logs to the console for local debugging", async () => {
     const w = boot();
-    w.__ARISE_MUTATION_BUS__.subscribe(function namedUpdater() { throw new Error("kaboom"); });
+    w.__ARISE_MUTATION_BUS__.subscribe(function namedUpdater() {
+      throw new Error("kaboom");
+    });
     mutate(w);
     await tick();
-    assert.ok(w.__consoleErrors.some((line) => line.includes("namedUpdater")), "the console must name the subscriber");
+    assert.ok(
+      w.__consoleErrors.some(line => line.includes("namedUpdater")),
+      "the console must name the subscriber"
+    );
   });
 
   await test("a subscriber that throws a non-Error is handled too", async () => {
     const w = boot();
-    w.__ARISE_MUTATION_BUS__.subscribe(function stringThrower() { throw "not an error object"; }); // eslint-disable-line no-throw-literal
+    w.__ARISE_MUTATION_BUS__.subscribe(function stringThrower() {
+      throw "not an error object";
+    }); // eslint-disable-line no-throw-literal
     mutate(w);
     await tick();
     const [entry] = w.__ARISE_MUTATION_BUS__.failures();
@@ -152,7 +178,9 @@ async function main() {
 
   await test("an anonymous subscriber is still identifiable", async () => {
     const w = boot();
-    w.__ARISE_MUTATION_BUS__.subscribe(() => { throw new Error("boom"); });
+    w.__ARISE_MUTATION_BUS__.subscribe(() => {
+      throw new Error("boom");
+    });
     mutate(w);
     await tick();
     assert.equal(w.__ARISE_MUTATION_BUS__.failures()[0].name, "anonymous updater");
@@ -163,7 +191,7 @@ async function main() {
   await test("no failures are recorded when nobody throws", async () => {
     const w = boot();
     const calls = [];
-    w.__ARISE_MUTATION_BUS__.subscribe((records) => calls.push(records.length));
+    w.__ARISE_MUTATION_BUS__.subscribe(records => calls.push(records.length));
     mutate(w);
     await tick();
     assert.ok(calls[0] > 0, "the subscriber received the burst");
@@ -174,7 +202,9 @@ async function main() {
 
   await test("an unsubscribed updater is not reported after it stops", async () => {
     const w = boot();
-    const stop = w.__ARISE_MUTATION_BUS__.subscribe(() => { throw new Error("boom"); });
+    const stop = w.__ARISE_MUTATION_BUS__.subscribe(() => {
+      throw new Error("boom");
+    });
     stop();
     mutate(w);
     await tick();
@@ -184,7 +214,9 @@ async function main() {
   await test("mute() keeps working and is still used by widgets", () => {
     const w = boot();
     let ran = 0;
-    w.__ARISE_MUTATION_BUS__.subscribe(() => { ran += 1; });
+    w.__ARISE_MUTATION_BUS__.subscribe(() => {
+      ran += 1;
+    });
     w.__ARISE_MUTATION_BUS__.mute(() => mutate(w));
     assert.equal(typeof w.__ARISE_MUTATION_BUS__.mute, "function");
     assert.ok(ran >= 0);
@@ -193,8 +225,11 @@ async function main() {
   console.log("\nsource guard");
 
   await test("the dispatch loop no longer swallows errors silently", () => {
-    assert.doesNotMatch(source, /try \{ e\[o\]\(t, u\); \} catch \{\}/,
-      "the empty catch is exactly the bug this covers");
+    assert.doesNotMatch(
+      source,
+      /try \{ e\[o\]\(t, u\); \} catch \{\}/,
+      "the empty catch is exactly the bug this covers"
+    );
     assert.match(source, /catch \(err\) \{ recordFailure\(e\[o\], err\); \}/);
   });
 
@@ -207,7 +242,7 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error(error);
   process.exit(1);
 });

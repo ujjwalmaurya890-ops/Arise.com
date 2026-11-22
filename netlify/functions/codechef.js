@@ -60,7 +60,13 @@ exports.handler = async function (event) {
   }
 
   try {
-    const data = await retry(function () { return fetchFromMirror(handle); }, 2, 500);
+    const data = await retry(
+      function () {
+        return fetchFromMirror(handle);
+      },
+      2,
+      500
+    );
     cache.set(cacheKey, { data: data, expiresAt: Date.now() + CACHE_TTL_MS });
     return respond(200, data, cors);
   } catch (err) {
@@ -69,9 +75,13 @@ exports.handler = async function (event) {
       status === 404
         ? "CodeChef handle not found."
         : status === 429
-        ? "Rate limit reached — please try again shortly."
-        : "Couldn't reach CodeChef's community API right now. Please try again shortly.";
-    return respond(status === 404 ? 404 : 502, { error: message, success: false, message: message }, cors);
+          ? "Rate limit reached — please try again shortly."
+          : "Couldn't reach CodeChef's community API right now. Please try again shortly.";
+    return respond(
+      status === 404 ? 404 : 502,
+      { error: message, success: false, message: message },
+      cors
+    );
   }
 };
 
@@ -88,10 +98,14 @@ function parseHandle(path) {
 
 async function fetchFromMirror(handle) {
   const controller = new AbortController();
-  const timeout = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(function () {
+    controller.abort();
+  }, FETCH_TIMEOUT_MS);
   let res;
   try {
-    res = await fetch(MIRROR_BASE + "/handle/" + encodeURIComponent(handle), { signal: controller.signal });
+    res = await fetch(MIRROR_BASE + "/handle/" + encodeURIComponent(handle), {
+      signal: controller.signal
+    });
   } finally {
     clearTimeout(timeout);
   }
@@ -113,7 +127,9 @@ function retry(fn, retriesLeft, delayMs) {
   return fn().catch(function (err) {
     const retryable = !err.status || err.status === 429 || err.status >= 500;
     if (retriesLeft > 0 && retryable) {
-      return new Promise(function (resolve) { setTimeout(resolve, delayMs); }).then(function () {
+      return new Promise(function (resolve) {
+        setTimeout(resolve, delayMs);
+      }).then(function () {
         return retry(fn, retriesLeft - 1, delayMs * 2);
       });
     }

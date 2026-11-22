@@ -33,7 +33,9 @@
   var IDLE_ATTR = "data-arise-bus-idle";
   var stats = { records: 0, ignored: 0, dispatched: 0, notifications: 0, startedAt: Date.now() };
 
-  function isElement(node) { return !!node && node.nodeType === 1; }
+  function isElement(node) {
+    return !!node && node.nodeType === 1;
+  }
 
   // A structural change is anything that added or removed an element. Text and
   // attribute writes alone never create a card, a row or a section.
@@ -41,10 +43,12 @@
     var i;
     if (record.type === "childList") {
       if (record.addedNodes) {
-        for (i = 0; i < record.addedNodes.length; i += 1) if (isElement(record.addedNodes[i])) return true;
+        for (i = 0; i < record.addedNodes.length; i += 1)
+          if (isElement(record.addedNodes[i])) return true;
       }
       if (record.removedNodes) {
-        for (i = 0; i < record.removedNodes.length; i += 1) if (isElement(record.removedNodes[i])) return true;
+        for (i = 0; i < record.removedNodes.length; i += 1)
+          if (isElement(record.removedNodes[i])) return true;
       }
       return false;
     }
@@ -61,13 +65,21 @@
   // of every node it rewrote.
   function insideIdleRegion(node) {
     if (!node) return false;
-    var el = isElement(node) ? node : (node.parentElement || null);
+    var el = isElement(node) ? node : node.parentElement || null;
     if (!el || typeof el.closest !== "function") return false;
-    try { return !!el.closest("[" + IDLE_ATTR + "]"); } catch { return false; }
+    try {
+      return !!el.closest("[" + IDLE_ATTR + "]");
+    } catch {
+      return false;
+    }
   }
 
   function declarationCount() {
-    try { return document.querySelectorAll("[" + IDLE_ATTR + "]").length; } catch { return 0; }
+    try {
+      return document.querySelectorAll("[" + IDLE_ATTR + "]").length;
+    } catch {
+      return 0;
+    }
   }
 
   function mark(node, on) {
@@ -115,7 +127,9 @@
     return keep;
   }
 
-  function noteNotification() { stats.notifications += 1; }
+  function noteNotification() {
+    stats.notifications += 1;
+  }
 
   window.ArisePerf = {
     idleAttribute: IDLE_ATTR,

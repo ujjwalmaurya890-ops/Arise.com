@@ -201,7 +201,11 @@ async function main() {
     )
   );
 
-  await waitFor(() => window.document.getElementById("arise-page-widget-bar"));
+  // The bar element is created early (hidden) so its strip is reserved before
+  // the route body paints; wait for the populated state, not the element.
+  await waitFor(
+    () => window.document.querySelectorAll("#arise-subbar-chips .arise-pwb-chip").length >= 3
+  );
   const subbar = window.document.getElementById("arise-page-widget-bar");
   const jumpChips = subbar ? subbar.querySelectorAll(".arise-pwb-chip") : [];
   check(

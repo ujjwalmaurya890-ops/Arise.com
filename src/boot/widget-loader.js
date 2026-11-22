@@ -1,13 +1,27 @@
 /* Extracted from index.html inline <script> (CSP: script-src 'self' only).
    Do not inline this again; edit here and keep index.html referencing this file. */
-// Perf patch: these widgets are all tab-scoped (not part of the default
-// Dashboard view) and were previously loaded eagerly via <script defer>,
-// competing with the critical render path. They're now injected after
-// first paint is settled, in the exact same order as before (the vanilla
-// widget files self-mount via window.__mountX contracts read by the React
-// bundle, and a couple of files intentionally redefine the same global -
-// e.g. __mountLocalFiles - so preserving order is required for identical
-// behavior). No widget, feature, or localStorage logic is touched.
+// Widget loader. The ~126 widget scripts self-mount through window.__mountX
+// contracts read by the React shell (and a couple intentionally redefine the
+// same global, e.g. __mountLocalFiles), so their execution order must stay
+// exactly the manifest order. They are delivered as 12 generated chunks.
+//
+// 2026-11 performance pass — route-scoped startup:
+// the page used to fetch AND execute all 12 chunks (~2.8 MB raw) immediately
+// after boot, although the default Dashboard only mounts widgets from the first
+// three. On a mid-range phone over Fast 3G that measured ~10 s of competing
+// network/compile work, 2-3 s of total blocking time and ~1 s of click latency
+// before the app was interactive. The loader now:
+//   stage 1  executes the manifest `core` chunks (shared runtime + default
+//            Dashboard widgets) first, in order;
+//   stage 2  executes the remaining chunks one at a time during browser idle
+//            time, in manifest order, so they never sit on the critical path;
+//   demand   any chunk whose widget the shell asks for jumps the queue
+//            (window.__ariseLoadForMount) together with the earlier chunks that
+//            have not executed yet, so the manifest order every widget relies on
+//            is preserved while opening a route never waits for unrelated work.
+// Execution order, failure handling, retry hooks and the source-file fallback
+// are unchanged; __ariseExpedite() still loads everything immediately for the
+// capture/verification scripts.
 (function () {
   "use strict";
   var CSS_FILES = [
@@ -21,6 +35,8 @@
   var SCRIPTS = __ariseManifest.scripts;
   var CHUNKS = __ariseManifest.chunks;
   var CHUNK_FILES = __ariseManifest.chunkFiles;
+  var CORE_CHUNKS = Array.isArray(__ariseManifest.core) ? __ariseManifest.core : [];
+  var MOUNT_CHUNKS = __ariseManifest.mountChunks || null;
 
   function loadCss() {
     CSS_FILES.forEach(function (href) {
@@ -42,43 +58,36 @@
   var failedWidgetScripts = [];
   window.__ariseWidgetLoadFailures = failedWidgetScripts;
 
-  // v222: EXPEDITE. Until every widget script has run, sections the user opens render
-  // as empty shells (the React shell calls __mountX before the widget file exists).
-  // The polite batch-and-yield schedule is only worth it while nobody is waiting.
-  // The moment the user interacts (first pointer/key press) or a section asks for a
-  // not-yet-loaded widget (the __mountX stubs call this), start immediately if we
-  // haven't, drop the yields and load every remaining script in one ordered pass.
+  // v222: EXPEDITE. Sections the user opens render as empty shells until their
+  // widget script has run. Per-mount demand loading (below) means most of that
+  // is now handled by loading just the chunk a route needs, but the documented
+  // "load everything now" switch is still supported: it is what the loading
+  // capture + verification scripts call, and what a queued interaction asked
+  // for before per-mount demand existed.
   var bootReady = false;
   var expedite = false;
-  var pendingGo = null;
   var startFn = null;
   window.__ariseExpedite = function () {
-    if (expedite || window.__ariseWidgetsReady) return;
+    if (window.__ariseWidgetsSettled) return;
     expedite = true;
     if (!bootReady) return;
-    if (startFn) startFn();
-    if (pendingGo) {
-      var g = pendingGo;
-      pendingGo = null;
-      g();
+    if (!window.__ariseLazyWidgetsStarted) {
+      if (startFn) startFn();
+      return;
     }
+    expediteAll();
   };
-  var expediteQueued = false;
-  function scheduleInteractionExpedite() {
-    if (expediteQueued || expedite || window.__ariseWidgetsReady) return;
-    expediteQueued = true;
-    // Yield 45ms (~2-3 frames) so pointerdown + click + route paint complete
-    // cleanly at 60fps before streaming remaining background widget chunks.
-    setTimeout(function () {
-      window.__ariseExpedite();
-    }, 45);
+
+  // A real user is present. Do not jump to loading every chunk (that used to
+  // make the first click download ~0.7 MB of JS on a slow connection); just let
+  // the background prefetch continue without waiting for a long idle window.
+  var lastInteractionAt = 0;
+  function noteInteraction() {
+    lastInteractionAt = Date.now();
+    if (prefetchStarted && !expedite) urgentUntil = Math.max(urgentUntil, Date.now() + 1200);
   }
   ["pointerdown", "keydown", "touchstart"].forEach(function (ev) {
-    window.addEventListener(ev, scheduleInteractionExpedite, {
-      once: true,
-      passive: true,
-      capture: true
-    });
+    window.addEventListener(ev, noteInteraction, { passive: true, capture: true });
   });
 
   // A request that never fires load/error must not strand an entire route.
@@ -184,181 +193,404 @@
     });
   };
 
-  function loadScriptsInOrder(list) {
-    // Perf patch #3 (chunked + yielding). Perf patch #2 created all ~100
-    // <script async=false> tags at once: the network was parallel, but the
-    // browser then compiled and executed ~2.5 MB of JS back-to-back, which froze
-    // scrolling/typing for seconds on mid-range hardware right as the dashboard
-    // was becoming interactive. Now scripts are injected in small ordered
-    // batches; between batches the loader yields to the browser (next animation frame) so rendering and input are never starved. Execution order is
-    // still exactly the list order (async=false inside a batch, batches run
-    // sequentially), so every __mountX / redefine-the-same-global contract
-    // holds. Batches after the first are preloaded by the browser at
-    // low priority so each batch starts without a cold-network
-    // wait. A script that fails to load is skipped and logged, as before.
-    var BATCH = list === CHUNKS ? 1 : 6;
-    var bootCap =
-      list === CHUNKS
-        ? document.getElementById("arise-main")
-          ? 3
-          : 1
-        : document.getElementById("arise-main")
-          ? 52
-          : 12;
-    var stage2Prewarmed = false;
+  // Native preload shares the script request even when HTTP caching is
+  // disabled. fetch().arrayBuffer() used to allocate unused copies and
+  // could download every chunk twice. Execution still happens in the queue
+  // below, so order is unaffected.
+  var preloaded = Object.create(null);
+  function prewarm(urls) {
+    urls.forEach(function (url) {
+      if (preloaded[url]) return;
+      preloaded[url] = true;
+      var link = document.createElement("link");
+      link.rel = "preload";
+      link.setAttribute("as", "script");
+      link.href = url;
+      link.fetchPriority = "low";
+      document.head.appendChild(link);
+    });
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Route-scoped chunk scheduler                                           */
+  /* ---------------------------------------------------------------------- */
+  var chunkState = Object.create(null); // url -> "done" | "failed"
+  var pendingChunks = []; // urls waiting to be injected, manifest/priority order
+  var inFlight = null;
+  var pumping = false;
+  var settled = false;
+  var coreDone = false;
+  var prefetchStarted = false;
+  var urgentUntil = 0;
+  var earlyDemand = [];
+  var idleHandle = null;
+  // Background chunks (routes the user has not opened) are executed at a
+  // deliberately low rate. The startup chunks and every on-demand request jump
+  // this queue. Slow / low-core devices wait longer: their main thread is the
+  // bottleneck, and executing nine unused chunks during the first seconds is
+  // exactly what used to push interaction latency past 500 ms.
+  var lowPower =
+    (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+    (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+    false;
+  var BACKGROUND_GAP = lowPower ? 1500 : 400;
+
+  var idle =
+    typeof window.requestIdleCallback === "function"
+      ? function (fn, timeout) {
+          return window.requestIdleCallback(fn, { timeout: timeout || 800 });
+        }
+      : function (fn) {
+          return setTimeout(fn, 60);
+        };
+
+  function flushReadyMounts() {
+    try {
+      if (typeof window.__ariseFlushReadyMounts === "function") window.__ariseFlushReadyMounts();
+    } catch (e) {}
+  }
+
+  // "Widgets ready" means the widgets of the current screen are in place —
+  // that is what every listener of this event needs (scans, toolbar, shortcuts,
+  // theme controls). Background route chunks keep arriving afterwards and are
+  // announced separately. Waiting for all of them used to hold those features
+  // back until the last unseen route had been downloaded and compiled.
+  function notifyCoreReady() {
+    if (coreDone) return;
+    coreDone = true;
+    window.__ariseCoreWidgetsReady = true;
+    window.__ariseCoreWidgetsReadyAt = Math.round(performance.now());
+    try {
+      window.dispatchEvent(new Event("arise:core-widgets-ready"));
+    } catch (e) {}
+    if (!window.__ariseWidgetsReady) {
+      window.__ariseWidgetsReady = true;
+      window.__ariseWidgetsReadyAt = window.__ariseCoreWidgetsReadyAt;
+      try {
+        window.dispatchEvent(new Event("arise:widgets-ready"));
+      } catch (e) {}
+    }
+  }
+
+  // Demand loads keep the manifest order that the sequential loader always
+  // guaranteed: the target chunk is queued behind every earlier chunk that has
+  // not executed yet. Widget files read globals defined by earlier files at load
+  // time (sometimes through local aliases of `window`, which no static scan can
+  // see reliably), so skipping ahead would risk initialising a module before its
+  // dependencies. Background fetches already put those bytes in the HTTP cache,
+  // so the ordered steps are cheap.
+  function enqueueThrough(url, urgent) {
+    var end = CHUNKS.indexOf(url);
+    if (end === -1) return;
+    var list = [];
+    for (var i = 0; i <= end; i++) {
+      var item = CHUNKS[i];
+      if (chunkState[item]) continue;
+      var at = pendingChunks.indexOf(item);
+      if (at !== -1) {
+        if (!urgent) continue; // already queued and in order
+        pendingChunks.splice(at, 1);
+      } else if (item === inFlight) {
+        continue;
+      }
+      list.push(item);
+    }
+    if (!list.length) return;
+    if (urgent) {
+      pendingChunks = list.concat(pendingChunks);
+      urgentUntil = Math.max(urgentUntil, Date.now() + 1200);
+    } else {
+      pendingChunks = pendingChunks.concat(list);
+    }
+  }
+
+  function expediteAll() {
+    enqueueThrough(CHUNKS[CHUNKS.length - 1], true);
+    urgentUntil = 0;
+    pumpChunks();
+  }
+
+  function allChunksAttempted() {
+    for (var i = 0; i < CHUNKS.length; i++) if (!chunkState[CHUNKS[i]]) return false;
+    return true;
+  }
+
+  function maybeSettle() {
+    if (settled || pumping || pendingChunks.length) return;
+    if (!allChunksAttempted()) return;
+    settled = true;
+    window.__ariseWidgetsSettled = true;
+    window.__ariseAllWidgetsSettledAt = Math.round(performance.now());
+    try {
+      if (typeof window.__ariseFlushMounts === "function") window.__ariseFlushMounts();
+    } catch (e) {}
+    if (!window.__ariseWidgetsReady) notifyCoreReady();
+    try {
+      window.dispatchEvent(new Event("arise:widgets-settled"));
+    } catch (e) {}
+    setTimeout(function () {
+      try {
+        var c = navigator.serviceWorker && navigator.serviceWorker.controller;
+        if (c) c.postMessage({ type: "arise-fill-cache" });
+      } catch (e) {}
+    }, 5000);
+  }
+
+  // A connection that drops mid-payload must not leave the routes that never
+  // executed un-mountable for the rest of the session. When the browser reports
+  // that the network is back, every chunk that failed is cleared from the
+  // "failed" state and re-queued in manifest order; without this the only
+  // recovery was a full page reload. Settle state is left alone on purpose so
+  // listeners that already ran for "all chunks attempted" are not told twice.
+  var onlineRetryBound = false;
+  function bindOnlineRetry() {
+    if (onlineRetryBound || typeof window.addEventListener !== "function") return;
+    onlineRetryBound = true;
+    window.addEventListener("online", function () {
+      var requeued = false;
+      for (var i = 0; i < CHUNKS.length; i++) {
+        var url = CHUNKS[i];
+        if (chunkState[url] !== "failed") continue;
+        delete chunkState[url];
+        if (url !== inFlight && pendingChunks.indexOf(url) === -1) pendingChunks.push(url);
+        requeued = true;
+      }
+      if (!requeued) {
+        // Legacy source-file path: re-inject whatever failed, in list order.
+        if (failedWidgetScripts.length && typeof window.__ariseRetryWidgetScripts === "function")
+          window.__ariseRetryWidgetScripts();
+        return;
+      }
+      failedWidgetScripts.length = 0;
+      pumpChunks();
+    });
+  }
+
+  // Execution pacing. Each chunk is compiled + executed as one task, so the
+  // next one is scheduled only after the browser has had a slice to paint, run
+  // the app's own effects and handle input. requestIdleCallback is deliberately
+  // not used as the trigger: while the React shell is rendering, idle windows
+  // can be seconds away (measured 2.3 s), which left the startup chunks stuck
+  // behind each other. Startup chunks run back to back; background chunks use
+  // BACKGROUND_GAP and back off further right after an interaction.
+  function scheduleNext() {
+    if (idleHandle !== null) return;
+    if (!pendingChunks.length) {
+      maybeSettle();
+      return;
+    }
+    var urgent = expedite || Date.now() < urgentUntil;
+    var gap;
+    if (urgent || !coreDone) gap = 0; // startup chunks run back to back
+    else if (Date.now() - lastInteractionAt < 2000) gap = 2500; // user is working
+    else gap = BACKGROUND_GAP;
+    idleHandle = "pending";
+    function run() {
+      idleHandle = null;
+      pumpChunks();
+    }
+    // setTimeout, not rAF: a frame callback can be deferred for seconds when
+    // the page is not compositing (background tab, headless, throttled
+    // renderer), which stalled the whole ordered queue in earlier attempts.
+    setTimeout(run, gap);
+  }
+
+  function pumpChunks() {
+    if (pumping) return;
+    while (pendingChunks.length) {
+      var url = pendingChunks.shift();
+      if (chunkState[url]) continue;
+      pumping = true;
+      inFlight = url;
+      injectWidgetScript(url, onChunkLoaded.bind(null, url), onChunkFailed.bind(null, url));
+      return;
+    }
+    maybeSettle();
+  }
+
+  function chunkSettled(url, ok) {
+    chunkState[url] = ok ? "done" : "failed";
+    pumping = false;
+    inFlight = null;
+    if (ok) flushReadyMounts();
+    if (!coreDone) {
+      var core = CORE_CHUNKS.length ? CORE_CHUNKS : [];
+      var coreComplete = core.length > 0;
+      for (var i = 0; i < core.length; i++) if (!chunkState[core[i]]) coreComplete = false;
+      if (coreComplete) {
+        notifyCoreReady();
+        startPrefetch();
+      }
+    }
+    scheduleNext();
+  }
+
+  function onChunkLoaded(url) {
+    chunkSettled(url, true);
+  }
+
+  function onChunkFailed(url) {
+    // Keep the long-standing behaviour: a chunk that cannot be fetched is
+    // replaced by its source files in order, so dependants still initialise.
+    var parts = CHUNK_FILES[url];
+    if (parts && parts.length) {
+      console.warn(
+        "[widget-loader] chunk unavailable, falling back to " + parts.length + " files: " + url
+      );
+      var left = parts.length;
+      parts.forEach(function (file) {
+        injectWidgetScript(
+          file,
+          function () {
+            if (--left === 0) chunkSettled(url, false);
+          },
+          function () {
+            rememberWidgetFailure(file);
+            if (--left === 0) chunkSettled(url, false);
+          }
+        );
+      });
+      return;
+    }
+    rememberWidgetFailure(url);
+    chunkSettled(url, false);
+  }
+
+  // Remaining chunks: their network fetch starts now at low priority (so a
+  // route opened later finds them in the HTTP cache), but their execution —
+  // the part that blocks the main thread — is spread one chunk at a time in
+  // manifest order, with a gap that backs off further right after a real
+  // interaction. On-demand requests preempt the queue, so a route the user
+  // actually opens is never stuck behind background work. Data-saver / 2G
+  // connections skip the speculative fetch and only download what is opened.
+  function connectionIsMetered() {
+    try {
+      var c = navigator.connection || {};
+      if (c.saveData === true) return true;
+      return c.effectiveType === "slow-2g" || c.effectiveType === "2g";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function startPrefetch() {
+    if (prefetchStarted || expedite || !CHUNKS.length) return;
+    prefetchStarted = true;
+    var begun = false;
+    function begin() {
+      if (begun || expedite) return;
+      begun = true;
+      var rest = [];
+      for (var i = 0; i < CHUNKS.length; i++) if (!chunkState[CHUNKS[i]]) rest.push(CHUNKS[i]);
+      if (connectionIsMetered()) {
+        // Data-saver / 2G: only fetch what the user actually opens.
+        earlyDemand.splice(0, earlyDemand.length).forEach(function (url) {
+          enqueueThrough(url, false);
+        });
+      } else {
+        prewarm(rest);
+        enqueueThrough(CHUNKS[CHUNKS.length - 1], false);
+      }
+      pumpChunks();
+    }
+    // Start as soon as the startup chunks are in: the startup screen is
+    // already rendered and mounted, so the remaining bytes only have to avoid
+    // the main thread (execution stays paced below), not wait for the window
+    // load event — that event can trail by seconds on a slow connection and
+    // used to leave later routes with nothing cached.
+    setTimeout(begin, 300);
+  }
+
+  // Called by the mount stubs: load just the chunk that owns this widget (plus
+  // the earlier chunks it needs) instead of the whole widget payload.
+  window.__ariseLoadForMount = function (name) {
+    if (!MOUNT_CHUNKS || !name) return false;
+    var url = MOUNT_CHUNKS[name];
+    if (!url) return false;
+    if (!window.__ariseLazyWidgetsStarted) {
+      if (earlyDemand.indexOf(url) === -1) earlyDemand.push(url);
+      return true;
+    }
+    if (chunkState[url] === "done") return true;
+    enqueueThrough(url, true);
+    pumpChunks();
+    return true;
+  };
+  window.__ariseMountChunk = function (name) {
+    return (MOUNT_CHUNKS && name && MOUNT_CHUNKS[name]) || null;
+  };
+  window.__ariseMountChunkFailed = function (name) {
+    var url = window.__ariseMountChunk(name);
+    return !!url && chunkState[url] === "failed";
+  };
+
+  function startChunkSchedule() {
+    if (!CHUNKS.length) return finish();
+    bindOnlineRetry();
+    var core = CORE_CHUNKS.length ? CORE_CHUNKS : CHUNKS.slice(0, 1);
+    // Start the Dashboard core first; the rest of the core set is preloaded at
+    // low priority so each ordered step starts without a cold-network wait.
+    prewarm(core.slice(1));
+    core.forEach(function (url) {
+      enqueueThrough(url, false);
+    });
+    // Captures and verification scripts ask for "everything now" before boot.
+    if (expedite) enqueueThrough(CHUNKS[CHUNKS.length - 1], true);
+    pumpChunks();
+  }
+
+  // Debug/legacy path (?chunks=0 or arise-chunks=off): load the individual
+  // source files instead of the generated chunks, in small ordered batches.
+  function loadSourceFilesInOrder(list) {
+    var BATCH = 6;
     var index = 0;
     var finished = false;
-
     function finish() {
       if (finished) return;
       finished = true;
       window.__ariseWidgetsSettled = true;
+      notifyCoreReady();
       try {
         if (typeof window.__ariseFlushMounts === "function") window.__ariseFlushMounts();
       } catch (e) {}
-      window.__ariseWidgetsReady = true;
-      window.__ariseWidgetsReadyAt = Math.round(performance.now());
-      try {
-        window.dispatchEvent(new Event("arise:widgets-ready"));
-      } catch (e) {}
-      setTimeout(function () {
-        try {
-          var c = navigator.serviceWorker && navigator.serviceWorker.controller;
-          if (c) c.postMessage({ type: "arise-fill-cache" });
-        } catch (e) {}
-      }, 5000);
     }
-
-    function yieldThen(fn) {
-      var once = false;
-      function go() {
-        if (once) return;
-        once = true;
-        pendingGo = null;
-        if (!stage2Prewarmed && index >= bootCap) {
-          stage2Prewarmed = true;
-          prewarm(list.slice(index));
-        }
-        fn();
-      }
-      pendingGo = go;
-      if (expedite) {
-        // Yield a macrotask slice between expedited 2-chunk batches so input &
-        // animation frames are never starved by a single 500ms+ script-compile burst.
-        setTimeout(go, 0);
-        return;
-      }
-      if (index === bootCap) {
-        // Stage 1 (Dashboard core & active UX) is live & mounted.
-        // Yield to paint + first idle window so LCP/input never stall,
-        // then stream remaining background route chunks cleanly without an 8.5s sleep.
-        if (typeof requestAnimationFrame === "function") {
-          requestAnimationFrame(function () {
-            if (typeof requestIdleCallback === "function")
-              requestIdleCallback(go, { timeout: 220 });
-            else setTimeout(go, 60);
-          });
-        }
-        setTimeout(go, 260);
-        return;
-      }
-      if (typeof requestAnimationFrame === "function") {
-        requestAnimationFrame(function () {
-          if (typeof requestIdleCallback === "function") requestIdleCallback(go, { timeout: 60 });
-          else setTimeout(go, 0);
-        });
-      }
-      setTimeout(go, 100);
-    }
-
-    // Native preload shares the script request even when HTTP caching is
-    // disabled. fetch().arrayBuffer() used to allocate unused copies and
-    // could download every chunk twice. Execution still happens below.
-    var preloaded = Object.create(null);
-    function prewarm(urls) {
-      urls.forEach(function (url) {
-        if (preloaded[url]) return;
-        preloaded[url] = true;
-        var link = document.createElement("link");
-        link.rel = "preload";
-        link.setAttribute("as", "script");
-        link.href = url;
-        link.fetchPriority = "low";
-        document.head.appendChild(link);
-      });
-    }
-
     function nextBatch() {
       if (index >= list.length) {
         finish();
         return;
       }
-      // A failed chunk must finish its source-file fallback before the next
-      // chunk executes, otherwise dependent modules can initialize out of order.
-      var expStep = list === CHUNKS ? 1 : 12;
-      var size = expedite
-        ? Math.min(expStep, list.length - index)
-        : index < bootCap
-          ? Math.min(BATCH, bootCap - index)
-          : BATCH;
-      var batch = list.slice(index, index + size);
-      index += size;
+      var batch = list.slice(index, index + BATCH);
+      index += BATCH;
       var left = batch.length;
+      function settle() {
+        if (--left !== 0) return;
+        flushReadyMounts();
+        if (expedite) setTimeout(nextBatch, 0);
+        else setTimeout(nextBatch, 80);
+      }
       batch.forEach(function (src) {
-        var settled = false;
-        function settle() {
-          if (settled) return;
-          settled = true;
-          if (--left === 0) {
-            try {
-              if (typeof window.__ariseFlushReadyMounts === "function")
-                window.__ariseFlushReadyMounts();
-            } catch (e) {}
-            if (index >= list.length) finish();
-            else yieldThen(nextBatch);
-          }
-        }
         injectWidgetScript(src, settle, function () {
-          var parts = CHUNK_FILES[src];
-          if (parts && parts.length) {
-            // Chunk unavailable: retain ordered execution of the original files.
-            console.warn(
-              "[widget-loader] chunk unavailable, falling back to " +
-                parts.length +
-                " files: " +
-                src
-            );
-            var n = parts.length;
-            parts.forEach(function (f) {
-              injectWidgetScript(
-                f,
-                function () {
-                  if (--n === 0) settle();
-                },
-                function () {
-                  rememberWidgetFailure(f);
-                  if (--n === 0) settle();
-                }
-              );
-            });
-            return;
-          }
           rememberWidgetFailure(src);
           settle();
         });
       });
     }
-
-    // Safety net: if one script hangs, still replay early mounts after 30 s
-    // (finish() still runs when the stragglers eventually settle).
+    // Safety net: still replay early mounts if one script hangs.
     setTimeout(function () {
       try {
         if (!finished && typeof window.__ariseFlushMounts === "function")
           window.__ariseFlushMounts();
       } catch (e) {}
     }, 30000);
-    if (bootCap > 1) prewarm(list.slice(Math.min(BATCH, bootCap), bootCap));
     nextBatch();
+  }
+
+  function loadScriptsInOrder(list) {
+    if (list === CHUNKS) {
+      startChunkSchedule();
+      return;
+    }
+    loadSourceFilesInOrder(list);
   }
 
   function startLazyLoad() {
@@ -403,7 +635,7 @@
 
   startFn = startLazyLoad;
   function schedule() {
-    // Let initial paint + LCP settle before streaming Stage 1 widget chunks in frame-yielded slices.
+    // Let initial paint + LCP settle before starting the widget payload.
     if (expedite) {
       startLazyLoad();
       return;

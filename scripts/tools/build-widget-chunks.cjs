@@ -86,7 +86,49 @@ groups.forEach((g, i) => {
   chunkMap[name] = g;
 });
 
-const newManifest = JSON.stringify({ scripts: files, chunks: chunkUrls, chunkFiles: chunkMap });
+/* ---------------------------------------------------------------------------
+   Route-scoped loading metadata (2026-11 performance pass).
+
+   Before this, the page fetched + executed EVERY chunk right after boot, even
+   though the default Dashboard only mounts widgets from the first three. That
+   put ~2.8 MB of JS (12 chunks) on the startup path. The loader now keeps the
+   exact same execution order but can tell:
+
+     core        - chunks still loaded during startup (shared runtime + the
+                   widgets the default Dashboard mounts);
+     mountChunks - mount hook (window.__mountX) -> chunk that defines it, so a
+                   route opened later can request just that chunk. The loader
+                   still executes the earlier chunks first: widget files read
+                   globals defined by earlier files at load time, sometimes
+                   through local aliases of `window` that no static scan can
+                   see, so order is kept by construction rather than inferred.
+
+   The map is derived from the sources, so it stays correct when files move.
+   The build fails loudly if a mount hook maps to a chunk that does not exist.
+   ------------------------------------------------------------------------- */
+const CORE_CHUNKS = 3;
+const fileChunk = new Map();
+chunkUrls.forEach(url => chunkMap[url].forEach(f => fileChunk.set(f, url)));
+const chunkIndex = new Map(chunkUrls.map((url, i) => [url, i]));
+const mountChunks = {};
+for (const f of files) {
+  const src = srcMap.get(f);
+  const chunk = fileChunk.get(f);
+  for (const m of src.matchAll(/window\.(__mount[A-Za-z0-9_]+)\s*=(?!=)/g)) mountChunks[m[1]] = chunk;
+}
+const coreChunks = chunkUrls.slice(0, Math.min(CORE_CHUNKS, chunkUrls.length));
+if (!Object.keys(mountChunks).length) throw new Error("no window.__mountX hooks found");
+for (const hook of Object.keys(mountChunks))
+  if (!chunkUrls.includes(mountChunks[hook]))
+    throw new Error("mount hook " + hook + " maps to a missing chunk");
+
+const newManifest = JSON.stringify({
+  scripts: files,
+  chunks: chunkUrls,
+  chunkFiles: chunkMap,
+  core: coreChunks,
+  mountChunks
+});
 idx = idx.replace(
   /<script type="application\/json" id="arise-widget-manifest">[\s\S]*?<\/script>/,
   () => '<script type="application/json" id="arise-widget-manifest">' + newManifest + "</script>"
@@ -108,3 +150,6 @@ console.log(
     " entries"
 );
 groups.forEach((g, i) => console.log(chunkUrls[i], g.length + " files"));
+console.log(
+  "startup chunks: " + coreChunks.length + " (" + Object.keys(mountChunks).length + " mount hooks mapped)"
+);

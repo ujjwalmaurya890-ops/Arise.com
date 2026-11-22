@@ -23,7 +23,7 @@ function ok(cond, label) {
   }
 }
 
-const tick = (ms) => new Promise((r) => setTimeout(r, ms));
+const tick = ms => new Promise(r => setTimeout(r, ms));
 
 function walkJs(dir) {
   const out = [];
@@ -58,7 +58,10 @@ function walkJs(dir) {
     "--skeleton-delay",
     "--overlay-scrim-bg"
   ]) {
-    ok(animCss.includes(token + ":"), "styles/animation-upgrade.css defines centralized token " + token);
+    ok(
+      animCss.includes(token + ":"),
+      "styles/animation-upgrade.css defines centralized token " + token
+    );
   }
 
   ok(
@@ -67,23 +70,33 @@ function walkJs(dir) {
     "index.html loads ./styles/animation-upgrade.css synchronously without print-media FOUC race"
   );
 
-  const unguardedSmooth = walkJs(path.join(ROOT, "src")).filter((f) =>
+  const unguardedSmooth = walkJs(path.join(ROOT, "src")).filter(f =>
     /behavior:\s*["']smooth["']/.test(fs.readFileSync(f, "utf8"))
   );
-  ok(unguardedSmooth.length === 0, "zero unguarded scrollIntoView({ behavior: 'smooth' }) calls remain in src/");
+  ok(
+    unguardedSmooth.length === 0,
+    "zero unguarded scrollIntoView({ behavior: 'smooth' }) calls remain in src/"
+  );
 
   // -------------------------------------------------------------------------
   // 2. Mount Safety Error Boundary & Button Busy Width-Lock Helpers
   // -------------------------------------------------------------------------
   {
-    const dom = new JSDOM("<!doctype html><html><body><div id='slot'></div><button id='btn'>Save</button></body></html>", {
-      url: "https://arise.example.test/",
-      pretendToBeVisual: true,
-      runScripts: "outside-only"
-    });
+    const dom = new JSDOM(
+      "<!doctype html><html><body><div id='slot'></div><button id='btn'>Save</button></body></html>",
+      {
+        url: "https://arise.example.test/",
+        pretendToBeVisual: true,
+        runScripts: "outside-only"
+      }
+    );
     const w = dom.window;
     w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
-    w.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+    w.IntersectionObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
 
     let attempts = 0;
     w.__mountBrokenTestWidget = function (el) {
@@ -100,7 +113,10 @@ function walkJs(dir) {
     w.__mountBrokenTestWidget(slot);
 
     const errBox = slot.querySelector('[data-uxa-mount-error="1"][role="alert"]');
-    ok(!!errBox && !slot.hasAttribute("aria-busy"), "mount-safety clears aria-busy and renders role='alert' error boundary on crash");
+    ok(
+      !!errBox && !slot.hasAttribute("aria-busy"),
+      "mount-safety clears aria-busy and renders role='alert' error boundary on crash"
+    );
 
     const retryBtn = slot.querySelector("[data-uxa-mount-retry]");
     ok(!!retryBtn, "mount-safety renders a retry button inside failed mount slot");
@@ -148,10 +164,10 @@ function walkJs(dir) {
     w.alert = () => {};
 
     let resolveSlowUser = null;
-    w.fetch = (url) => {
+    w.fetch = url => {
       const u = String(url);
       if (u.includes("slow_octo")) {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           resolveSlowUser = () =>
             resolve({
               ok: true,
@@ -190,7 +206,10 @@ function walkJs(dir) {
     w.document.getElementById("gh-username-input").value = "slow_octo";
     root.querySelector('[data-action="gh-connect"]').click();
     await tick(20);
-    ok(root.innerHTML.includes("Fetching GitHub data"), "initial GitHub connect renders skeleton + status");
+    ok(
+      root.innerHTML.includes("Fetching GitHub data"),
+      "initial GitHub connect renders skeleton + status"
+    );
 
     // User immediately cancels / switches account to fast_torvalds BEFORE slow_octo resolves
     // Simulate disconnect via state action or connect replacement: first trigger gh-change-account if present, or set new handle
@@ -203,7 +222,10 @@ function walkJs(dir) {
     w.document.getElementById("gh-username-input").value = "fast_torvalds";
     root.querySelector('[data-action="gh-connect"]').click();
     await tick(40);
-    ok(root.textContent.includes("Fast Torvalds"), "second handle resolves immediately without being blocked by prior loading flag");
+    ok(
+      root.textContent.includes("Fast Torvalds"),
+      "second handle resolves immediately without being blocked by prior loading flag"
+    );
 
     // Now let the stale slow_octo response resolve late!
     if (resolveSlowUser) resolveSlowUser();
@@ -235,10 +257,26 @@ function walkJs(dir) {
           blind75: {
             name: "Blind 75",
             description: "Core 75",
-            questions: [{ title: "Two Sum", difficulty: "Easy", topic: "Arrays", platform: "LeetCode", link: "https://example.com" }]
+            questions: [
+              {
+                title: "Two Sum",
+                difficulty: "Easy",
+                topic: "Arrays",
+                platform: "LeetCode",
+                link: "https://example.com"
+              }
+            ]
           },
           companies: {
-            Amazon: [{ title: "LRU Cache", difficulty: "Medium", topic: "Design", platform: "LeetCode", link: "https://example.com" }]
+            Amazon: [
+              {
+                title: "LRU Cache",
+                difficulty: "Medium",
+                topic: "Design",
+                platform: "LeetCode",
+                link: "https://example.com"
+              }
+            ]
           }
         })
       };
@@ -257,16 +295,25 @@ function walkJs(dir) {
     await tick(60);
     const errEl = host.querySelector('.uxa-error-state[role="alert"]');
     const retryBtn = host.querySelector("[data-ish-retry]");
-    ok(!!errEl && !!retryBtn && !host.hasAttribute("aria-busy"), "failed sheet fetch renders role='alert' error state with Retry button");
+    ok(
+      !!errEl && !!retryBtn && !host.hasAttribute("aria-busy"),
+      "failed sheet fetch renders role='alert' error state with Retry button"
+    );
 
     shouldFail = false;
     retryBtn.click();
     await tick(60);
-    ok(host.textContent.includes("Two Sum"), "clicking Retry reloads sheets data and renders questions");
+    ok(
+      host.textContent.includes("Two Sum"),
+      "clicking Retry reloads sheets data and renders questions"
+    );
 
     const compTab = host.querySelector('[data-sheet="companies"]');
     compTab.click();
-    ok(host.textContent.includes("LRU Cache"), "switching to Company-wise tab renders company problems cleanly");
+    ok(
+      host.textContent.includes("LRU Cache"),
+      "switching to Company-wise tab renders company problems cleanly"
+    );
     dom.window.close();
   }
 
@@ -274,11 +321,14 @@ function walkJs(dir) {
   // 5. Real AI Insights Stale-While-Revalidate Refresh & Error Retry
   // -------------------------------------------------------------------------
   {
-    const dom = new JSDOM("<!doctype html><html><body><section id='acm-career-mentor-card'></section></body></html>", {
-      url: "https://arise.example.test/",
-      pretendToBeVisual: true,
-      runScripts: "outside-only"
-    });
+    const dom = new JSDOM(
+      "<!doctype html><html><body><section id='acm-career-mentor-card'></section></body></html>",
+      {
+        url: "https://arise.example.test/",
+        pretendToBeVisual: true,
+        runScripts: "outside-only"
+      }
+    );
     const w = dom.window;
     w.__ARISE_MUTATION_BUS__ = { subscribe() {} };
     w.__ARISE_CAREER_MENTOR_REPORT__ = {
@@ -292,7 +342,12 @@ function walkJs(dir) {
     };
     w.localStorage.setItem(
       "arise-ai-career-mentor-ai-cache-v1",
-      JSON.stringify({ text: "Cached coaching insight.", generatedAt: new Date().toISOString(), model: "claude-haiku-4-5-20251001", basedOnOverall: 68 })
+      JSON.stringify({
+        text: "Cached coaching insight.",
+        generatedAt: new Date().toISOString(),
+        model: "claude-haiku-4-5-20251001",
+        basedOnOverall: 68
+      })
     );
 
     let resolveAi = null;
@@ -302,9 +357,17 @@ function walkJs(dir) {
         new Promise((resolve, reject) => {
           resolveAi = () => {
             if (rejectNext) {
-              resolve({ ok: false, status: 502, json: async () => ({ error: "Upstream unavailable" }) });
+              resolve({
+                ok: false,
+                status: 502,
+                json: async () => ({ error: "Upstream unavailable" })
+              });
             } else {
-              resolve({ ok: true, status: 200, json: async () => ({ text: "Fresh coaching insight." }) });
+              resolve({
+                ok: true,
+                status: 200,
+                json: async () => ({ text: "Fresh coaching insight." })
+              });
             }
           };
         })
@@ -316,7 +379,10 @@ function walkJs(dir) {
 
     await tick(250);
     const card = w.document.getElementById("ai-real-insights-card");
-    ok(!!card && card.textContent.includes("Cached coaching insight."), "Real AI Insights mounts with cached insight");
+    ok(
+      !!card && card.textContent.includes("Cached coaching insight."),
+      "Real AI Insights mounts with cached insight"
+    );
 
     // Trigger refresh that stays in-flight
     rejectNext = true;
@@ -343,13 +409,16 @@ function walkJs(dir) {
     await tick(20);
     resolveAi();
     await tick(40);
-    ok(card.textContent.includes("Fresh coaching insight."), "clicking Try again recovers and renders fresh AI insight");
+    ok(
+      card.textContent.includes("Fresh coaching insight."),
+      "clicking Try again recovers and renders fresh AI insight"
+    );
     dom.window.close();
   }
 
   console.log(`\nLoading & UX Overhaul Regression Suite: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
-})().catch((err) => {
+})().catch(err => {
   console.error(err);
   process.exit(1);
 });

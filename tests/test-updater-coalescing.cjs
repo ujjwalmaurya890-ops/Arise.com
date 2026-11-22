@@ -25,7 +25,7 @@ const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
 const root = path.resolve(__dirname, "..");
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 let passed = 0;
 const failures = [];
@@ -39,7 +39,7 @@ function test(name, fn) {
     console.error("  ✗ " + name + "\n      " + error.message);
   }
 }
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /** Boot the shared utils + real mutation bus in jsdom. */
 function boot() {
@@ -115,11 +115,13 @@ function boot() {
   test("isolation: one throwing coalescer does not stop the others", async () => {
     const boot3 = boot();
     const ok = [];
-    boot3.U.registerUpdaterCoalescer(() => { throw new Error("boom"); });
+    boot3.U.registerUpdaterCoalescer(() => {
+      throw new Error("boom");
+    });
     boot3.U.registerUpdaterCoalescer(() => ok.push("second"));
     boot3.U.bootUpdater(() => {});
     const swallowed = [];
-    boot3.w.addEventListener("error", (event) => swallowed.push(event.message));
+    boot3.w.addEventListener("error", event => swallowed.push(event.message));
     boot3.w.document.getElementById("host").appendChild(boot3.w.document.createElement("b"));
     await sleep(400);
     assert.deepEqual(ok, ["second"], "the second coalescer must still run");
@@ -161,7 +163,7 @@ function boot() {
       "src/dev-placement-engine-widget.js",
       "src/ai-career-mentor-widget.js"
     ];
-    const missing = expected.filter((file) => !read(file).includes("registerUpdaterCoalescer"));
+    const missing = expected.filter(file => !read(file).includes("registerUpdaterCoalescer"));
     assert.deepEqual(missing, []);
   });
 

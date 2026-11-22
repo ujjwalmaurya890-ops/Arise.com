@@ -4,8 +4,16 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 let esbuild, acorn;
-try { esbuild = require("esbuild"); } catch { esbuild = require("/tmp/perf-bench/node_modules/esbuild"); }
-try { acorn = require("acorn"); } catch { acorn = require("/tmp/perf-bench/node_modules/acorn"); }
+try {
+  esbuild = require("esbuild");
+} catch {
+  esbuild = require("/tmp/perf-bench/node_modules/esbuild");
+}
+try {
+  acorn = require("acorn");
+} catch {
+  acorn = require("/tmp/perf-bench/node_modules/acorn");
+}
 
 const root = path.resolve(__dirname, "../..");
 const bundlePath = path.join(root, "assets", "app-bundle.js");
@@ -23,13 +31,12 @@ if (code.includes(oldQuoteBtn)) {
 
 // Upgrade Recharts tick #6b7280 contrast in Analytics to #94a3b8 (WCAG AA on dark cards)
 code = code.replace(/tick:\{fill:"#6b7280"/g, 'tick:{fill:"#94a3b8"');
-code = code.replace(
-  '"serviceWorker"in navigator&&window.addEventListener("load",()=>{const __uxaHadCtl=',
-  '"serviceWorker"in navigator&&window.addEventListener("load",()=>{setTimeout(()=>{const __uxaHadCtl='
-).replace(
-  '{once:true})})});\nconst dx=',
-  '{once:true})})},4500)});\nconst dx='
-);
+code = code
+  .replace(
+    '"serviceWorker"in navigator&&window.addEventListener("load",()=>{const __uxaHadCtl=',
+    '"serviceWorker"in navigator&&window.addEventListener("load",()=>{setTimeout(()=>{const __uxaHadCtl='
+  )
+  .replace("{once:true})})});\nconst dx=", "{once:true})})},4500)});\nconst dx=");
 
 // 2. Parse AST & run exact lexical-scope reachability to split Recharts + Analytics (Module Jce) cleanly
 const ast = acorn.parse(code, { ecmaVersion: "latest", sourceType: "module" });
@@ -40,13 +47,22 @@ function patternNames(pat, out) {
   else if (pat.type === "AssignmentPattern") patternNames(pat.left, out);
   else if (pat.type === "RestElement") patternNames(pat.argument, out);
   else if (pat.type === "ArrayPattern") pat.elements.forEach(e => patternNames(e, out));
-  else if (pat.type === "ObjectPattern") pat.properties.forEach(p => patternNames(p.type === "RestElement" ? p.argument : p.value, out));
+  else if (pat.type === "ObjectPattern")
+    pat.properties.forEach(p => patternNames(p.type === "RestElement" ? p.argument : p.value, out));
 }
 
 function collectVarHoists(node, out) {
   if (!node || typeof node !== "object") return;
-  if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression") return;
-  if (Array.isArray(node)) { node.forEach(x => collectVarHoists(x, out)); return; }
+  if (
+    node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" ||
+    node.type === "ArrowFunctionExpression"
+  )
+    return;
+  if (Array.isArray(node)) {
+    node.forEach(x => collectVarHoists(x, out));
+    return;
+  }
   if (node.type === "VariableDeclaration" && node.kind === "var") {
     node.declarations.forEach(d => patternNames(d.id, out));
   }
@@ -58,12 +74,19 @@ function collectVarHoists(node, out) {
 
 function collectFree(node, scope, free) {
   if (!node || typeof node !== "object") return;
-  if (Array.isArray(node)) { node.forEach(x => collectFree(x, scope, free)); return; }
+  if (Array.isArray(node)) {
+    node.forEach(x => collectFree(x, scope, free));
+    return;
+  }
   if (node.type === "Identifier") {
     if (!scope.has(node.name)) free.add(node.name);
     return;
   }
-  if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression") {
+  if (
+    node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" ||
+    node.type === "ArrowFunctionExpression"
+  ) {
     const fnScope = new Set(scope);
     if (node.id) fnScope.add(node.id.name);
     node.params.forEach(p => patternNames(p, fnScope));
@@ -71,19 +94,29 @@ function collectFree(node, scope, free) {
     if (node.body.type === "BlockStatement") {
       node.body.body.forEach(st => {
         if (st.type === "FunctionDeclaration" && st.id) fnScope.add(st.id.name);
-        if (st.type === "VariableDeclaration") st.declarations.forEach(d => patternNames(d.id, fnScope));
+        if (st.type === "VariableDeclaration")
+          st.declarations.forEach(d => patternNames(d.id, fnScope));
         if (st.type === "ClassDeclaration" && st.id) fnScope.add(st.id.name);
       });
     }
-    node.params.forEach(p => { if (p.type === "AssignmentPattern") collectFree(p.right, fnScope, free); });
+    node.params.forEach(p => {
+      if (p.type === "AssignmentPattern") collectFree(p.right, fnScope, free);
+    });
     collectFree(node.body, fnScope, free);
     return;
   }
-  if (node.type === "BlockStatement" || node.type === "ForStatement" || node.type === "ForOfStatement" || node.type === "ForInStatement") {
+  if (
+    node.type === "BlockStatement" ||
+    node.type === "ForStatement" ||
+    node.type === "ForOfStatement" ||
+    node.type === "ForInStatement"
+  ) {
     const blkScope = new Set(scope);
-    const bodyList = node.type === "BlockStatement" ? node.body : [node.init, node.left].filter(Boolean);
+    const bodyList =
+      node.type === "BlockStatement" ? node.body : [node.init, node.left].filter(Boolean);
     bodyList.forEach(st => {
-      if (st.type === "VariableDeclaration" && st.kind !== "var") st.declarations.forEach(d => patternNames(d.id, blkScope));
+      if (st.type === "VariableDeclaration" && st.kind !== "var")
+        st.declarations.forEach(d => patternNames(d.id, blkScope));
       if (st.type === "FunctionDeclaration" && st.id) blkScope.add(st.id.name);
       if (st.type === "ClassDeclaration" && st.id) blkScope.add(st.id.name);
     });
@@ -130,13 +163,27 @@ for (let i = 0; i < ast.body.length; i++) {
       const defs = [...set];
       const refs = new Set();
       collectFree(d.init, new Set(), refs);
-      units.push({ kind: s.kind, src: code.slice(d.start, d.end), defs, refs, size: d.end - d.start, stmtIdx: i });
+      units.push({
+        kind: s.kind,
+        src: code.slice(d.start, d.end),
+        defs,
+        refs,
+        size: d.end - d.start,
+        stmtIdx: i
+      });
     }
   } else {
-    const defs = (s.id && s.id.type === "Identifier") ? [s.id.name] : [];
+    const defs = s.id && s.id.type === "Identifier" ? [s.id.name] : [];
     const refs = new Set();
     collectFree(s, new Set(defs), refs);
-    units.push({ kind: "stmt", src: code.slice(s.start, s.end), defs, refs, size: s.end - s.start, stmtIdx: i });
+    units.push({
+      kind: "stmt",
+      src: code.slice(s.start, s.end),
+      defs,
+      refs,
+      size: s.end - s.start,
+      stmtIdx: i
+    });
   }
 }
 
@@ -149,9 +196,10 @@ if (eqUnitIdx === -1) {
 const afterDsaStmtIdx = units.find(u => u.defs.includes("_q")).stmtIdx + 1;
 const jceStmtIdx = units[eqUnitIdx].stmtIdx;
 
-const inAnalytics = units.map(u =>
-  (u.stmtIdx >= afterDsaStmtIdx && u.stmtIdx < jceStmtIdx) ||
-  u.defs.some(d => ["R0", "Qce", "Jce"].includes(d))
+const inAnalytics = units.map(
+  u =>
+    (u.stmtIdx >= afterDsaStmtIdx && u.stmtIdx < jceStmtIdx) ||
+    u.defs.some(d => ["R0", "Qce", "Jce"].includes(d))
 );
 
 const defToUnit = new Map();
@@ -201,7 +249,11 @@ function emitUnits(selectedUnits) {
 
 const analyticsUnits = units.filter((_, i) => inAnalytics[i]);
 const analyticsRaw = `(function(){\nconst { ${depsFromMain.join(", ")} } = globalThis.__ARISE_BUNDLE_DEPS__;\n${emitUnits(analyticsUnits)}\nglobalThis.__ARISE_ANALYTICS_MODULE__ = Jce;\n})();\n`;
-const analyticsMin = esbuild.transformSync(analyticsRaw, { loader: "js", minify: true, target: "es2020" }).code;
+const analyticsMin = esbuild.transformSync(analyticsRaw, {
+  loader: "js",
+  minify: true,
+  target: "es2020"
+}).code;
 fs.writeFileSync(analyticsPath, analyticsMin, "utf8");
 
 // Build main bundle with lazy script chunk loader for Jce (works seamlessly in Browser, Service Worker, AND JSDOM window.eval!)
@@ -276,13 +328,15 @@ mainUnits.splice(mainUnits.indexOf(units[firstAfterJce]), 0, lazyJceShim);
 // Minify only whitespace on verbose multi-line DSA block while preserving ALL identifier names and Oq/Eq contract
 for (const u of mainUnits) {
   if (u.defs && u.defs.includes("Pq") && u.src.length > 20000) {
-    const wrapped = esbuild.transformSync(`const ${u.src};`, {
-      loader: "js",
-      minifyWhitespace: true,
-      minifySyntax: false,
-      minifyIdentifiers: false,
-      target: "es2020"
-    }).code.trim();
+    const wrapped = esbuild
+      .transformSync(`const ${u.src};`, {
+        loader: "js",
+        minifyWhitespace: true,
+        minifySyntax: false,
+        minifyIdentifiers: false,
+        target: "es2020"
+      })
+      .code.trim();
     u.src = wrapped.replace(/^const\s+/, "").replace(/;$/, "");
   }
 }
@@ -293,4 +347,6 @@ new vm.Script(mainCode, { filename: "app-bundle.js" });
 new vm.Script(analyticsMin, { filename: "app-analytics.js" });
 
 fs.writeFileSync(bundlePath, mainCode, "utf8");
-console.log(`[split] SUCCESS! app-bundle.js: ${(mainCode.length / 1024).toFixed(1)} KB | app-analytics.js: ${(analyticsMin.length / 1024).toFixed(1)} KB`);
+console.log(
+  `[split] SUCCESS! app-bundle.js: ${(mainCode.length / 1024).toFixed(1)} KB | app-analytics.js: ${(analyticsMin.length / 1024).toFixed(1)} KB`
+);

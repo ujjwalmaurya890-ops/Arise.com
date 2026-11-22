@@ -62,7 +62,10 @@
       var names = window.__ariseSwCacheNames || [];
       for (var i = 0; i < names.length; i += 1) {
         var found = /^arise-developer-system-(v\d+[a-z0-9-]*-?[a-f0-9]*)/i.exec(names[i] || "");
-        if (found) { state.version = found[1].replace(/-+$/, ""); return state.version; }
+        if (found) {
+          state.version = found[1].replace(/-+$/, "");
+          return state.version;
+        }
       }
     } catch {}
     return state.version;
@@ -70,13 +73,20 @@
 
   function readCaches() {
     if (!window.caches || typeof window.caches.keys !== "function") return Promise.resolve(0);
-    return window.caches.keys().then(function (names) {
-      var own = (names || []).filter(function (name) { return name.indexOf("arise-developer-system-") === 0; });
-      window.__ariseSwCacheNames = own;
-      shellVersion();
-      state.cachedCaches = own.length;
-      return own.length;
-    }).catch(function () { return 0; });
+    return window.caches
+      .keys()
+      .then(function (names) {
+        var own = (names || []).filter(function (name) {
+          return name.indexOf("arise-developer-system-") === 0;
+        });
+        window.__ariseSwCacheNames = own;
+        shellVersion();
+        state.cachedCaches = own.length;
+        return own.length;
+      })
+      .catch(function () {
+        return 0;
+      });
   }
 
   function online() {
@@ -95,16 +105,39 @@
 
   function message() {
     if (state.phase === "ready") {
-      return { tone: "update", title: "A new version is ready", detail: "It was installed in the background. Reload to use it — nothing you have saved is affected.", action: "Reload" };
+      return {
+        tone: "update",
+        title: "A new version is ready",
+        detail:
+          "It was installed in the background. Reload to use it — nothing you have saved is affected.",
+        action: "Reload"
+      };
     }
     if (state.phase === "updated") {
-      return { tone: "update", title: "Updated in the background", detail: "The newest version is serving this tab now. Reload so the page matches it.", action: "Reload" };
+      return {
+        tone: "update",
+        title: "Updated in the background",
+        detail: "The newest version is serving this tab now. Reload so the page matches it.",
+        action: "Reload"
+      };
     }
     if (state.phase === "offline") {
       if (state.cachedCaches > 0) {
-        return { tone: "offline", title: "Offline — cached shell in use", detail: "This page and its saved data came from the offline cache. Network actions resume when you reconnect.", action: null };
+        return {
+          tone: "offline",
+          title: "Offline — cached shell in use",
+          detail:
+            "This page and its saved data came from the offline cache. Network actions resume when you reconnect.",
+          action: null
+        };
       }
-      return { tone: "offline", title: "Offline — nothing cached yet", detail: "The offline shell has not finished caching on this device. Pages you have not opened may not load until you reconnect.", action: null };
+      return {
+        tone: "offline",
+        title: "Offline — nothing cached yet",
+        detail:
+          "The offline shell has not finished caching on this device. Pages you have not opened may not load until you reconnect.",
+        action: null
+      };
     }
     return null;
   }
@@ -120,7 +153,10 @@
 
   function render() {
     var copy = state.dismissed ? null : message();
-    if (!copy) { remove(); return null; }
+    if (!copy) {
+      remove();
+      return null;
+    }
     var node = card();
     if (!node) {
       node = document.createElement("div");
@@ -134,15 +170,24 @@
     node.setAttribute("data-tone", copy.tone);
     node.innerHTML =
       '<span class="pwa-status-dot" aria-hidden="true"></span>' +
-      '<span class="pwa-status-text"><strong class="pwa-status-title">' + esc(copy.title) + "</strong>" +
-      '<span class="pwa-status-detail">' + esc(copy.detail) + "</span></span>" +
-      (copy.action ? '<button type="button" class="pwa-status-action" data-pwa-action="reload">' + esc(copy.action) + "</button>" : "") +
+      '<span class="pwa-status-text"><strong class="pwa-status-title">' +
+      esc(copy.title) +
+      "</strong>" +
+      '<span class="pwa-status-detail">' +
+      esc(copy.detail) +
+      "</span></span>" +
+      (copy.action
+        ? '<button type="button" class="pwa-status-action" data-pwa-action="reload">' +
+          esc(copy.action) +
+          "</button>"
+        : "") +
       '<button type="button" class="pwa-status-close" data-pwa-action="dismiss" aria-label="Dismiss this notice">&times;</button>';
     return node;
   }
 
   function onCardClick(event) {
-    var button = event.target && event.target.closest ? event.target.closest("[data-pwa-action]") : null;
+    var button =
+      event.target && event.target.closest ? event.target.closest("[data-pwa-action]") : null;
     if (!button) return;
     var action = button.getAttribute("data-pwa-action");
     if (action === "reload") reload();
@@ -180,7 +225,10 @@
       api.addEventListener("controllerchange", function () {
         // The very first claim (no controller at load) is the install, not an
         // update, and reloading for it would lose an in-progress session.
-        if (!startedWithController) { startedWithController = true; return; }
+        if (!startedWithController) {
+          startedWithController = true;
+          return;
+        }
         setPhase("updated");
       });
     }
@@ -193,7 +241,10 @@
       return reg;
     };
     if (typeof api.getRegistration === "function") {
-      api.getRegistration().then(adopt).catch(function () {});
+      api
+        .getRegistration()
+        .then(adopt)
+        .catch(function () {});
     }
     if (api.ready) api.ready.then(adopt).catch(function () {});
     readCaches().then(refreshConnectivity);
@@ -212,7 +263,9 @@
   function refreshConnectivity() {
     if (!state.supported) return;
     if (!online()) {
-      readCaches().then(function () { setPhase("offline"); });
+      readCaches().then(function () {
+        setPhase("offline");
+      });
       return;
     }
     // Back online: an update notice may still be waiting; otherwise stand down.
@@ -223,26 +276,32 @@
   function check() {
     var api = sw();
     if (!api) return Promise.resolve({ ok: false, error: "unsupported" });
-    var target = registration || (typeof api.getRegistration === "function" ? api.getRegistration() : Promise.resolve(null));
-    return Promise.resolve(target).then(function (reg) {
-      if (!reg) return { ok: false, error: "not registered" };
-      registration = reg;
-      watch(reg);
-      if (typeof reg.update !== "function") return { ok: false, error: "update unavailable" };
-      return reg.update().then(function () {
-        if (reg.waiting && api.controller) setPhase("ready");
-        return readCaches().then(function () {
-          return { ok: true, version: state.version, waiting: !!reg.waiting };
+    var target =
+      registration ||
+      (typeof api.getRegistration === "function" ? api.getRegistration() : Promise.resolve(null));
+    return Promise.resolve(target)
+      .then(function (reg) {
+        if (!reg) return { ok: false, error: "not registered" };
+        registration = reg;
+        watch(reg);
+        if (typeof reg.update !== "function") return { ok: false, error: "update unavailable" };
+        return reg.update().then(function () {
+          if (reg.waiting && api.controller) setPhase("ready");
+          return readCaches().then(function () {
+            return { ok: true, version: state.version, waiting: !!reg.waiting };
+          });
         });
+      })
+      .catch(function (error) {
+        return { ok: false, error: (error && error.message) || "update failed" };
       });
-    }).catch(function (error) {
-      return { ok: false, error: (error && error.message) || "update failed" };
-    });
   }
 
   function reload() {
     state.reloading = true;
-    try { remove(); } catch {}
+    try {
+      remove();
+    } catch {}
     try {
       window.location.reload();
       return true;
@@ -278,7 +337,10 @@
     reload: reload,
     dismiss: dismiss,
     render: render,
-    mount: function () { boot(); return render(); },
+    mount: function () {
+      boot();
+      return render();
+    },
     refreshConnectivity: refreshConnectivity,
     readCaches: readCaches
   };

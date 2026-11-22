@@ -63,17 +63,21 @@
     if (o) return;
     var r = window.__ARISE_CAREER_MENTOR_REPORT__;
     if (!r) {
-      lastErr = "Rule-based insights haven't loaded yet — open the Career Mentor card above first, then try again.";
+      lastErr =
+        "Rule-based insights haven't loaded yet — open the Career Mentor card above first, then try again.";
       s(e);
       return;
     }
     if (!window.__ariseAI || typeof window.__ariseAI.ask !== "function") {
-      lastErr = "AI assistance is unavailable right now. Please try again after the workspace finishes loading.";
+      lastErr =
+        "AI assistance is unavailable right now. Please try again after the workspace finishes loading.";
       s(e);
       return;
     }
     if (activeCtrl) {
-      try { activeCtrl.abort(); } catch (_) {}
+      try {
+        activeCtrl.abort();
+      } catch (_) {}
     }
     var ctrl = typeof AbortController === "function" ? new AbortController() : null;
     activeCtrl = ctrl;
@@ -89,7 +93,10 @@
       .ask(n, JSON.stringify(i), { maxTokens: 500, signal: ctrl ? ctrl.signal : void 0 })
       .then(function (f) {
         if (mySeq !== reqSeq) return;
-        if (e.isConnected === false) { cancelDetached(); return; }
+        if (e.isConnected === false) {
+          cancelDetached();
+          return;
+        }
         I({
           text: f,
           generatedAt: new Date().toISOString(),
@@ -107,7 +114,10 @@
       })
       .catch(function (f) {
         if (mySeq !== reqSeq) return;
-        if (e.isConnected === false) { cancelDetached(); return; }
+        if (e.isConnected === false) {
+          cancelDetached();
+          return;
+        }
         o = !1;
         activeCtrl = null;
         activeHost = null;
@@ -124,7 +134,11 @@
 
   function R(e) {
     var r = window.__ARISE_CAREER_MENTOR_REPORT__;
-    return !!(r && typeof e.basedOnOverall == "number" && Math.abs(r.overall - e.basedOnOverall) >= 5);
+    return !!(
+      r &&
+      typeof e.basedOnOverall == "number" &&
+      Math.abs(r.overall - e.basedOnOverall) >= 5
+    );
   }
 
   function B() {
@@ -132,7 +146,15 @@
       r = window.__ariseAI.getSettings().model,
       t = e
         .map(function (a) {
-          return '<option value="' + c(a.id) + '"' + (a.id === r ? " selected" : "") + ">" + c(a.label) + "</option>";
+          return (
+            '<option value="' +
+            c(a.id) +
+            '"' +
+            (a.id === r ? " selected" : "") +
+            ">" +
+            c(a.label) +
+            "</option>"
+          );
         })
         .join("");
     return (
@@ -144,31 +166,37 @@
 
   function k() {
     var r = _();
-    var icon = function (name) { return window.AriseIcons ? window.AriseIcons.svg(name) : ""; };
+    var icon = function (name) {
+      return window.AriseIcons ? window.AriseIcons.svg(name) : "";
+    };
     var btnContent = o
       ? '<span class="uxa-spinner uxa-spinner--xs" aria-hidden="true"></span><span>Thinking…</span>'
       : r
         ? icon("refresh") + " Regenerate"
         : icon("insights") + " Generate AI Insights";
     var t =
-      '<div class="air-head"><div><div class="air-title">' + icon("insights") + ' Real AI Insights <span class="air-pill">● Available</span></div><div class="air-sub">A genuine LLM reads the stats above and writes its own take. Requests go through this site\'s backend — no API key ever touches your browser.</div></div><div class="air-actions"><button type="button" class="air-btn air-primary" data-air-action="generate"' +
+      '<div class="air-head"><div><div class="air-title">' +
+      icon("insights") +
+      ' Real AI Insights <span class="air-pill">● Available</span></div><div class="air-sub">A genuine LLM reads the stats above and writes its own take. Requests go through this site\'s backend — no API key ever touches your browser.</div></div><div class="air-actions"><button type="button" class="air-btn air-primary" data-air-action="generate"' +
       (o ? ' disabled aria-busy="true"' : "") +
       ">" +
       btnContent +
       '</button><button type="button" class="air-btn" data-air-action="toggle-settings">Model</button></div></div>';
     var thinking = o
       ? '<div class="ars-ai-thinking" role="status" aria-live="polite"><span class="ars-ai-dots" aria-hidden="true"><span></span><span></span><span></span></span><span>' +
-        (r ? 'Refreshing with your latest stats — waiting for the model\'s response…' : 'Sending your stats to the model and waiting for its response…') +
-        '</span></div>'
+        (r
+          ? "Refreshing with your latest stats — waiting for the model's response…"
+          : "Sending your stats to the model and waiting for its response…") +
+        "</span></div>"
       : "";
-    var bar = o
-      ? '<div class="uxa-progress-indeterminate" aria-hidden="true"></div>'
-      : "";
+    var bar = o ? '<div class="uxa-progress-indeterminate" aria-hidden="true"></div>' : "";
     var errHtml = lastErr
       ? '<div class="air-error" role="alert"><span>' +
         c(lastErr) +
-        '</span>' +
-        (!o ? '<button type="button" class="uxa-retry-btn" data-air-action="retry">Try again</button>' : "") +
+        "</span>" +
+        (!o
+          ? '<button type="button" class="uxa-retry-btn" data-air-action="retry">Try again</button>'
+          : "") +
         "</div>"
       : '<div class="air-error"></div>';
     var a = l ? B() : "",
@@ -194,14 +222,26 @@
     } else if (o) {
       var system = window.AriseAnimationUpgrade;
       var loading = window.AriseLoading;
-      var skeleton = loading && typeof loading.skeleton === "function"
-        ? loading.skeleton("ai", { label: "Generating personalized AI insights…", delayed: false })
-        : system && typeof system.renderSkeleton === "function"
-        ? system.renderSkeleton({ variant: "widget", header: false, lines: 4, label: "Generating personalized AI insights…" })
-        : '<div class="uxa-skeleton-card" role="status" aria-live="polite"><span class="uxa-sr-only">Generating personalized AI insights…</span><div class="uxa-skeleton-group" aria-hidden="true"><div class="uxa-skeleton uxa-skeleton-line" style="width:92%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:84%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:76%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:62%"></div></div></div>';
-      n = '<div class="air-skeleton" aria-hidden="true">' + skeleton + '</div>' + errHtml + a;
+      var skeleton =
+        loading && typeof loading.skeleton === "function"
+          ? loading.skeleton("ai", {
+              label: "Generating personalized AI insights…",
+              delayed: false
+            })
+          : system && typeof system.renderSkeleton === "function"
+            ? system.renderSkeleton({
+                variant: "widget",
+                header: false,
+                lines: 4,
+                label: "Generating personalized AI insights…"
+              })
+            : '<div class="uxa-skeleton-card" role="status" aria-live="polite"><span class="uxa-sr-only">Generating personalized AI insights…</span><div class="uxa-skeleton-group" aria-hidden="true"><div class="uxa-skeleton uxa-skeleton-line" style="width:92%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:84%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:76%"></div><div class="uxa-skeleton uxa-skeleton-line" style="width:62%"></div></div></div>';
+      n = '<div class="air-skeleton" aria-hidden="true">' + skeleton + "</div>" + errHtml + a;
     } else {
-      n = '<div class="air-empty">No AI insights generated yet. Click "Generate AI Insights" above.</div>' + errHtml + a;
+      n =
+        '<div class="air-empty">No AI insights generated yet. Click "Generate AI Insights" above.</div>' +
+        errHtml +
+        a;
     }
     return t + bar + thinking + n;
   }
@@ -267,7 +307,11 @@
     o = !1;
     lastErr = "";
     activeHost = null;
-    if (activeCtrl) { try { activeCtrl.abort(); } catch (_) {} }
+    if (activeCtrl) {
+      try {
+        activeCtrl.abort();
+      } catch (_) {}
+    }
     activeCtrl = null;
   }
   function h() {
@@ -282,7 +326,9 @@
   }
   function w() {
     y();
-    window.__ARISE_MUTATION_BUS__.subscribe(function () { document.hidden || y(); });
+    window.__ARISE_MUTATION_BUS__.subscribe(function () {
+      document.hidden || y();
+    });
     window.addEventListener("storage", h);
   }
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", w) : w();

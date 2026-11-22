@@ -104,7 +104,13 @@ async function main() {
 
   await test("summarises several failures instead of listing all ~100", () => {
     const w = boot();
-    for (const name of ["a-widget.js", "b-widget.js", "c-widget.js", "d-widget.js", "e-widget.js"]) {
+    for (const name of [
+      "a-widget.js",
+      "b-widget.js",
+      "c-widget.js",
+      "d-widget.js",
+      "e-widget.js"
+    ]) {
       w.__ariseReportWidgetError("./src/chunks/" + name);
     }
     const text = w.document.querySelector(BANNER).textContent;
@@ -130,7 +136,11 @@ async function main() {
   await test("escapes an attacker-controlled filename rather than injecting it", () => {
     const w = boot();
     w.__ariseReportWidgetError('"><img src=x onerror="window.__pwned=1">');
-    assert.equal(w.document.querySelectorAll("img").length, 0, "the payload must be text, not markup");
+    assert.equal(
+      w.document.querySelectorAll("img").length,
+      0,
+      "the payload must be text, not markup"
+    );
     assert.equal(w.__pwned, undefined);
   });
 
@@ -155,14 +165,18 @@ async function main() {
     const w = boot();
     assert.equal(w.document.querySelector(BANNER), null, "nothing to report yet");
     w.__ariseWidgetLoadFailures.push("./src/chunks/late-widget.bbb.js");
-    await new Promise((resolve) => setTimeout(resolve, 2300));
+    await new Promise(resolve => setTimeout(resolve, 2300));
     assert.ok(w.document.querySelector(BANNER), "a failure arriving later must still surface");
   });
 
   await test("mutation-bus updater failures share the same line", async () => {
     const w = boot();
-    w.__ARISE_MUTATION_BUS__ = { failures: () => [{ name: "learningHeatmapUpdater", count: 4, message: "r.filter is not a function" }] };
-    await new Promise((resolve) => setTimeout(resolve, 2300));
+    w.__ARISE_MUTATION_BUS__ = {
+      failures: () => [
+        { name: "learningHeatmapUpdater", count: 4, message: "r.filter is not a function" }
+      ]
+    };
+    await new Promise(resolve => setTimeout(resolve, 2300));
     const banner = w.document.querySelector(BANNER);
     assert.ok(banner, "a silently failing updater must surface like a load failure");
     assert.match(banner.textContent, /saved progress is safe/i);
@@ -170,8 +184,12 @@ async function main() {
 
   await test("mount errors share the same line instead of being devtools-only", async () => {
     const w = boot();
-    w.__ariseMountErrors.push({ widget: "__mountNotesApp", message: "boom", time: new Date().toISOString() });
-    await new Promise((resolve) => setTimeout(resolve, 2300));
+    w.__ariseMountErrors.push({
+      widget: "__mountNotesApp",
+      message: "boom",
+      time: new Date().toISOString()
+    });
+    await new Promise(resolve => setTimeout(resolve, 2300));
     assert.ok(w.document.querySelector(BANNER));
   });
 
@@ -179,18 +197,28 @@ async function main() {
 
   await test("index.html loads the reporter and the loader's hook now exists", () => {
     const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-    assert.match(html, /'\.\/src\/widget-failure-reporter\.js'/, "the module must be in the SCRIPTS list");
-    assert.match(html, /__ariseReportWidgetError/, "the loader must still call the hook");
+    // The ordered script list lives in the JSON manifest read by the extracted
+    // boot loader, so accept either file.
+    const loader = fs.readFileSync(path.join(root, "src/boot/widget-loader.js"), "utf8");
+    const haystack = html + "\n" + loader;
+    assert.match(
+      haystack,
+      /["']\.\/src\/widget-failure-reporter\.js["']/,
+      "the module must be in the SCRIPTS list"
+    );
+    assert.match(haystack, /__ariseReportWidgetError/, "the loader must still call the hook");
   });
 
   await test("the reporter is published to the production build", () => {
     // The build copies src/ verbatim; this asserts the copy list still covers
     // the file rather than the exact state of dist/.
     const build = fs.readFileSync(path.join(root, "scripts/build.mjs"), "utf8");
-    assert.match(build, /'src'/, "the build must publish src/");
+    assert.match(build, /["']src["']/, "the build must publish src/");
     if (fs.existsSync(path.join(root, "dist"))) {
-      assert.ok(fs.existsSync(path.join(root, "dist", "src", "widget-failure-reporter.js")),
-        "run npm run build so the module reaches dist/src");
+      assert.ok(
+        fs.existsSync(path.join(root, "dist", "src", "widget-failure-reporter.js")),
+        "run npm run build so the module reaches dist/src"
+      );
     }
   });
 
@@ -203,7 +231,7 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error(error);
   process.exit(1);
 });

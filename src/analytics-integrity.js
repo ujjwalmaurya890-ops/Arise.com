@@ -134,7 +134,8 @@
     if (minutes <= 0) return null;
     var when = whenOf(session);
     if (!when) return null;
-    var category = typeof session.category === "string" && session.category ? session.category : "Other";
+    var category =
+      typeof session.category === "string" && session.category ? session.category : "Other";
     return {
       id: session.id != null ? String(session.id) : null,
       origin: origin,
@@ -163,13 +164,17 @@
       var entry = normalise(session, "legacy");
       if (!entry) return;
       var duplicate = collected.some(function (known) {
-        return known.minutes === entry.minutes &&
+        return (
+          known.minutes === entry.minutes &&
           known.category === entry.category &&
-          Math.abs(known.when.getTime() - entry.when.getTime()) < 120000;
+          Math.abs(known.when.getTime() - entry.when.getTime()) < 120000
+        );
       });
       if (!duplicate) collected.push(entry);
     });
-    collected.sort(function (a, b) { return a.when - b.when; });
+    collected.sort(function (a, b) {
+      return a.when - b.when;
+    });
     return collected;
   }
 
@@ -187,28 +192,42 @@
     var buckets = {};
     var categories = {};
     var byDayCategory = {};
-    keys.forEach(function (key) { buckets[key] = 0; });
+    keys.forEach(function (key) {
+      buckets[key] = 0;
+    });
 
-    var current = 0, previous = 0, counted = 0, avgRatingSum = 0, avgRatingCount = 0, distractions = 0;
+    var current = 0,
+      previous = 0,
+      counted = 0,
+      avgRatingSum = 0,
+      avgRatingCount = 0,
+      distractions = 0;
     list.forEach(function (entry) {
       var key = entry.day;
       if (key > endKey) return; // a session dated in the future never counts
       if (key >= startKey && key <= endKey) {
         buckets[key] = Math.round((buckets[key] + entry.minutes) * 100) / 100;
-        categories[entry.category] = Math.round(((categories[entry.category] || 0) + entry.minutes) * 100) / 100;
+        categories[entry.category] =
+          Math.round(((categories[entry.category] || 0) + entry.minutes) * 100) / 100;
         byDayCategory[key] = byDayCategory[key] || {};
-        byDayCategory[key][entry.category] = Math.round(((byDayCategory[key][entry.category] || 0) + entry.minutes) * 100) / 100;
+        byDayCategory[key][entry.category] =
+          Math.round(((byDayCategory[key][entry.category] || 0) + entry.minutes) * 100) / 100;
         current += entry.minutes;
         counted += 1;
         distractions += entry.distractions;
-        if (entry.rating) { avgRatingSum += entry.rating; avgRatingCount += 1; }
+        if (entry.rating) {
+          avgRatingSum += entry.rating;
+          avgRatingCount += 1;
+        }
       } else if (previousStart && previousEnd && key >= previousStart && key <= previousEnd) {
         previous += entry.minutes;
       }
     });
 
-    var activeDays = keys.filter(function (key) { return buckets[key] > 0; }).length;
-    var delta = previous > 0 ? ((current - previous) / previous) * 100 : (current > 0 ? 100 : 0);
+    var activeDays = keys.filter(function (key) {
+      return buckets[key] > 0;
+    }).length;
+    var delta = previous > 0 ? ((current - previous) / previous) * 100 : current > 0 ? 100 : 0;
 
     return {
       range: { start: startKey, end: endKey, days: days, keys: keys },
@@ -253,7 +272,8 @@
           minutes: entry.minutes
         });
       }
-      if (entry.day > addDays(today, MAX_FUTURE_DAYS)) future.push({ id: entry.id, day: entry.day });
+      if (entry.day > addDays(today, MAX_FUTURE_DAYS))
+        future.push({ id: entry.id, day: entry.day });
       var stamp = entry.id || entry.day + "|" + entry.minutes + "|" + entry.category;
       if (seen[stamp]) duplicates += 1;
       seen[stamp] = true;
@@ -289,7 +309,9 @@
   }
 
   function saveRange(next) {
-    try { localStorage.setItem(MIGRATION_FLAG, JSON.stringify({ version: 1, range: next })); } catch {}
+    try {
+      localStorage.setItem(MIGRATION_FLAG, JSON.stringify({ version: 1, range: next }));
+    } catch {}
   }
 
   function routeIsAnalytics() {
@@ -315,53 +337,132 @@
 
   function cardHtml(summary, details) {
     var max = 0;
-    summary.range.keys.forEach(function (key) { max = Math.max(max, summary.buckets[key] || 0); });
-    var bars = summary.range.keys.map(function (key) {
-      var value = summary.buckets[key] || 0;
-      var height = max ? Math.max(value > 0 ? 4 : 0, Math.round((value / max) * 100)) : 0;
-      return '<span class="ani-bar" data-empty="' + (value ? "false" : "true") + '" style="--ani-h:' + height +
-        '%" title="' + esc(key) + " · " + esc(fmtMinutes(value)) + '"></span>';
-    }).join("");
+    summary.range.keys.forEach(function (key) {
+      max = Math.max(max, summary.buckets[key] || 0);
+    });
+    var bars = summary.range.keys
+      .map(function (key) {
+        var value = summary.buckets[key] || 0;
+        var height = max ? Math.max(value > 0 ? 4 : 0, Math.round((value / max) * 100)) : 0;
+        return (
+          '<span class="ani-bar" data-empty="' +
+          (value ? "false" : "true") +
+          '" style="--ani-h:' +
+          height +
+          '%" title="' +
+          esc(key) +
+          " · " +
+          esc(fmtMinutes(value)) +
+          '"></span>'
+        );
+      })
+      .join("");
 
-    var categories = Object.keys(summary.byCategory).sort(function (a, b) { return summary.byCategory[b] - summary.byCategory[a]; });
-    var categoryRows = categories.length ? categories.map(function (name) {
-      var share = summary.minutes ? Math.round((summary.byCategory[name] / summary.minutes) * 100) : 0;
-      return '<li class="ani-cat"><span class="ani-cat-name">' + esc(name) + '</span>' +
-        '<span class="ani-cat-track"><span class="ani-cat-fill" style="--ani-w:' + share + '%"></span></span>' +
-        '<span class="ani-cat-value">' + esc(fmtMinutes(summary.byCategory[name])) + "</span></li>";
-    }).join("") : "";
+    var categories = Object.keys(summary.byCategory).sort(function (a, b) {
+      return summary.byCategory[b] - summary.byCategory[a];
+    });
+    var categoryRows = categories.length
+      ? categories
+          .map(function (name) {
+            var share = summary.minutes
+              ? Math.round((summary.byCategory[name] / summary.minutes) * 100)
+              : 0;
+            return (
+              '<li class="ani-cat"><span class="ani-cat-name">' +
+              esc(name) +
+              "</span>" +
+              '<span class="ani-cat-track"><span class="ani-cat-fill" style="--ani-w:' +
+              share +
+              '%"></span></span>' +
+              '<span class="ani-cat-value">' +
+              esc(fmtMinutes(summary.byCategory[name])) +
+              "</span></li>"
+            );
+          })
+          .join("")
+      : "";
 
-    var deltaLabel = summary.previous.minutes === 0
-      ? (summary.minutes ? "first activity in this range" : "no sessions in either range")
-      : (summary.deltaPercent > 0 ? "+" : "") + summary.deltaPercent + "% vs previous " + summary.range.days + " days";
+    var deltaLabel =
+      summary.previous.minutes === 0
+        ? summary.minutes
+          ? "first activity in this range"
+          : "no sessions in either range"
+        : (summary.deltaPercent > 0 ? "+" : "") +
+          summary.deltaPercent +
+          "% vs previous " +
+          summary.range.days +
+          " days";
 
     var accuracy;
     if (!details.total) {
-      accuracy = "No focus sessions recorded yet — this card stays empty instead of showing zeroed charts.";
+      accuracy =
+        "No focus sessions recorded yet — this card stays empty instead of showing zeroed charts.";
     } else if (details.utcMismatchCount) {
-      accuracy = details.utcMismatchCount + " of " + details.total + " saved sessions were being filed under the wrong calendar day (UTC vs local). They are counted on the day you actually studied here.";
+      accuracy =
+        details.utcMismatchCount +
+        " of " +
+        details.total +
+        " saved sessions were being filed under the wrong calendar day (UTC vs local). They are counted on the day you actually studied here.";
     } else {
       accuracy = "All " + details.total + " saved sessions already match their local calendar day.";
     }
 
-    return '<div class="ani-head"><div><h3 class="ani-title">Period accuracy</h3>' +
+    return (
+      '<div class="ani-head"><div><h3 class="ani-title">Period accuracy</h3>' +
       '<p class="ani-sub">Any range, compared with the previous range of the same length, bucketed by your local calendar day.</p></div>' +
       '<div class="ani-ranges" role="group" aria-label="Range">' +
       RANGES.map(function (option) {
-        return '<button type="button" class="ani-range" data-ani-range="' + option + '" aria-pressed="' + (option === range ? "true" : "false") + '">' + option + "d</button>";
-      }).join("") + "</div></div>" +
+        return (
+          '<button type="button" class="ani-range" data-ani-range="' +
+          option +
+          '" aria-pressed="' +
+          (option === range ? "true" : "false") +
+          '">' +
+          option +
+          "d</button>"
+        );
+      }).join("") +
+      "</div></div>" +
       '<div class="ani-stats">' +
-      '<div class="ani-stat"><strong>' + esc(fmtMinutes(summary.minutes)) + "</strong><span>studied</span></div>" +
-      '<div class="ani-stat"><strong>' + esc(summary.activeDays + "/" + summary.range.days) + "</strong><span>active days</span></div>" +
-      '<div class="ani-stat"><strong>' + esc(fmtMinutes(summary.avgPerActiveDay)) + "</strong><span>per active day</span></div>" +
-      '<div class="ani-stat"><strong>' + esc(summary.avgRating == null ? "—" : summary.avgRating + "/5") + "</strong><span>avg focus rating</span></div>" +
+      '<div class="ani-stat"><strong>' +
+      esc(fmtMinutes(summary.minutes)) +
+      "</strong><span>studied</span></div>" +
+      '<div class="ani-stat"><strong>' +
+      esc(summary.activeDays + "/" + summary.range.days) +
+      "</strong><span>active days</span></div>" +
+      '<div class="ani-stat"><strong>' +
+      esc(fmtMinutes(summary.avgPerActiveDay)) +
+      "</strong><span>per active day</span></div>" +
+      '<div class="ani-stat"><strong>' +
+      esc(summary.avgRating == null ? "—" : summary.avgRating + "/5") +
+      "</strong><span>avg focus rating</span></div>" +
       "</div>" +
-      '<p class="ani-delta" data-ani-trend="' + (summary.deltaPercent > 0 ? "up" : summary.deltaPercent < 0 ? "down" : "flat") + '">' + esc(deltaLabel) + "</p>" +
-      '<div class="ani-chart" role="img" aria-label="' + esc(summary.range.days + "-day study minutes from " + summary.range.start + " to " + summary.range.end) + '">' + bars + "</div>" +
+      '<p class="ani-delta" data-ani-trend="' +
+      (summary.deltaPercent > 0 ? "up" : summary.deltaPercent < 0 ? "down" : "flat") +
+      '">' +
+      esc(deltaLabel) +
+      "</p>" +
+      '<div class="ani-chart" role="img" aria-label="' +
+      esc(
+        summary.range.days +
+          "-day study minutes from " +
+          summary.range.start +
+          " to " +
+          summary.range.end
+      ) +
+      '">' +
+      bars +
+      "</div>" +
       (categoryRows ? '<ul class="ani-cats">' + categoryRows + "</ul>" : "") +
-      '<p class="ani-accuracy">' + esc(accuracy) + "</p>" +
-      '<p class="ani-empty-note" data-ani-has-data="' + (summary.hasData ? "true" : "false") + '">' +
-      (summary.hasData ? "" : "Log a focus session and this range fills in automatically.") + "</p>";
+      '<p class="ani-accuracy">' +
+      esc(accuracy) +
+      "</p>" +
+      '<p class="ani-empty-note" data-ani-has-data="' +
+      (summary.hasData ? "true" : "false") +
+      '">' +
+      (summary.hasData ? "" : "Log a focus session and this range fills in automatically.") +
+      "</p>"
+    );
   }
 
   var lastRenderedHtml = "";
@@ -370,10 +471,13 @@
     var body = mountedCard.querySelector(".ani-body");
     if (!body) return;
     var html = cardHtml(summarise({ days: range }), audit());
-    if (body.innerHTML === html || lastRenderedHtml === html && body.firstChild) return;
+    if (body.innerHTML === html || (lastRenderedHtml === html && body.firstChild)) return;
     lastRenderedHtml = html;
     var bus = window.__ARISE_MUTATION_BUS__;
-    if (bus && typeof bus.mute === "function") bus.mute(function () { body.innerHTML = html; });
+    if (bus && typeof bus.mute === "function")
+      bus.mute(function () {
+        body.innerHTML = html;
+      });
     else body.innerHTML = html;
   }
 
@@ -393,7 +497,7 @@
     var flex = main.querySelector(":scope > div.flex-1");
     if (!flex) return null;
     var routeState = flex.querySelector(":scope > .arise-route-state");
-    var inner = routeState ? routeState.firstElementChild : (flex.firstElementChild || flex);
+    var inner = routeState ? routeState.firstElementChild : flex.firstElementChild || flex;
     if (inner && inner.id === "upp-data-health-card") inner = inner.nextElementSibling || inner;
     return inner || flex;
   }
@@ -416,7 +520,8 @@
       mountedCard.innerHTML = '<div class="ani-body"></div>';
       lastRenderedHtml = "";
       mountedCard.addEventListener("click", function (event) {
-        var btn = event.target && event.target.closest ? event.target.closest("[data-ani-range]") : null;
+        var btn =
+          event.target && event.target.closest ? event.target.closest("[data-ani-range]") : null;
         if (!btn) return;
         var next = Number(btn.getAttribute("data-ani-range"));
         if (RANGES.indexOf(next) === -1 || next === range) return;
@@ -430,7 +535,9 @@
     // Re-home the card when the route finished rendering after we mounted into
     // its placeholder, so it always sits inside the current card stack.
     if (mountedCard.parentElement !== host) {
-      runMuted(function () { host.appendChild(mountedCard); });
+      runMuted(function () {
+        host.appendChild(mountedCard);
+      });
     }
     renderCard();
     // The heading lives inside the rendered body, so keep its id in sync with
@@ -467,36 +574,50 @@
     mount: mount,
     unmount: unmount,
     refresh: renderCard,
-    get range() { return range; },
+    get range() {
+      return range;
+    },
     ranges: RANGES
   };
 
   /* --------------------------------------------------------------- boot -- */
 
-    function tick() {
-      try {
-        if (routeIsAnalytics() && home()) mount();
-        else if (mountedCard && mountedCard.isConnected) unmount();
-      } catch {}
-    }
-    function start() {
-      tick();
-      var scheduled = null;
-      function scheduleTick(records) {
-        if (Array.isArray(records) && mountedCard && mountedCard.isConnected && records.every(function (r) {
+  function tick() {
+    try {
+      if (routeIsAnalytics() && home()) mount();
+      else if (mountedCard && mountedCard.isConnected) unmount();
+    } catch {}
+  }
+  function start() {
+    tick();
+    var scheduled = null;
+    function scheduleTick(records) {
+      if (
+        Array.isArray(records) &&
+        mountedCard &&
+        mountedCard.isConnected &&
+        records.every(function (r) {
           return r && mountedCard.contains(r.target);
-        })) return;
-        if (scheduled) return;
-        scheduled = setTimeout(function () { scheduled = null; tick(); }, 180);
-      }
-      if (window.__ARISE_MUTATION_BUS__ && typeof window.__ARISE_MUTATION_BUS__.subscribe === "function") {
-        window.__ARISE_MUTATION_BUS__.subscribe(scheduleTick);
-      } else if (typeof MutationObserver === "function" && document.body) {
-        var observer = new MutationObserver(scheduleTick);
-        observer.observe(document.body, { childList: true, subtree: true });
-      }
-      window.addEventListener("storage", tick);
+        })
+      )
+        return;
+      if (scheduled) return;
+      scheduled = setTimeout(function () {
+        scheduled = null;
+        tick();
+      }, 180);
     }
-    if (document.body) start();
-    else document.addEventListener("DOMContentLoaded", start);
+    if (
+      window.__ARISE_MUTATION_BUS__ &&
+      typeof window.__ARISE_MUTATION_BUS__.subscribe === "function"
+    ) {
+      window.__ARISE_MUTATION_BUS__.subscribe(scheduleTick);
+    } else if (typeof MutationObserver === "function" && document.body) {
+      var observer = new MutationObserver(scheduleTick);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    window.addEventListener("storage", tick);
+  }
+  if (document.body) start();
+  else document.addEventListener("DOMContentLoaded", start);
 })();

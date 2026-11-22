@@ -51,10 +51,13 @@
     if (typeof key !== "string") return null;
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
     if (!m) return null;
-    var y = Number(m[1]), mo = Number(m[2]), da = Number(m[3]);
+    var y = Number(m[1]),
+      mo = Number(m[2]),
+      da = Number(m[3]);
     var date = new Date(y, mo - 1, da);
     date.setHours(0, 0, 0, 0);
-    if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== da) return null;
+    if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== da)
+      return null;
     return date;
   }
 
@@ -82,7 +85,20 @@
   function weekLabel(d) {
     var date = d instanceof Date ? d : new Date(d);
     if (!date || isNaN(date.getTime())) return "";
-    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
     return date.getDate() + " " + months[date.getMonth()] + " " + date.getFullYear();
   }
 
@@ -106,7 +122,9 @@
   function ensureToastStyle() {
     if (document.getElementById("arise-shared-toast-style")) return;
     var css =
-      "#" + TOAST_ID + "{" +
+      "#" +
+      TOAST_ID +
+      "{" +
       "position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(10px);" +
       "background:color-mix(in srgb,var(--surface,#131722) 94%,transparent);color:var(--text-primary,#fff);" +
       "border:1px solid var(--border-strong,var(--border,rgba(255,255,255,.14)));" +
@@ -115,10 +133,18 @@
       "font-size:.8rem;font-weight:600;letter-spacing:-0.01em;opacity:0;pointer-events:none;" +
       "transition:opacity var(--motion-medium, 180ms) var(--ease-standard, cubic-bezier(0.2,0,0,1)),transform var(--motion-medium, 180ms) var(--ease-standard, cubic-bezier(0.2,0,0,1));" +
       "z-index:99999;max-width:90vw;text-align:center}" +
-      "#" + TOAST_ID + ".arise-shared-toast-visible{opacity:1;transform:translateX(-50%) translateY(0)}" +
-      "#" + TOAST_ID + ".arise-shared-toast-danger{border-color:color-mix(in srgb,var(--danger,#ef4444) 55%,var(--border));color:var(--danger,#ef4444)}" +
-      "#" + TOAST_ID + ".arise-shared-toast-success{border-color:color-mix(in srgb,var(--success,#10b981) 50%,var(--border));color:var(--success,#10b981)}" +
-      "@media (prefers-reduced-motion: reduce){#" + TOAST_ID + "{transform:translateX(-50%)}}" ;
+      "#" +
+      TOAST_ID +
+      ".arise-shared-toast-visible{opacity:1;transform:translateX(-50%) translateY(0)}" +
+      "#" +
+      TOAST_ID +
+      ".arise-shared-toast-danger{border-color:color-mix(in srgb,var(--danger,#ef4444) 55%,var(--border));color:var(--danger,#ef4444)}" +
+      "#" +
+      TOAST_ID +
+      ".arise-shared-toast-success{border-color:color-mix(in srgb,var(--success,#10b981) 50%,var(--border));color:var(--success,#10b981)}" +
+      "@media (prefers-reduced-motion: reduce){#" +
+      TOAST_ID +
+      "{transform:translateX(-50%)}}";
     var s = document.createElement("style");
     s.id = "arise-shared-toast-style";
     s.textContent = css;
@@ -187,7 +213,10 @@
       return { value: opts.fallback, version: targetVer, migrated: false };
     }
     var cur = raw;
-    var ver = cur && typeof cur === "object" && typeof cur.__schemaVersion === "number" ? cur.__schemaVersion : 0;
+    var ver =
+      cur && typeof cur === "object" && typeof cur.__schemaVersion === "number"
+        ? cur.__schemaVersion
+        : 0;
     var migrated = false;
     while (ver < targetVer) {
       var fn = migrations[ver];
@@ -219,7 +248,9 @@
         else fn();
       } catch (err) {
         (function (ex) {
-          setTimeout(function () { throw ex; });
+          setTimeout(function () {
+            throw ex;
+          });
         })(err);
       }
       // Yield to browser before exceeding a 10ms slice so input/scroll stays responsive
@@ -275,7 +306,11 @@
 
   function ensureSharedSubscription() {
     if (sharedBusSubscribed) return;
-    if (!window.__ARISE_MUTATION_BUS__ || typeof window.__ARISE_MUTATION_BUS__.subscribe !== "function") return;
+    if (
+      !window.__ARISE_MUTATION_BUS__ ||
+      typeof window.__ARISE_MUTATION_BUS__.subscribe !== "function"
+    )
+      return;
     sharedBusSubscribed = true;
     window.__ARISE_MUTATION_BUS__.subscribe(function (records) {
       if (document.hidden) return;
@@ -314,7 +349,8 @@
    * observer's pending records, which would swallow legitimate sibling widget
    * updates. registerUpdaterCoalescer() stays purely timing based.
    */
-  function bootUpdater(fn) {    function start() {
+  function bootUpdater(fn) {
+    function start() {
       fn();
       if (registeredUpdaters.indexOf(fn) === -1) registeredUpdaters.push(fn);
       ensureSharedSubscription();
@@ -345,7 +381,9 @@
         pending[i]();
       } catch (err) {
         (function (ex) {
-          setTimeout(function () { throw ex; });
+          setTimeout(function () {
+            throw ex;
+          });
         })(err);
       }
     }
@@ -371,26 +409,106 @@
     if (!text || /[\u0000-\u001f\u007f]/.test(text)) return "";
     try {
       var url = new URL(text, document.baseURI);
-      if (url.protocol !== "http:" && url.protocol !== "https:" &&
-          !(opts && opts.allowMailto && url.protocol === "mailto:")) return "";
+      if (
+        url.protocol !== "http:" &&
+        url.protocol !== "https:" &&
+        !(opts && opts.allowMailto && url.protocol === "mailto:")
+      )
+        return "";
       if (url.username || url.password) return "";
       return url.href;
-    } catch (_) { return ""; }
+    } catch (_) {
+      return "";
+    }
+  }
+
+  // Sanitize untrusted HTML before any innerHTML assignment. Allow-list
+  // approach: parse into a detached template, drop executable elements and
+  // event-handler / javascript: attributes, keep text and benign markup.
+  // This is the shared boundary for widget HTML; prefer textContent /
+  // escapeText for plain user text, and use this only when markup is needed.
+  var SANITIZE_DROP_TAGS = {
+    script: 1,
+    iframe: 1,
+    object: 1,
+    embed: 1,
+    form: 1,
+    base: 1,
+    link: 1,
+    meta: 1,
+    style: 1,
+    title: 1,
+    frame: 1,
+    frameset: 1,
+    applet: 1,
+    noscript: 1
+  };
+  function sanitizeHTML(html) {
+    var input = String(html == null ? "" : html);
+    if (!input) return "";
+    var doc = document.implementation.createHTMLDocument("");
+    var tpl = doc.createElement("template");
+    tpl.innerHTML = input;
+    var walker = doc.createTreeWalker(tpl.content, 1);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var tag = (node.tagName || "").toLowerCase();
+      if (SANITIZE_DROP_TAGS[tag]) {
+        node.remove();
+        continue;
+      }
+      var attrs = Array.prototype.slice.call(node.attributes || []);
+      for (var j = 0; j < attrs.length; j++) {
+        var attr = attrs[j];
+        var name = (attr.name || "").toLowerCase();
+        var value = String(attr.value || "");
+        if (
+          name.indexOf("on") === 0 ||
+          name === "srcdoc" ||
+          name === "formaction" ||
+          name === "xlink:href"
+        ) {
+          node.removeAttribute(attr.name);
+        } else if (
+          (name === "href" ||
+            name === "src" ||
+            name === "action" ||
+            name === "cite" ||
+            name === "background") &&
+          !safeURL(value)
+        ) {
+          node.removeAttribute(attr.name);
+        } else if (/^\s*(javascript|data|vbscript):/i.test(value)) {
+          node.removeAttribute(attr.name);
+        }
+      }
+    }
+    return tpl.innerHTML;
+  }
+  function setSafeHTML(el, html) {
+    if (!el) return false;
+    el.innerHTML = sanitizeHTML(html);
+    return true;
   }
 
   function prefersReducedMotion() {
-    if (document.documentElement && document.documentElement.classList.contains("perf-lite")) return true;
+    if (document.documentElement && document.documentElement.classList.contains("perf-lite"))
+      return true;
     return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   }
 
   function smoothScroll(el, opts) {
     if (!el || typeof el.scrollIntoView !== "function") return;
     var options = Object.assign({ block: "center" }, opts || {});
-    options.behavior = prefersReducedMotion() ? "auto" : (options.behavior || "smooth");
+    options.behavior = prefersReducedMotion() ? "auto" : options.behavior || "smooth";
     try {
       el.scrollIntoView(options);
     } catch (_) {
-      try { el.scrollIntoView(); } catch (__e) {}
+      try {
+        el.scrollIntoView();
+      } catch (__e) {}
     }
   }
 
@@ -399,7 +517,7 @@
     var key = String(sig == null ? html : sig);
     if (el.__uxaLastSig === key && el.childNodes.length > 0) return false;
     el.__uxaLastSig = key;
-    el.innerHTML = html;
+    el.innerHTML = sanitizeHTML(html);
     return true;
   }
 
@@ -411,9 +529,16 @@
     var inline = opts.inline ? " uxa-loading-state-inline" : "";
     var safeLabel = escapeText(label).replace(/&lt;(\/?b)&gt;/g, "<$1>");
     return (
-      '<div class="uxa-loading-state' + inline + extra + '" role="status" aria-live="polite" aria-busy="true">' +
-      '<span class="uxa-spinner' + szCls + '" aria-hidden="true"></span>' +
-      '<span class="uxa-loading-label">' + safeLabel + "</span></div>"
+      '<div class="uxa-loading-state' +
+      inline +
+      extra +
+      '" role="status" aria-live="polite" aria-busy="true">' +
+      '<span class="uxa-spinner' +
+      szCls +
+      '" aria-hidden="true"></span>' +
+      '<span class="uxa-loading-label">' +
+      safeLabel +
+      "</span></div>"
     );
   }
 
@@ -460,7 +585,10 @@
       btn.setAttribute("aria-disabled", "true");
       btn.classList.add("uxa-btn-loading");
       var label = opts.label != null ? opts.label : btn.textContent.trim();
-      btn.innerHTML = '<span class="uxa-spinner uxa-spinner-sm" aria-hidden="true"></span><span>' + escapeText(label) + "</span>";
+      btn.innerHTML =
+        '<span class="uxa-spinner uxa-spinner-sm" aria-hidden="true"></span><span>' +
+        escapeText(label) +
+        "</span>";
     } else {
       btn.disabled = !!opts.disabled;
       btn.removeAttribute("aria-busy");
@@ -507,7 +635,9 @@
         bar.setAttribute("aria-live", "polite");
         bar.setAttribute("aria-label", opts.label || "Working");
         bar.innerHTML =
-          '<span class="uxa-sr-only">' + escapeText(opts.label || "Working") + '</span><div class="uxa-progress-fill-indeterminate" aria-hidden="true"></div>';
+          '<span class="uxa-sr-only">' +
+          escapeText(opts.label || "Working") +
+          '</span><div class="uxa-progress-fill-indeterminate" aria-hidden="true"></div>';
       }
       if (opts.after && opts.after.parentNode === host) {
         opts.after.insertAdjacentElement("afterend", bar);
@@ -546,7 +676,11 @@
     request.promise = new Promise(function (resolve) {
       var finished = false;
       var timer = setTimeout(function () {
-        if (ctrl) { try { ctrl.abort(); } catch (_) {} }
+        if (ctrl) {
+          try {
+            ctrl.abort();
+          } catch (_) {}
+        }
         finish(null);
       }, timeout);
       function finish(value) {
@@ -562,17 +696,26 @@
         resolve(valid ? value : null);
       }
       request.cancel = function () {
-        if (ctrl) { try { ctrl.abort(); } catch (_) {} }
+        if (ctrl) {
+          try {
+            ctrl.abort();
+          } catch (_) {}
+        }
         finish(null);
       };
       Promise.resolve()
         .then(function () {
-          return fetchImpl("./assets/interview_sheets_data.json", ctrl
-            ? { cache: "force-cache", signal: ctrl.signal }
-            : { cache: "force-cache" });
+          return fetchImpl(
+            "./assets/interview_sheets_data.json",
+            ctrl ? { cache: "force-cache", signal: ctrl.signal } : { cache: "force-cache" }
+          );
         })
-        .then(function (res) { return res && res.ok ? res.json() : null; })
-        .then(finish, function () { finish(null); });
+        .then(function (res) {
+          return res && res.ok ? res.json() : null;
+        })
+        .then(finish, function () {
+          finish(null);
+        });
     });
     return request.promise;
   }
@@ -593,6 +736,9 @@
     bootUpdater: bootUpdater,
     registerUpdaterCoalescer: registerUpdaterCoalescer,
     safeURL: safeURL,
+    escapeText: escapeText,
+    sanitizeHTML: sanitizeHTML,
+    setSafeHTML: setSafeHTML,
     prefersReducedMotion: prefersReducedMotion,
     smoothScroll: smoothScroll,
     setHTMLIfChanged: setHTMLIfChanged,

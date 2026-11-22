@@ -40,7 +40,9 @@
     });
   }
 
-  function pad(value) { return (value < 10 ? "0" : "") + value; }
+  function pad(value) {
+    return (value < 10 ? "0" : "") + value;
+  }
 
   // Local calendar day, never UTC: a task added at 01:00 IST belongs to today.
   function keyOf(value) {
@@ -60,7 +62,9 @@
     }
   }
 
-  function list(value) { return Array.isArray(value) ? value : []; }
+  function list(value) {
+    return Array.isArray(value) ? value : [];
+  }
 
   function normaliseTask(task) {
     if (!task || typeof task !== "object" || !task.id || !task.text) return null;
@@ -83,10 +87,16 @@
     });
   }
 
-  function store() { return read(TASK_KEY) || {}; }
+  function store() {
+    return read(TASK_KEY) || {};
+  }
 
   function tasksOfStore(data) {
-    return sortTasks(list(data && data.tasks).map(normaliseTask).filter(Boolean)).slice(0, MAX_TASKS);
+    return sortTasks(
+      list(data && data.tasks)
+        .map(normaliseTask)
+        .filter(Boolean)
+    ).slice(0, MAX_TASKS);
   }
 
   function dsaToday(now) {
@@ -100,7 +110,12 @@
     });
     var goal = Number((read(DSA_GOAL_KEY) || {}).target);
     var target = isFinite(goal) && goal > 0 ? Math.min(20, Math.round(goal)) : 2;
-    return { solved: solved, target: target, met: solved >= target, remaining: Math.max(0, target - solved) };
+    return {
+      solved: solved,
+      target: target,
+      met: solved >= target,
+      remaining: Math.max(0, target - solved)
+    };
   }
 
   function studyToday(now) {
@@ -127,23 +142,36 @@
   }
 
   function pickNext(tasks, dsa, study) {
-    var open = tasks.filter(function (task) { return !task.done; });
+    var open = tasks.filter(function (task) {
+      return !task.done;
+    });
     if (open.length) {
       var top = open[0];
       return { kind: "task", label: top.text, reason: top.priority + " priority · " + top.tag };
     }
     if (!dsa.met) {
-      return { kind: "dsa", label: "Solve " + dsa.remaining + " more DSA problem" + (dsa.remaining === 1 ? "" : "s"), reason: "today's goal is " + dsa.target };
+      return {
+        kind: "dsa",
+        label: "Solve " + dsa.remaining + " more DSA problem" + (dsa.remaining === 1 ? "" : "s"),
+        reason: "today's goal is " + dsa.target
+      };
     }
     if (study.minutes < 25) {
-      return { kind: "study", label: "Log one focus session", reason: "no study time recorded today" };
+      return {
+        kind: "study",
+        label: "Log one focus session",
+        reason: "no study time recorded today"
+      };
     }
     return null;
   }
 
-  function tasksFor(key) {
+  function tasksFor(key, options) {
     var data = store();
-    if (key === keyOf(Date.now())) return tasksOfStore(data);
+    // `now` is injectable so the same call can be verified at a fixed moment
+    // instead of silently depending on the wall clock.
+    var now = (options && options.now) || Date.now();
+    if (key === keyOf(now)) return tasksOfStore(data);
     var archived = data && data.archive && data.archive[key];
     return sortTasks(list(archived).map(normaliseTask).filter(Boolean));
   }
@@ -153,7 +181,9 @@
     var key = keyOf(now);
     var data = store();
     var tasks = tasksOfStore(data);
-    var done = tasks.filter(function (task) { return task.done; }).length;
+    var done = tasks.filter(function (task) {
+      return task.done;
+    }).length;
     var dsa = dsaToday(now);
     var study = studyToday(now);
     var byTag = {};
@@ -187,12 +217,18 @@
     for (var i = 6; i >= 0; i--) {
       var key = keyOf(now - i * DAY_MS);
       var live = i === 0 ? tasksOfStore(data) : [];
-      var archived = sortTasks(list(data.archive && data.archive[key]).map(normaliseTask).filter(Boolean));
+      var archived = sortTasks(
+        list(data.archive && data.archive[key])
+          .map(normaliseTask)
+          .filter(Boolean)
+      );
       var tasks = live.length ? live : archived;
       out.push({
         key: key,
         isToday: i === 0,
-        done: tasks.filter(function (task) { return task.done; }).length,
+        done: tasks.filter(function (task) {
+          return task.done;
+        }).length,
         total: tasks.length,
         archived: archived.length,
         heat: Math.max(0, Number((data.heatmap || {})[key]) || 0)
@@ -231,41 +267,101 @@
   }
 
   function rowHtml(task) {
-    return '<li class="dp-task" data-done="' + (task.done ? "true" : "false") + '" data-priority="' + esc(task.priority) + '">' +
-      '<span class="dp-check" aria-hidden="true">' + (task.done ? "✓" : "") + "</span>" +
-      '<span class="dp-task-text">' + esc(task.text) + "</span>" +
-      '<span class="dp-task-tag">' + esc(task.tag) + "</span></li>";
+    return (
+      '<li class="dp-task" data-done="' +
+      (task.done ? "true" : "false") +
+      '" data-priority="' +
+      esc(task.priority) +
+      '">' +
+      '<span class="dp-check" aria-hidden="true">' +
+      (task.done ? "✓" : "") +
+      "</span>" +
+      '<span class="dp-task-text">' +
+      esc(task.text) +
+      "</span>" +
+      '<span class="dp-task-tag">' +
+      esc(task.tag) +
+      "</span></li>"
+    );
   }
 
   function cardHtml(plan, weekRows) {
     var list = plan.tasks.length
       ? '<ul class="dp-list">' + plan.tasks.slice(0, 6).map(rowHtml).join("") + "</ul>"
       : '<p class="dp-empty">Nothing planned yet. Add tasks in Learning → Daily Tasks; they show up here immediately.</p>';
-    var more = plan.tasks.length > 6 ? '<p class="dp-more">+' + (plan.tasks.length - 6) + " more in Daily Tasks</p>" : "";
-    var weekStrip = weekRows.map(function (row) {
-      var label = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(row.key + "T00:00:00").getDay()];
-      var state = row.total === 0 ? "empty" : row.done === row.total ? "done" : "partial";
-      return '<span class="dp-day" data-state="' + state + '" data-today="' + (row.isToday ? "true" : "false") +
-        '" title="' + esc(row.key + " · " + row.done + "/" + row.total + " tasks") + '">' +
-        '<span class="dp-day-label">' + label.slice(0, 1) + "</span>" +
-        '<span class="dp-day-dot">' + (row.total ? row.done + "/" + row.total : "–") + "</span></span>";
-    }).join("");
+    var more =
+      plan.tasks.length > 6
+        ? '<p class="dp-more">+' + (plan.tasks.length - 6) + " more in Daily Tasks</p>"
+        : "";
+    var weekStrip = weekRows
+      .map(function (row) {
+        var label = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
+          new Date(row.key + "T00:00:00").getDay()
+        ];
+        var state = row.total === 0 ? "empty" : row.done === row.total ? "done" : "partial";
+        return (
+          '<span class="dp-day" data-state="' +
+          state +
+          '" data-today="' +
+          (row.isToday ? "true" : "false") +
+          '" title="' +
+          esc(row.key + " · " + row.done + "/" + row.total + " tasks") +
+          '">' +
+          '<span class="dp-day-label">' +
+          label.slice(0, 1) +
+          "</span>" +
+          '<span class="dp-day-dot">' +
+          (row.total ? row.done + "/" + row.total : "–") +
+          "</span></span>"
+        );
+      })
+      .join("");
 
     var next = plan.next
-      ? '<p class="dp-next"><span class="dp-next-kicker">Next</span>' + esc(plan.next.label) +
-        '<span class="dp-next-reason">' + esc(plan.next.reason) + "</span></p>"
+      ? '<p class="dp-next"><span class="dp-next-kicker">Next</span>' +
+        esc(plan.next.label) +
+        '<span class="dp-next-reason">' +
+        esc(plan.next.reason) +
+        "</span></p>"
       : '<p class="dp-next" data-complete="true"><span class="dp-next-kicker">Done</span>Today\'s plan is clear — the study session and DSA goal are both logged.</p>';
 
-    return '<div class="dp-head"><div><h2 class="dp-title" id="dp-title">Today</h2>' +
-      '<p class="dp-sub">' + plan.done + " of " + plan.total + " tasks · " + plan.dsa.solved + "/" + plan.dsa.target + " DSA · " +
-      minutesLabel(plan.study.minutes) + " studied" + (plan.streak ? " · " + plan.streak + "-day streak" : "") + "</p></div>" +
-      '<div class="dp-ring" role="img" aria-label="' + esc(plan.percent + "% of today's tasks complete") + '" style="--dp-fill:' + plan.percent + '%">' +
-      '<span class="dp-ring-value">' + plan.percent + "%</span></div></div>" +
-      (plan.isNewDay ? '<p class="dp-notice">These tasks were written yesterday. Daily Tasks rolls them into yesterday\'s archive on its next visit.</p>' : "") +
-      '<div class="dp-progress"><span class="dp-progress-fill" style="--dp-w:' + plan.percent + '%"></span></div>' +
-      list + more + next +
-      '<div class="dp-week" role="group" aria-label="Last seven days">' + weekStrip + "</div>" +
-      '<div class="dp-actions"><button type="button" class="dp-btn" data-dp-action="open-tasks">Open Daily Tasks</button></div>';
+    return (
+      '<div class="dp-head"><div><h2 class="dp-title" id="dp-title">Today</h2>' +
+      '<p class="dp-sub">' +
+      plan.done +
+      " of " +
+      plan.total +
+      " tasks · " +
+      plan.dsa.solved +
+      "/" +
+      plan.dsa.target +
+      " DSA · " +
+      minutesLabel(plan.study.minutes) +
+      " studied" +
+      (plan.streak ? " · " + plan.streak + "-day streak" : "") +
+      "</p></div>" +
+      '<div class="dp-ring" role="img" aria-label="' +
+      esc(plan.percent + "% of today's tasks complete") +
+      '" style="--dp-fill:' +
+      plan.percent +
+      '%">' +
+      '<span class="dp-ring-value">' +
+      plan.percent +
+      "%</span></div></div>" +
+      (plan.isNewDay
+        ? '<p class="dp-notice">These tasks were written yesterday. Daily Tasks rolls them into yesterday\'s archive on its next visit.</p>'
+        : "") +
+      '<div class="dp-progress"><span class="dp-progress-fill" style="--dp-w:' +
+      plan.percent +
+      '%"></span></div>' +
+      list +
+      more +
+      next +
+      '<div class="dp-week" role="group" aria-label="Last seven days">' +
+      weekStrip +
+      "</div>" +
+      '<div class="dp-actions"><button type="button" class="dp-btn" data-dp-action="open-tasks">Open Daily Tasks</button></div>'
+    );
   }
 
   var lastCardHtml = "";
@@ -275,17 +371,20 @@
     return fn();
   }
 
-  function render() {
+  function render(options) {
     if (!mounted) return;
     var body = mounted.querySelector(".dp-body");
     if (!body) return;
-    var html = cardHtml(today(), week());
+    // `now` is injectable for deterministic rendering in tests.
+    var html = cardHtml(today(options), week(options));
     if (body.innerHTML === html || (lastCardHtml === html && body.firstChild)) return;
     lastCardHtml = html;
-    runMuted(function () { body.innerHTML = html; });
+    runMuted(function () {
+      body.innerHTML = html;
+    });
   }
 
-  function mount() {
+  function mount(options) {
     if (!routeIsDashboard()) return false;
     var host = stack();
     if (!host) return false;
@@ -299,9 +398,11 @@
       lastCardHtml = "";
     }
     if (mounted.parentElement !== host) {
-      runMuted(function () { host.appendChild(mounted); });
+      runMuted(function () {
+        host.appendChild(mounted);
+      });
     }
-    render();
+    render(options);
     return true;
   }
 
@@ -316,24 +417,32 @@
   }
 
   function onClick(event) {
-    var button = event.target && event.target.closest ? event.target.closest("[data-dp-action]") : null;
+    var button =
+      event.target && event.target.closest ? event.target.closest("[data-dp-action]") : null;
     if (!button) return;
     if (button.getAttribute("data-dp-action") === "open-tasks") {
       // Daily Tasks only mounts on the Learning route; use the real navigation
       // instead of drawing a second task list here.
-      var nav = document.getElementById("arise-desktop-nav") || document.getElementById("arise-mobile-nav");
+      var nav =
+        document.getElementById("arise-desktop-nav") || document.getElementById("arise-mobile-nav");
       var target = null;
       if (nav) {
-        target = Array.prototype.find.call(nav.querySelectorAll("button"), function (btn) {
-          return /^Learning$/.test((btn.textContent || "").trim());
-        }) || null;
+        target =
+          Array.prototype.find.call(nav.querySelectorAll("button"), function (btn) {
+            return /^Learning$/.test((btn.textContent || "").trim());
+          }) || null;
       }
-      if (target) { target.click(); return; }
+      if (target) {
+        target.click();
+        return;
+      }
       button.textContent = "Open Learning from the sidebar";
     }
   }
 
-  function refresh() { render(); }
+  function refresh() {
+    render();
+  }
 
   window.AriseDayPlan = {
     today: today,
@@ -358,15 +467,24 @@
 
   function schedule() {
     if (scheduled) return;
-    scheduled = setTimeout(function () { scheduled = null; tick(); }, 240);
+    scheduled = setTimeout(function () {
+      scheduled = null;
+      tick();
+    }, 240);
   }
 
   function start() {
     tick();
     function onMutations(records) {
-      if (Array.isArray(records) && mounted && mounted.isConnected && records.every(function (r) {
-        return r && mounted.contains(r.target);
-      })) return;
+      if (
+        Array.isArray(records) &&
+        mounted &&
+        mounted.isConnected &&
+        records.every(function (r) {
+          return r && mounted.contains(r.target);
+        })
+      )
+        return;
       schedule();
     }
     var bus = window.__ARISE_MUTATION_BUS__;

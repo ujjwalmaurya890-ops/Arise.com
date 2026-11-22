@@ -6,6 +6,54 @@ them.
 
 ## Unreleased
 
+### Security, reliability and portability pass (2026-11-22)
+
+Ranked hardening work, applied in order.
+
+- **CSP without `unsafe-inline`:** the seven inline `index.html` scripts moved to
+  `src/boot/*.js` (classic scripts, manifest stays `application/json`), so every
+  deployment now sends `script-src 'self'`. `style-src` still allows inline
+  styles, which is required for the theme variables and skeleton bars.
+- **One HTML choke point:** `sanitizeHTML` / `setSafeHTML` in
+  `src/widget-shared-utils.js`; `setHTMLIfChanged` now sanitizes, and
+  `escapeText` remains the default for plain user text.
+- **Dead credential paths removed:** `src/boot/purge-legacy-secrets.js` erases the
+  retired Gist/Blobs sync keys (`backupCenter:gistToken`, `:gistId`,
+  `:blobSyncCode`) on boot and refuses to let them be written again. Anyone who
+  ever pasted a GitHub PAT must still revoke it on GitHub.
+- **AI quota:** `ai-ask` has a per-identity budget (120/minute, 1000/day,
+  `ARISE_AI_RATE_LIMIT` / `ARISE_AI_DAILY_LIMIT`) and returns generic upstream
+  errors; provider text is logged server-side only.
+- **Firestore growth:** `cloud` applies a per-identity write budget, deletes
+  superseded attachment uploads on commit and stamps staged chunks with
+  `expiresAtMs` for a TTL policy. Text payloads are intentionally retained as
+  activity history.
+- **Sync robustness:** request-sized or invalid operations are quarantined and
+  surfaced instead of wedging the queue, and other stores keep syncing; `state`
+  reads are paginated (500 default, 1000 max) and the client follows pages.
+- **Access policy fails soft:** the allowlist accepts 1–50 distinct addresses;
+  missing, disabled or wholly malformed policies still fail closed (503), but one
+  bad or duplicate row no longer locks every approved account out. The owner
+  script stays strict.
+- **Readable source:** all application JS (285 files) is Prettier-formatted with a
+  checked-in config; the vendored `assets/app-bundle.js` /
+  `assets/app-analytics.js` are documented in `docs/APP-BUNDLE-PROVENANCE.md`.
+- **Generated files out of Git:** `assets/chunks/` is ignored and built by
+  `npm run build`; the service worker's extended cache list is regenerated too.
+- **Gates:** `npm run lint` (syntax + Prettier) runs in CI, Dependabot checks npm
+  weekly, and `tests/test-http-limits.cjs`, `tests/test-rate-limit.cjs`,
+  `tests/test-backup-size-guard.js` cover the request limits, the quota window
+  logic and the export size guard.
+- **Local server:** response cache bounded to 200 entries (LRU), and the extended
+  service-worker fill is parallel instead of serial with a delay.
+- **Backup safety:** the 512 MiB archive limit is now checked before base64
+  encoding, so an oversized export fails by message instead of exhausting memory.
+- **Docs and licence:** MIT `LICENSE`, `docs/ARCHIVE.md` for dated audits, and
+  `upgrade/README.md` marks unbuilt upgrade proposals as not shipped.
+- **Vercel adapter (optional):** `vercel.json` + `api/*` reuse the Netlify
+  handlers with identical CSP; the SPA fallback never shadows real assets. Netlify
+  remains the primary target.
+
 ### Interface without images (2026-11-10)
 
 - The dashboard renders no images: logos, avatars, company marks and attachment

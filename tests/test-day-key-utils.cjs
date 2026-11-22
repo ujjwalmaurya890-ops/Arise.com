@@ -53,13 +53,18 @@ function loadUtils() {
       head: { appendChild() {} },
       body: { appendChild() {} },
       getElementById: () => null,
-      createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, classList: { add() {} } }),
+      createElement: () => ({
+        style: {},
+        setAttribute() {},
+        appendChild() {},
+        classList: { add() {} }
+      }),
       addEventListener() {}
     },
     localStorage: {
-      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      getItem: k => (store.has(k) ? store.get(k) : null),
       setItem: (k, v) => store.set(k, String(v)),
-      removeItem: (k) => store.delete(k)
+      removeItem: k => store.delete(k)
     }
   };
   sandbox.window = sandbox;
@@ -97,11 +102,11 @@ test("day keys sort chronologically as plain strings across a month boundary", (
   // The exact case the unpadded implementation got backwards.
   assert.ok(U.dayKey(new Date(2026, 0, 9)) < U.dayKey(new Date(2026, 0, 10)));
   assert.ok(U.dayKey(new Date(2026, 8, 9)) < U.dayKey(new Date(2026, 8, 10)));
-  const days = [9, 10, 11, 1, 2, 31, 30].map((d) => U.dayKey(new Date(2026, 0, d)));
+  const days = [9, 10, 11, 1, 2, 31, 30].map(d => U.dayKey(new Date(2026, 0, d)));
   const sorted = days.slice().sort();
   assert.deepEqual(
     sorted,
-    [1, 2, 9, 10, 11, 30, 31].map((d) => U.dayKey(new Date(2026, 0, d)))
+    [1, 2, 9, 10, 11, 30, 31].map(d => U.dayKey(new Date(2026, 0, d)))
   );
 });
 
@@ -125,7 +130,9 @@ test("returns the UTC calendar date", () => {
 
 test("is padded, so it stays sortable", () => {
   assert.equal(U.utcDayKey(new Date(Date.UTC(2026, 0, 9))), "2026-01-09");
-  assert.ok(U.utcDayKey(new Date(Date.UTC(2026, 0, 9))) < U.utcDayKey(new Date(Date.UTC(2026, 0, 10))));
+  assert.ok(
+    U.utcDayKey(new Date(Date.UTC(2026, 0, 9))) < U.utcDayKey(new Date(Date.UTC(2026, 0, 10)))
+  );
 });
 
 console.log("\ndayKeyToDate() — parses back to local midnight");
@@ -147,7 +154,16 @@ test("does not shift the day for timezones behind UTC", () => {
 });
 
 test("rejects malformed and impossible dates", () => {
-  for (const bad of ["2026-3-8", "not-a-date", "", "2026-02-30", "2026-13-01", null, undefined, 0]) {
+  for (const bad of [
+    "2026-3-8",
+    "not-a-date",
+    "",
+    "2026-02-30",
+    "2026-13-01",
+    null,
+    undefined,
+    0
+  ]) {
     assert.equal(U.dayKeyToDate(bad), null, "expected null for " + String(bad));
   }
 });
@@ -203,7 +219,11 @@ test("returns NaN rather than throwing on invalid input", () => {
 console.log("\nRegression guards — the shipped helper is the padded one");
 
 test("source no longer contains the unpadded key expression", () => {
-  assert.ok(!/getFullYear\(\)\s*\+\s*"-"\s*\+\s*\(\s*\w+\.getMonth\(\)\s*\+\s*1\s*\)\s*\+\s*"-"/.test(source));
+  assert.ok(
+    !/getFullYear\(\)\s*\+\s*"-"\s*\+\s*\(\s*\w+\.getMonth\(\)\s*\+\s*1\s*\)\s*\+\s*"-"/.test(
+      source
+    )
+  );
 });
 
 test("every dashboard widget that compares day keys uses the shared helper", () => {

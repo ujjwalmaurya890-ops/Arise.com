@@ -31,19 +31,30 @@
   var failures = []; // { src, reason, at }
 
   function humanName(src) {
-    return String(src || "")
-      .split("/")
-      .pop()
-      .replace(/\.js$/, "")
-      .replace(/-widget$/, "")
-      .replace(/-/g, " ")
-      .replace(/\b\w/g, function (ch) { return ch.toUpperCase(); }) || "A module";
+    return (
+      String(src || "")
+        .split("/")
+        .pop()
+        .replace(/\.js$/, "")
+        .replace(/-widget$/, "")
+        .replace(/-/g, " ")
+        .replace(/\b\w/g, function (ch) {
+          return ch.toUpperCase();
+        }) || "A module"
+    );
   }
 
   function remember(src, reason) {
-    var entry = { src: String(src || ""), reason: String(reason || "failed to load"), at: new Date().toISOString() };
+    var entry = {
+      src: String(src || ""),
+      reason: String(reason || "failed to load"),
+      at: new Date().toISOString()
+    };
     for (var i = 0; i < failures.length; i++) {
-      if (failures[i].src === entry.src) { failures[i] = entry; return entry; }
+      if (failures[i].src === entry.src) {
+        failures[i] = entry;
+        return entry;
+      }
     }
     failures.push(entry);
     return entry;
@@ -64,8 +75,12 @@
       "#" + BANNER_ID + " button{font:inherit;cursor:pointer;border-radius:8px;padding:4px 10px;",
       "border:1px solid var(--border-strong, rgba(255,255,255,.24));",
       "background:transparent;color:inherit}",
-      "#" + BANNER_ID + " button[data-awf-retry]{background:var(--accent, #6ea8fe);color:#0b0d12;border-color:transparent}",
-      "@media (prefers-reduced-motion:no-preference){#" + BANNER_ID + "{animation:awf-in 160ms ease-out}}",
+      "#" +
+        BANNER_ID +
+        " button[data-awf-retry]{background:var(--accent, #6ea8fe);color:#0b0d12;border-color:transparent}",
+      "@media (prefers-reduced-motion:no-preference){#" +
+        BANNER_ID +
+        "{animation:awf-in 160ms ease-out}}",
       "@keyframes awf-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}"
     ].join("");
     (document.head || document.documentElement).appendChild(style);
@@ -82,7 +97,7 @@
       banner.setAttribute("aria-live", "polite");
       banner.setAttribute("data-awf-banner", "1");
       banner.innerHTML =
-        '<p data-awf-message></p>' +
+        "<p data-awf-message></p>" +
         '<span class="awf-actions">' +
         '<button type="button" data-awf-retry="1">Reload</button>' +
         '<button type="button" data-awf-dismiss="1" aria-label="Dismiss this notice">Dismiss</button>' +
@@ -96,10 +111,17 @@
       });
       document.body.appendChild(banner);
     }
-    var names = failures.slice(0, 3).map(function (entry) { return humanName(entry.src); });
-    var message = failures.length === 1
-      ? names[0] + " could not be loaded."
-      : failures.length + " modules could not be loaded (" + names.join(", ") + (failures.length > 3 ? ", …" : "") + ").";
+    var names = failures.slice(0, 3).map(function (entry) {
+      return humanName(entry.src);
+    });
+    var message =
+      failures.length === 1
+        ? names[0] + " could not be loaded."
+        : failures.length +
+          " modules could not be loaded (" +
+          names.join(", ") +
+          (failures.length > 3 ? ", …" : "") +
+          ").";
     banner.querySelector("[data-awf-message]").textContent =
       message + " Your saved progress is safe. Reloading usually fixes this.";
   }
@@ -124,11 +146,19 @@
     report: window.__ariseReportWidgetError,
     // Widgets that already failed before this file ran.
     adopt: function (list) {
-      (Array.isArray(list) ? list : []).forEach(function (src) { remember(src, "failed to load"); });
+      (Array.isArray(list) ? list : []).forEach(function (src) {
+        remember(src, "failed to load");
+      });
       render();
     },
-    failures: function () { return failures.slice(); },
-    clear: function () { failures = []; var el = document.getElementById(BANNER_ID); if (el) el.remove(); }
+    failures: function () {
+      return failures.slice();
+    },
+    clear: function () {
+      failures = [];
+      var el = document.getElementById(BANNER_ID);
+      if (el) el.remove();
+    }
   };
 
   function boot() {
@@ -144,12 +174,14 @@
         }
         var errors = window.__ariseMountErrors;
         if (Array.isArray(errors)) {
-          for (var j = 0; j < errors.length; j++) remember("widget:" + errors[j].widget, errors[j].message);
+          for (var j = 0; j < errors.length; j++)
+            remember("widget:" + errors[j].widget, errors[j].message);
         }
         var bus = window.__ARISE_MUTATION_BUS__;
         if (bus && typeof bus.failures === "function") {
           var updaters = bus.failures();
-          for (var k = 0; k < updaters.length; k++) remember("updater:" + updaters[k].name, updaters[k].message);
+          for (var k = 0; k < updaters.length; k++)
+            remember("updater:" + updaters[k].name, updaters[k].message);
         }
         render();
       } catch (_) {}
@@ -161,15 +193,19 @@
         scanTimer = null;
       }
     }, 2000);
-    window.addEventListener("arise:widgets-ready", function () {
-      setTimeout(function () {
-        scan();
-        if (scanTimer && !failures.length) {
-          clearInterval(scanTimer);
-          scanTimer = null;
-        }
-      }, 1000);
-    }, { once: true });
+    window.addEventListener(
+      "arise:widgets-ready",
+      function () {
+        setTimeout(function () {
+          scan();
+          if (scanTimer && !failures.length) {
+            clearInterval(scanTimer);
+            scanTimer = null;
+          }
+        }, 1000);
+      },
+      { once: true }
+    );
     window.addEventListener("arise:mount-error", scan);
   }
 

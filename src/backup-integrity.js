@@ -60,7 +60,8 @@
     if (value == null) return true;
     if (Array.isArray(value)) return value.length === 0;
     if (isPlainObject(value)) return Object.keys(value).length === 0;
-    if (typeof value === "string") return value.trim() === "" || value === "null" || value === "[]" || value === "{}";
+    if (typeof value === "string")
+      return value.trim() === "" || value === "null" || value === "[]" || value === "{}";
     return false;
   }
 
@@ -116,19 +117,34 @@
     };
 
     if (!isPlainObject(snapshot)) {
-      return { ok: false, severity: "error", blocking: ["This file is not a readable Arise backup."], warnings: [], notes: [], stats: stats };
+      return {
+        ok: false,
+        severity: "error",
+        blocking: ["This file is not a readable Arise backup."],
+        warnings: [],
+        notes: [],
+        stats: stats
+      };
     }
 
     stats.bytes = bytesOf(snapshot);
-    if (stats.bytes > MAX_BYTES) blocking.push("This backup is larger than the 512 MB limit and cannot be restored.");
+    if (stats.bytes > MAX_BYTES)
+      blocking.push("This backup is larger than the 512 MB limit and cannot be restored.");
 
-    if (!isPlainObject(snapshot.localStorage)) blocking.push("The backup has no store data (localStorage section).");
+    if (!isPlainObject(snapshot.localStorage))
+      blocking.push("The backup has no store data (localStorage section).");
 
     if (!Array.isArray(snapshot.indexedDB)) {
-      warnings.push("The backup does not list attachment databases. Files attached to notes or projects may be missing.");
+      warnings.push(
+        "The backup does not list attachment databases. Files attached to notes or projects may be missing."
+      );
     } else {
       snapshot.indexedDB.forEach(function (database) {
-        if (!isPlainObject(database) || typeof database.name !== "string" || (database.stores != null && !isPlainObject(database.stores))) {
+        if (
+          !isPlainObject(database) ||
+          typeof database.name !== "string" ||
+          (database.stores != null && !isPlainObject(database.stores))
+        ) {
           stats.malformedDatabases += 1;
           return;
         }
@@ -137,7 +153,9 @@
           var contents = stores[storeName];
           var records = contents && contents.records;
           if (!Array.isArray(records)) {
-            warnings.push("Attachment store " + database.name + "/" + storeName + " has no readable records.");
+            warnings.push(
+              "Attachment store " + database.name + "/" + storeName + " has no readable records."
+            );
             return;
           }
           records.forEach(function (entry) {
@@ -154,12 +172,20 @@
     }
 
     if (stats.missingBlobs) {
-      warnings.push(stats.missingBlobs + " attachment record" + (stats.missingBlobs === 1 ? " has" : "s have") +
-        " no file bytes and cannot be restored from this file.");
+      warnings.push(
+        stats.missingBlobs +
+          " attachment record" +
+          (stats.missingBlobs === 1 ? " has" : "s have") +
+          " no file bytes and cannot be restored from this file."
+      );
     }
     if (stats.malformedDatabases) {
-      warnings.push(stats.malformedDatabases + " attachment database entr" + (stats.malformedDatabases === 1 ? "y is" : "ies are") +
-        " malformed and will be skipped.");
+      warnings.push(
+        stats.malformedDatabases +
+          " attachment database entr" +
+          (stats.malformedDatabases === 1 ? "y is" : "ies are") +
+          " malformed and will be skipped."
+      );
     }
 
     var meta = isPlainObject(snapshot.meta) ? snapshot.meta : null;
@@ -168,20 +194,31 @@
       stats.exportedAt = typeof meta.exportedAt === "string" ? meta.exportedAt : null;
       stats.owner = typeof meta.ownerUid === "string" ? meta.ownerUid : null;
       if (!meta.ownerUid) {
-        notes.push("This file does not name an owner, so it is a legacy export. The account must confirm ownership before it is restored.");
+        notes.push(
+          "This file does not name an owner, so it is a legacy export. The account must confirm ownership before it is restored."
+        );
       }
       if (typeof meta.counts === "object" && meta.counts) {
         // A truncated download keeps its header but loses stores: compare.
         if (typeof meta.counts.localStorage === "number" && isPlainObject(snapshot.localStorage)) {
-          var actualStores = Object.keys(snapshot.localStorage).filter(function (name) { return !isEmptyValue(snapshot.localStorage[name]); }).length;
+          var actualStores = Object.keys(snapshot.localStorage).filter(function (name) {
+            return !isEmptyValue(snapshot.localStorage[name]);
+          }).length;
           if (meta.counts.localStorage !== actualStores) {
-            blocking.push("The backup says it contains " + meta.counts.localStorage + " stores but only " + actualStores +
-              " are present. The file is incomplete — export it again rather than restoring it.");
+            blocking.push(
+              "The backup says it contains " +
+                meta.counts.localStorage +
+                " stores but only " +
+                actualStores +
+                " are present. The file is incomplete — export it again rather than restoring it."
+            );
           }
         }
       }
     } else {
-      notes.push("This file has no metadata header; export time cannot be verified and the account must confirm ownership before it is restored.");
+      notes.push(
+        "This file has no metadata header; export time cannot be verified and the account must confirm ownership before it is restored."
+      );
     }
 
     if (isPlainObject(snapshot.localStorage)) {
@@ -193,22 +230,38 @@
         if (isEmptyValue(incoming[key])) stats.emptyStores.push(key);
       });
       stats.records = countRecords(incoming);
-      stats.knownStores = names.filter(function (key) { return known.indexOf(key) !== -1; }).length;
-      stats.missingStores = known.filter(function (key) { return names.indexOf(key) === -1; });
+      stats.knownStores = names.filter(function (key) {
+        return known.indexOf(key) !== -1;
+      }).length;
+      stats.missingStores = known.filter(function (key) {
+        return names.indexOf(key) === -1;
+      });
       if (stats.emptyStores.length) {
-        warnings.push(stats.emptyStores.length + " store" + (stats.emptyStores.length === 1 ? " is" : "s are") +
-          " empty in this backup (" + stats.emptyStores.slice(0, 4).join(", ") +
-          (stats.emptyStores.length > 4 ? ", …" : "") + "). Restoring will replace what you have with nothing.");
+        warnings.push(
+          stats.emptyStores.length +
+            " store" +
+            (stats.emptyStores.length === 1 ? " is" : "s are") +
+            " empty in this backup (" +
+            stats.emptyStores.slice(0, 4).join(", ") +
+            (stats.emptyStores.length > 4 ? ", …" : "") +
+            "). Restoring will replace what you have with nothing."
+        );
       }
       if (stats.unknownStores.length) {
-        notes.push(stats.unknownStores.length + " store" + (stats.unknownStores.length === 1 ? " is" : "s are") +
-          " not part of this build's audited schema and will be ignored (" + stats.unknownStores.slice(0, 4).join(", ") +
-          (stats.unknownStores.length > 4 ? ", …" : "") + ").");
+        notes.push(
+          stats.unknownStores.length +
+            " store" +
+            (stats.unknownStores.length === 1 ? " is" : "s are") +
+            " not part of this build's audited schema and will be ignored (" +
+            stats.unknownStores.slice(0, 4).join(", ") +
+            (stats.unknownStores.length > 4 ? ", …" : "") +
+            ")."
+        );
       }
       if (!stats.stores) blocking.push("The backup contains no stores.");
     }
 
-    var severity = blocking.length ? "error" : (warnings.length ? "warning" : "ok");
+    var severity = blocking.length ? "error" : warnings.length ? "warning" : "ok";
     return {
       ok: blocking.length === 0,
       severity: severity,
@@ -223,12 +276,25 @@
     if (!report) return [];
     var lines = [];
     var s = report.stats;
-    lines.push(s.knownStores + " of " + schema().length + " audited stores · " + s.records + " records" +
-      (s.attachments ? " · " + s.attachments + " attachment" + (s.attachments === 1 ? "" : "s") : ""));
+    lines.push(
+      s.knownStores +
+        " of " +
+        schema().length +
+        " audited stores · " +
+        s.records +
+        " records" +
+        (s.attachments
+          ? " · " + s.attachments + " attachment" + (s.attachments === 1 ? "" : "s")
+          : "")
+    );
     if (s.exportedAt) lines.push("Exported " + s.exportedAt);
     if (s.owner) lines.push("Owned by account " + s.owner.slice(0, 8) + "…");
-    report.blocking.forEach(function (line) { lines.push("STOP: " + line); });
-    report.warnings.forEach(function (line) { lines.push("Careful: " + line); });
+    report.blocking.forEach(function (line) {
+      lines.push("STOP: " + line);
+    });
+    report.warnings.forEach(function (line) {
+      lines.push("Careful: " + line);
+    });
     return lines;
   }
 
@@ -246,9 +312,17 @@
 
   function listHtml(items, tone) {
     if (!items || !items.length) return "";
-    return '<ul class="bki-list" data-tone="' + tone + '">' + items.map(function (line) {
-      return "<li>" + escapeHtml(line) + "</li>";
-    }).join("") + "</ul>";
+    return (
+      '<ul class="bki-list" data-tone="' +
+      tone +
+      '">' +
+      items
+        .map(function (line) {
+          return "<li>" + escapeHtml(line) + "</li>";
+        })
+        .join("") +
+      "</ul>"
+    );
   }
 
   function reportHtml(report, name) {
@@ -259,14 +333,22 @@
       s.attachments + " attachments",
       Math.max(1, Math.round(s.bytes / 1024)) + " KB"
     ];
-    return '<div class="bki-body"><h3 class="bki-title">Backup check — ' + escapeHtml(name || "selected file") + "</h3>" +
-      '<div class="bki-stats">' + chips.map(function (chip) {
-        return '<span class="bki-stat">' + escapeHtml(chip) + "</span>";
-      }).join("") + "</div>" +
+    return (
+      '<div class="bki-body"><h3 class="bki-title">Backup check — ' +
+      escapeHtml(name || "selected file") +
+      "</h3>" +
+      '<div class="bki-stats">' +
+      chips
+        .map(function (chip) {
+          return '<span class="bki-stat">' + escapeHtml(chip) + "</span>";
+        })
+        .join("") +
+      "</div>" +
       listHtml(report.blocking, "error") +
       listHtml(report.warnings, "warning") +
       listHtml(report.notes, "note") +
-      '<p class="bki-foot">Nothing has been restored. The restore still asks for your confirmation and keeps a before-restore copy.</p></div>';
+      '<p class="bki-foot">Nothing has been restored. The restore still asks for your confirmation and keeps a before-restore copy.</p></div>'
+    );
   }
 
   function card() {
@@ -299,7 +381,8 @@
     // child that is not the heading itself.
     var heading = host.querySelector("h1, h2");
     if (mounted.parentElement !== host) {
-      if (heading && heading.parentElement === host) host.insertBefore(mounted, heading.nextSibling);
+      if (heading && heading.parentElement === host)
+        host.insertBefore(mounted, heading.nextSibling);
       else host.insertBefore(mounted, host.firstChild || null);
     }
     return true;
@@ -313,6 +396,8 @@
     schemaKeys: schema,
     show: show,
     clear: clear,
-    last: function () { return lastReport; }
+    last: function () {
+      return lastReport;
+    }
   };
 })();

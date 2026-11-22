@@ -18,7 +18,7 @@
   }
   function c(e) {
     try {
-      return localStorage.setItem(a, JSON.stringify({ model: e || o[0].id })), !0;
+      return (localStorage.setItem(a, JSON.stringify({ model: e || o[0].id })), !0);
     } catch {
       return !1;
     }
@@ -57,25 +57,36 @@
     return new Promise(function (resolve, reject) {
       var finished = !1;
       var timer = setTimeout(function () {
-        if (ctrl) { try { ctrl.abort(); } catch (_) {} }
+        if (ctrl) {
+          try {
+            ctrl.abort();
+          } catch (_) {}
+        }
         finish(new Error("AI request timed out. Check your connection and try again."));
       }, timeoutMs);
       function finish(err, value) {
         if (finished) return;
         finished = !0;
         clearTimeout(timer);
-        if (upstream && typeof upstream.removeEventListener === "function") upstream.removeEventListener("abort", onAbort);
-        if (err) reject(err); else resolve(value);
+        if (upstream && typeof upstream.removeEventListener === "function")
+          upstream.removeEventListener("abort", onAbort);
+        if (err) reject(err);
+        else resolve(value);
       }
       function onAbort() {
-        if (ctrl) { try { ctrl.abort(); } catch (_) {} }
+        if (ctrl) {
+          try {
+            ctrl.abort();
+          } catch (_) {}
+        }
         var err = new Error("AI request cancelled.");
         err.name = "AbortError";
         finish(err);
       }
       if (upstream) {
         if (upstream.aborted) return onAbort();
-        if (typeof upstream.addEventListener === "function") upstream.addEventListener("abort", onAbort, { once: !0 });
+        if (typeof upstream.addEventListener === "function")
+          upstream.addEventListener("abort", onAbort, { once: !0 });
       }
       Promise.resolve()
         .then(function () {
@@ -84,15 +95,38 @@
         })
         .then(function (response) {
           if (finished) return null;
-          return Promise.resolve(response.json()).catch(function () { return {}; }).then(function (data) {
-            if (!response.ok) throw new Error((data && data.error) ||
-              (response.status === 429 ? "Rate limited — try again in a bit." : "Request failed (" + response.status + ")."));
-            if (!data || !data.text) throw new Error("Model returned no text.");
-            return data.text;
-          });
+          return Promise.resolve(response.json())
+            .catch(function () {
+              return {};
+            })
+            .then(function (data) {
+              if (!response.ok)
+                throw new Error(
+                  (data && data.error) ||
+                    (response.status === 429
+                      ? "Rate limited — try again in a bit."
+                      : "Request failed (" + response.status + ").")
+                );
+              if (!data || !data.text) throw new Error("Model returned no text.");
+              return data.text;
+            });
         })
-        .then(function (value) { finish(null, value); }, function (err) { finish(err); });
+        .then(
+          function (value) {
+            finish(null, value);
+          },
+          function (err) {
+            finish(err);
+          }
+        );
     });
   }
-  window.__ariseAI = { MODELS: o, getSettings: u, saveSettings: c, clearSettings: s, hasKey: d, ask: S };
+  window.__ariseAI = {
+    MODELS: o,
+    getSettings: u,
+    saveSettings: c,
+    clearSettings: s,
+    hasKey: d,
+    ask: S
+  };
 })();

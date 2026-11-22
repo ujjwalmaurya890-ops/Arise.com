@@ -55,7 +55,7 @@
   function smoothScroll(el, opts) {
     if (!el || typeof el.scrollIntoView !== "function") return;
     var options = Object.assign({ block: "center" }, opts || {});
-    options.behavior = prefersReducedMotion() ? "auto" : (options.behavior || "smooth");
+    options.behavior = prefersReducedMotion() ? "auto" : options.behavior || "smooth";
     try {
       el.scrollIntoView(options);
     } catch (_) {
@@ -85,10 +85,13 @@
       btn.setAttribute("aria-disabled", "true");
       btn.classList.add("uxa-btn-loading");
       btn.disabled = true;
-      var label = busyLabel != null ? String(busyLabel) : (btn.textContent || "").trim() || "Working…";
+      var label =
+        busyLabel != null ? String(busyLabel) : (btn.textContent || "").trim() || "Working…";
       btn.innerHTML =
         '<span class="uxa-spinner uxa-spinner--xs" aria-hidden="true"></span>' +
-        "<span>" + escapeHtml(label) + "</span>";
+        "<span>" +
+        escapeHtml(label) +
+        "</span>";
     } else {
       if (btn.getAttribute("data-uxa-busy") !== "true") return;
       btn.removeAttribute("data-uxa-busy");
@@ -160,7 +163,11 @@
         function (err) {
           cleanup();
           if (timedOut) {
-            var te = new Error("Request timed out after " + Math.round(ms / 1000) + "s. Please check your connection and retry.");
+            var te = new Error(
+              "Request timed out after " +
+                Math.round(ms / 1000) +
+                "s. Please check your connection and retry."
+            );
             te.code = "ETIMEDOUT";
             throw te;
           }
@@ -178,64 +185,127 @@
   function renderSkeleton(opts) {
     var o = opts || {};
     var label = o.label || "Loading content…";
-    var variant = ["widget", "dashboard", "chart", "table", "list", "form"].indexOf(o.variant) >= 0
-      ? o.variant : "widget";
+    var variant =
+      ["widget", "dashboard", "chart", "table", "list", "form"].indexOf(o.variant) >= 0
+        ? o.variant
+        : "widget";
     var lines = typeof o.lines === "number" ? Math.max(1, Math.min(8, o.lines)) : 3;
     var stats = typeof o.stats === "number" ? Math.max(0, Math.min(6, o.stats)) : 0;
     var delayed = o.delayed !== false;
     var minHeight = o.minHeight ? ' style="min-height:' + escapeHtml(o.minHeight) + '"' : "";
     var widths = ["88%", "72%", "94%", "62%", "80%", "66%"];
-    var shape = function (cls) { return '<span class="uxa-skeleton ' + cls + '"></span>'; };
-    var head = '<div class="uxa-skeleton-heading"><div class="uxa-skeleton-heading-copy">' +
-      shape("uxa-skeleton-title") + shape("uxa-skeleton-subtitle") + '</div>' +
-      shape("uxa-skeleton-action") + '</div>';
-    var tabs = '<div class="uxa-skeleton-tabs">' + shape("uxa-skeleton-tab") +
-      shape("uxa-skeleton-tab") + shape("uxa-skeleton-tab") + '</div>';
+    var shape = function (cls) {
+      return '<span class="uxa-skeleton ' + cls + '"></span>';
+    };
+    var head =
+      '<div class="uxa-skeleton-heading"><div class="uxa-skeleton-heading-copy">' +
+      shape("uxa-skeleton-title") +
+      shape("uxa-skeleton-subtitle") +
+      "</div>" +
+      shape("uxa-skeleton-action") +
+      "</div>";
+    var tabs =
+      '<div class="uxa-skeleton-tabs">' +
+      shape("uxa-skeleton-tab") +
+      shape("uxa-skeleton-tab") +
+      shape("uxa-skeleton-tab") +
+      "</div>";
     var metrics = function (count) {
       var cells = [];
       for (var s = 0; s < count; s++) {
-        cells.push('<div class="uxa-skeleton-metric">' + shape("uxa-skeleton-metric-label") +
-          shape("uxa-skeleton-metric-value") + shape("uxa-skeleton-metric-detail") + '</div>');
+        cells.push(
+          '<div class="uxa-skeleton-metric">' +
+            shape("uxa-skeleton-metric-label") +
+            shape("uxa-skeleton-metric-value") +
+            shape("uxa-skeleton-metric-detail") +
+            "</div>"
+        );
       }
-      return '<div class="uxa-skeleton-metrics">' + cells.join("") + '</div>';
+      return '<div class="uxa-skeleton-metrics">' + cells.join("") + "</div>";
     };
     var rows = function (count, withAvatar) {
       var items = [];
       for (var r = 0; r < count; r++) {
-        items.push('<div class="uxa-skeleton-row">' +
-          (withAvatar ? shape("uxa-skeleton-row-avatar") : shape("uxa-skeleton-row-check")) +
-          '<div class="uxa-skeleton-row-copy">' + shape("uxa-skeleton-row-title") +
-          shape("uxa-skeleton-row-meta") + '</div>' + shape("uxa-skeleton-row-end") + '</div>');
+        items.push(
+          '<div class="uxa-skeleton-row">' +
+            (withAvatar ? shape("uxa-skeleton-row-avatar") : shape("uxa-skeleton-row-check")) +
+            '<div class="uxa-skeleton-row-copy">' +
+            shape("uxa-skeleton-row-title") +
+            shape("uxa-skeleton-row-meta") +
+            "</div>" +
+            shape("uxa-skeleton-row-end") +
+            "</div>"
+        );
       }
-      return '<div class="uxa-skeleton-rows">' + items.join("") + '</div>';
+      return '<div class="uxa-skeleton-rows">' + items.join("") + "</div>";
     };
-    var chart = '<div class="uxa-skeleton-chart"><div class="uxa-skeleton-chart-bars">' +
-      [42, 68, 53, 82, 61, 92, 70, 78].map(function (height) {
-        return '<span class="uxa-skeleton uxa-skeleton-chart-bar" style="height:' + height + '%"></span>';
-      }).join("") + '</div></div>';
+    var chart =
+      '<div class="uxa-skeleton-chart"><div class="uxa-skeleton-chart-bars">' +
+      [42, 68, 53, 82, 61, 92, 70, 78]
+        .map(function (height) {
+          return (
+            '<span class="uxa-skeleton uxa-skeleton-chart-bar" style="height:' +
+            height +
+            '%"></span>'
+          );
+        })
+        .join("") +
+      "</div></div>";
     var body = "";
     if (variant === "dashboard") body = tabs + metrics(stats || 4) + chart;
     else if (variant === "chart") body = chart + (stats ? metrics(stats) : "");
-    else if (variant === "table") body = tabs + metrics(stats || 3) +
-      '<div class="uxa-skeleton-controls">' + shape("uxa-skeleton-input") + shape("uxa-skeleton-filter") +
-      shape("uxa-skeleton-filter") + '</div>' + rows(4, false);
-    else if (variant === "list") body = tabs + '<div class="uxa-skeleton-controls">' +
-      shape("uxa-skeleton-input") + shape("uxa-skeleton-filter") + '</div>' + rows(4, true);
-    else if (variant === "form") body = '<div class="uxa-skeleton-form">' +
-      shape("uxa-skeleton-field") + shape("uxa-skeleton-field") + shape("uxa-skeleton-field") +
-      shape("uxa-skeleton-form-button") + '</div>';
+    else if (variant === "table")
+      body =
+        tabs +
+        metrics(stats || 3) +
+        '<div class="uxa-skeleton-controls">' +
+        shape("uxa-skeleton-input") +
+        shape("uxa-skeleton-filter") +
+        shape("uxa-skeleton-filter") +
+        "</div>" +
+        rows(4, false);
+    else if (variant === "list")
+      body =
+        tabs +
+        '<div class="uxa-skeleton-controls">' +
+        shape("uxa-skeleton-input") +
+        shape("uxa-skeleton-filter") +
+        "</div>" +
+        rows(4, true);
+    else if (variant === "form")
+      body =
+        '<div class="uxa-skeleton-form">' +
+        shape("uxa-skeleton-field") +
+        shape("uxa-skeleton-field") +
+        shape("uxa-skeleton-field") +
+        shape("uxa-skeleton-form-button") +
+        "</div>";
     else {
       if (stats) body += metrics(stats);
       body += '<div class="uxa-skeleton-copy">';
       for (var i = 0; i < lines; i++) {
-        body += '<span class="uxa-skeleton uxa-skeleton-line" style="width:' + widths[i % widths.length] + '"></span>';
+        body +=
+          '<span class="uxa-skeleton uxa-skeleton-line" style="width:' +
+          widths[i % widths.length] +
+          '"></span>';
       }
-      body += '</div>';
+      body += "</div>";
     }
-    return '<div class="uxa-skeleton-card uxa-skeleton-layout uxa-skeleton-layout--' + variant +
-      (delayed ? ' uxa-skeleton--delayed' : '') + '" role="status" aria-live="polite" aria-busy="true"' + minHeight + '>' +
-      '<span class="uxa-sr-only">' + escapeHtml(label) + '</span>' +
-      '<div class="uxa-skeleton-group" aria-hidden="true">' + (o.header === false ? "" : head) + body + '</div></div>';
+    return (
+      '<div class="uxa-skeleton-card uxa-skeleton-layout uxa-skeleton-layout--' +
+      variant +
+      (delayed ? " uxa-skeleton--delayed" : "") +
+      '" role="status" aria-live="polite" aria-busy="true"' +
+      minHeight +
+      ">" +
+      '<span class="uxa-sr-only">' +
+      escapeHtml(label) +
+      "</span>" +
+      '<div class="uxa-skeleton-group" aria-hidden="true">' +
+      (o.header === false ? "" : head) +
+      body +
+      "</div></div>"
+    );
   }
 
   function renderErrorState(opts) {
@@ -247,10 +317,18 @@
     var showRetry = o.retry !== false;
     return (
       '<div class="uxa-error-state" role="alert">' +
-      '<div class="uxa-state-title">' + escapeHtml(title) + "</div>" +
-      '<div class="uxa-state-desc">' + escapeHtml(message) + "</div>" +
+      '<div class="uxa-state-title">' +
+      escapeHtml(title) +
+      "</div>" +
+      '<div class="uxa-state-desc">' +
+      escapeHtml(message) +
+      "</div>" +
       (showRetry
-        ? '<button type="button" class="uxa-retry-btn" ' + retryAttr + ">" + escapeHtml(retryLabel) + "</button>"
+        ? '<button type="button" class="uxa-retry-btn" ' +
+          retryAttr +
+          ">" +
+          escapeHtml(retryLabel) +
+          "</button>"
         : "") +
       "</div>"
     );
@@ -263,7 +341,9 @@
     var actionHtml = o.actionHtml || "";
     return (
       '<div class="uxa-empty-state">' +
-      '<div class="uxa-state-title">' + escapeHtml(title) + "</div>" +
+      '<div class="uxa-state-title">' +
+      escapeHtml(title) +
+      "</div>" +
       (message ? '<div class="uxa-state-desc">' + escapeHtml(message) + "</div>" : "") +
       actionHtml +
       "</div>"
@@ -300,7 +380,11 @@
   function hasLayout() {
     if (layoutAvailable !== null) return layoutAvailable;
     try {
-      layoutAvailable = !!(document.body && document.body.getClientRects && document.body.getClientRects().length > 0);
+      layoutAvailable = !!(
+        document.body &&
+        document.body.getClientRects &&
+        document.body.getClientRects().length > 0
+      );
     } catch (_) {
       layoutAvailable = false;
     }
@@ -314,7 +398,12 @@
     if (el.closest && el.closest("[hidden], [aria-hidden='true'], [inert]")) return false;
     try {
       var style = window.getComputedStyle(el);
-      if (style && (style.visibility === "hidden" || style.visibility === "collapse" || style.display === "none")) {
+      if (
+        style &&
+        (style.visibility === "hidden" ||
+          style.visibility === "collapse" ||
+          style.display === "none")
+      ) {
         return false;
       }
     } catch (_) {}
@@ -355,7 +444,12 @@
 
     function rememberFocus() {
       var active = document.activeElement;
-      if (active && active !== document.body && active !== overlayEl && !overlayEl.contains(active)) {
+      if (
+        active &&
+        active !== document.body &&
+        active !== overlayEl &&
+        !overlayEl.contains(active)
+      ) {
         restoreTo = active;
       }
     }
@@ -367,7 +461,9 @@
         try {
           target.focus({ preventScroll: true });
         } catch (_) {
-          try { target.focus(); } catch (__e) {}
+          try {
+            target.focus();
+          } catch (__e) {}
         }
       }
     }
@@ -390,7 +486,9 @@
               var focusables = focusablesIn(dialogEl());
               var target = (options.initialFocus && options.initialFocus()) || focusables[0];
               if (target && typeof target.focus === "function") {
-                try { target.focus({ preventScroll: true }); } catch (_) {}
+                try {
+                  target.focus({ preventScroll: true });
+                } catch (_) {}
               }
             });
           }
@@ -398,7 +496,10 @@
           restoreFocus();
         }
       });
-      stateObserver.observe(overlayEl, { attributes: true, attributeFilter: ["data-open", "hidden", "aria-hidden"] });
+      stateObserver.observe(overlayEl, {
+        attributes: true,
+        attributeFilter: ["data-open", "hidden", "aria-hidden"]
+      });
     }
 
     var onKeyDown = function (ev) {
@@ -443,8 +544,12 @@
 
     var api = {
       restoreFocus: restoreFocus,
-      focusables: function () { return focusablesIn(dialogEl()); },
-      isOpen: function () { return overlayIsOpen(overlayEl); }
+      focusables: function () {
+        return focusablesIn(dialogEl());
+      },
+      isOpen: function () {
+        return overlayIsOpen(overlayEl);
+      }
     };
     overlayEl.__uxaModalApi = api;
     return api;
@@ -458,7 +563,7 @@
   var ADOPT_SELECTOR = [
     '[data-open][aria-modal="true"]',
     '[data-open][role="dialog"]',
-    '[data-open] .exw-pdf-dialog',
+    "[data-open] .exw-pdf-dialog",
     '[role="dialog"][aria-modal="true"]'
   ].join(", ");
 
@@ -504,7 +609,9 @@
 
   var runtimeReduced = false;
   try {
-    runtimeReduced = !!(docEl.classList.contains("reduce-motion") || docEl.classList.contains("perf-lite"));
+    runtimeReduced = !!(
+      docEl.classList.contains("reduce-motion") || docEl.classList.contains("perf-lite")
+    );
   } catch (_) {}
 
   function motionReduced() {
@@ -547,7 +654,8 @@
   }
 
   function animateOnce(el, frames, options) {
-    if (!el || motionReduced() || typeof el.animate !== "function" || budgetExhausted()) return null;
+    if (!el || motionReduced() || typeof el.animate !== "function" || budgetExhausted())
+      return null;
     var anim;
     try {
       anim = el.animate(frames, options);
@@ -563,7 +671,9 @@
     activeCount++;
     var done = function () {
       activeCount = Math.max(0, activeCount - 1);
-      try { anim.cancel(); } catch (_) {}
+      try {
+        anim.cancel();
+      } catch (_) {}
     };
     if (typeof anim.finished === "function" && anim.finished.then) {
       anim.finished.then(done, done);
@@ -631,7 +741,9 @@
         for (var i = 0; i < entries.length; i++) {
           var entry = entries[i];
           if (!entry.isIntersecting) continue;
-          try { revealObserver.unobserve(entry.target); } catch (_) {}
+          try {
+            revealObserver.unobserve(entry.target);
+          } catch (_) {}
           showRevealed(entry.target);
         }
       },
@@ -659,9 +771,12 @@
     docEl.classList.add("uxa-booting");
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
-        setTimeout(function () {
-          docEl.classList.remove("uxa-booting");
-        }, isFirstPaint ? 420 : 60);
+        setTimeout(
+          function () {
+            docEl.classList.remove("uxa-booting");
+          },
+          isFirstPaint ? 420 : 60
+        );
       });
     });
   }
@@ -755,13 +870,16 @@
    */
   function revealCells(root) {
     if (motionReduced() || !root) return;
-    var gridSelector = ".lh-grid, .hh-grid, .hh-monthly-grid, .dmh-grid, .att-heat-grid, .exwh-grid";
+    var gridSelector =
+      ".lh-grid, .hh-grid, .hh-monthly-grid, .dmh-grid, .att-heat-grid, .exwh-grid";
     var grids = root.querySelectorAll(gridSelector);
     for (var g = 0; g < grids.length && g < 8; g++) {
       var grid = grids[g];
       if (!grid || (decorated && decorated.has(grid))) continue;
       if (decorated) decorated.add(grid);
-      var cells = grid.querySelectorAll(".lh-cell:not(.lh-cell-pad), .hh-cell:not(.hh-cell-pad), .dmh-cell:not(.dmh-cell-pad), .att-heat-cell, .exwh-cell");
+      var cells = grid.querySelectorAll(
+        ".lh-cell:not(.lh-cell-pad), .hh-cell:not(.hh-cell-pad), .dmh-cell:not(.dmh-cell-pad), .att-heat-cell, .exwh-cell"
+      );
       var limit = Math.min(cells.length, isLite() ? 40 : 160);
       for (var c = 0; c < limit; c++) {
         var cell = cells[c];
@@ -824,7 +942,11 @@
       var duration = isLite() ? 200 : 420;
       // Inline geometry is the source of truth: set the target, then animate
       // *from* the old value so the final frame is exactly the real number.
-      animateOnce(bar, frames, { duration: duration, easing: "cubic-bezier(0.25, 1, 0.5, 1)", fill: "none" });
+      animateOnce(bar, frames, {
+        duration: duration,
+        easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+        fill: "none"
+      });
     }
   }
 
@@ -837,7 +959,9 @@
 
   function animateRings(root) {
     if (motionReduced() || !ringValues) return;
-    var rings = root.querySelectorAll("circle[data-dmp-progress], circle[data-dvp-progress], circle[data-pcc-progress], circle[data-csu-progress]");
+    var rings = root.querySelectorAll(
+      "circle[data-dmp-progress], circle[data-dvp-progress], circle[data-pcc-progress], circle[data-csu-progress]"
+    );
     var limit = Math.min(rings.length, 24);
     for (var i = 0; i < limit; i++) {
       var ring = rings[i];
@@ -986,7 +1110,7 @@
       return;
     }
     var reduced = motionReduced();
-    var ms = reduced ? 0 : (durationMs || transitionMs(overlay, "--motion-panel") || 220);
+    var ms = reduced ? 0 : durationMs || transitionMs(overlay, "--motion-panel") || 220;
     overlay.setAttribute("data-uxa-closing", "true");
     if (ms > 0 && typeof overlay.animate === "function") {
       try {
@@ -1007,10 +1131,18 @@
       } catch (_) {}
       if (running && running.length) {
         for (var i = 0; i < running.length; i++) {
-          try { running[i].cancel(); } catch (_) {}
+          try {
+            running[i].cancel();
+          } catch (_) {}
         }
       }
-      try { mutate(); } catch (err) { setTimeout(function () { throw err; }); }
+      try {
+        mutate();
+      } catch (err) {
+        setTimeout(function () {
+          throw err;
+        });
+      }
     }, ms);
   }
 
@@ -1042,10 +1174,14 @@
     overlay.setAttribute("data-open", "true");
     if (motionReduced()) return;
     var dialog = overlay.querySelector('[role="dialog"], .uxa-modal-panel');
-    animateOnce(dialog || overlay, [
-      { opacity: 0, transform: "translate3d(0, 6px, 0) scale(var(--motion-scale-modal, 0.975))" },
-      { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" }
-    ], { duration: 220, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+    animateOnce(
+      dialog || overlay,
+      [
+        { opacity: 0, transform: "translate3d(0, 6px, 0) scale(var(--motion-scale-modal, 0.975))" },
+        { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" }
+      ],
+      { duration: 220, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }
+    );
   }
 
   // -- 8.4 theme-switch coordination ----------------------------------------
@@ -1062,7 +1198,10 @@
       // (they store *data* values, which the theme never changes).
       lastRouteHeading = lastRouteHeading;
     });
-    themeObserver.observe(docEl, { attributes: true, attributeFilter: ["data-theme", "data-theme-mode"] });
+    themeObserver.observe(docEl, {
+      attributes: true,
+      attributeFilter: ["data-theme", "data-theme-mode"]
+    });
   }
 
   // -- 8.5 cursor illumination (opt-in, desktop + full motion only) ----------
@@ -1079,16 +1218,20 @@
     if (motionReduced() || isLite()) return;
     var fine = false;
     try {
-      fine = !!(window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+      fine = !!(
+        window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches
+      );
     } catch (_) {}
     if (!fine) return;
     cursorGlowBound = true;
     docEl.classList.add("uxa-cursor-active");
 
     var onMove = function (event) {
-      var target = event.target && event.target.closest ? event.target.closest(".uxa-cursor-glow") : null;
+      var target =
+        event.target && event.target.closest ? event.target.closest(".uxa-cursor-glow") : null;
       if (!target) {
-        if (cursorTarget && cursorTarget.classList) cursorTarget.style.removeProperty("--uxa-cursor-x");
+        if (cursorTarget && cursorTarget.classList)
+          cursorTarget.style.removeProperty("--uxa-cursor-x");
         cursorTarget = null;
         return;
       }
@@ -1120,7 +1263,9 @@
       for (var i = 0; i < hidden.length; i++) showRevealed(hidden[i]);
       if (revealQueue.length) revealQueue.length = 0;
       if (revealObserver) {
-        try { revealObserver.disconnect(); } catch (_) {}
+        try {
+          revealObserver.disconnect();
+        } catch (_) {}
         revealObserver = null;
       }
       // Cancel every engine-owned animation so nothing is left half-way.
@@ -1129,7 +1274,12 @@
         for (var a = running.length - 1; a >= 0; a--) {
           var anim = running[a];
           var target = anim.effect && anim.effect.target;
-          if (target && target.closest && target.closest(".uxa-reveal, .uxa-anim-fade-up, .uxa-anim-scale-in")) anim.cancel();
+          if (
+            target &&
+            target.closest &&
+            target.closest(".uxa-reveal, .uxa-anim-fade-up, .uxa-anim-scale-in")
+          )
+            anim.cancel();
         }
       } catch (_) {}
     }
@@ -1145,14 +1295,18 @@
     var lite = mode === "lite";
     if (mode === null) {
       try {
-        lite = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+        lite = !!(
+          window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        );
       } catch (_) {}
     }
     docEl.classList.toggle("perf-lite", lite);
     runtimeReduced = lite;
     applyMotionState();
     if (!lite) bindCursorGlow();
-    window.dispatchEvent(new CustomEvent("arise:motion-mode", { detail: { mode: lite ? "lite" : "full" } }));
+    window.dispatchEvent(
+      new CustomEvent("arise:motion-mode", { detail: { mode: lite ? "lite" : "full" } })
+    );
   }
 
   if (reducedMotionQuery) {
@@ -1174,13 +1328,21 @@
    */
   function animateIn(el, kind) {
     if (!el || motionReduced()) return;
-    var cls = kind === "scale" ? "uxa-anim-scale-in" : kind === "fade" ? "uxa-anim-fade-in" : "uxa-anim-fade-up";
+    var cls =
+      kind === "scale"
+        ? "uxa-anim-scale-in"
+        : kind === "fade"
+          ? "uxa-anim-fade-in"
+          : "uxa-anim-fade-up";
     el.classList.remove("uxa-anim-fade-up", "uxa-anim-fade-in", "uxa-anim-scale-in");
     void el.offsetWidth;
     el.classList.add(cls);
-    setTimeout(function () {
-      el.classList.remove(cls);
-    }, isLite() ? 200 : 420);
+    setTimeout(
+      function () {
+        el.classList.remove(cls);
+      },
+      isLite() ? 200 : 420
+    );
   }
 
   /**
@@ -1208,7 +1370,10 @@
   function boot() {
     // 1. Reveal / route / data views.
     scheduleScan();
-    if (window.__ARISE_MUTATION_BUS__ && typeof window.__ARISE_MUTATION_BUS__.subscribe === "function") {
+    if (
+      window.__ARISE_MUTATION_BUS__ &&
+      typeof window.__ARISE_MUTATION_BUS__.subscribe === "function"
+    ) {
       window.__ARISE_MUTATION_BUS__.subscribe(scheduleScan);
     } else if (typeof MutationObserver === "function" && document.body) {
       var mo = new MutationObserver(scheduleScan);
@@ -1248,7 +1413,10 @@
     //    then re-runs on the shared bus for lazily mounted widgets.
     adoptModals();
     setTimeout(adoptModals, 800);
-    if (window.__ARISE_MUTATION_BUS__ && typeof window.__ARISE_MUTATION_BUS__.subscribe === "function") {
+    if (
+      window.__ARISE_MUTATION_BUS__ &&
+      typeof window.__ARISE_MUTATION_BUS__.subscribe === "function"
+    ) {
       window.__ARISE_MUTATION_BUS__.subscribe(function () {
         if (!document.hidden) adoptModals();
       });

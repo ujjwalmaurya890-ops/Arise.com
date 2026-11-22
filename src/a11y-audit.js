@@ -33,16 +33,24 @@
   var LIVE_ID = "arise-a11y-route-live";
   var lastHeading = null;
 
-  function main() { return document.getElementById("arise-main"); }
+  function main() {
+    return document.getElementById("arise-main");
+  }
 
   function skipLink() {
-    return document.querySelector('a.arise-skip-link[href="#arise-main"], a[href="#arise-main"].arise-sk');
+    return document.querySelector(
+      'a.arise-skip-link[href="#arise-main"], a[href="#arise-main"].arise-sk'
+    );
   }
 
   function routeHeading() {
     var host = main();
     var heading = host && host.querySelector("header h1");
-    return heading ? String(heading.textContent || "").replace(/\s+/g, " ").trim() : "";
+    return heading
+      ? String(heading.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim()
+      : "";
   }
 
   // The skip link only works if its target can receive focus on demand.
@@ -66,7 +74,8 @@
       live.setAttribute("aria-live", "polite");
       live.setAttribute("aria-atomic", "true");
       // Hidden visually but still announced: .sr-only must not use display:none.
-      live.style.cssText = "position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;";
+      live.style.cssText =
+        "position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;";
       document.body.appendChild(live);
     }
     if (host && !host.__ariseA11ySkip) {
@@ -92,7 +101,9 @@
     // Re-writing the same string would not be re-announced, so clear first.
     if (live.textContent === text) {
       live.textContent = "";
-      setTimeout(function () { live.textContent = text; }, 30);
+      setTimeout(function () {
+        live.textContent = text;
+      }, 30);
     } else {
       live.textContent = text;
     }
@@ -121,14 +132,19 @@
     if (host) {
       // Inputs wrapped in a <label> (or referenced by label[for]) are already
       // named by that label, so counting them as unnamed would be a false alarm.
-      interactive = Array.prototype.slice.call(host.querySelectorAll('button, [href], input, select, textarea, [role="button"]')).filter(function (el) {
-        return !el.closest("label") && !(el.id && document.querySelector('label[for="' + el.id + '"]'));
-      });
+      interactive = Array.prototype.slice
+        .call(host.querySelectorAll('button, [href], input, select, textarea, [role="button"]'))
+        .filter(function (el) {
+          return (
+            !el.closest("label") && !(el.id && document.querySelector('label[for="' + el.id + '"]'))
+          );
+        });
       focusable = interactive.filter(function (el) {
         return !el.disabled && el.getAttribute("tabindex") !== "-1";
       }).length;
       named = interactive.filter(function (el) {
-        var label = (el.getAttribute("aria-label") || "").trim() ||
+        var label =
+          (el.getAttribute("aria-label") || "").trim() ||
           (el.getAttribute("aria-labelledby") || "").trim() ||
           String(el.textContent || "").trim() ||
           (el.getAttribute("title") || "").trim() ||
@@ -136,7 +152,9 @@
         return !!label;
       }).length;
     }
-    var positiveTabindex = host ? host.querySelectorAll('[tabindex]:not([tabindex="-1"]):not([tabindex="0"])').length : 0;
+    var positiveTabindex = host
+      ? host.querySelectorAll('[tabindex]:not([tabindex="-1"]):not([tabindex="0"])').length
+      : 0;
     return {
       main: {
         present: !!host,
@@ -163,7 +181,10 @@
         total: interactive.length,
         focusable: focusable,
         named: named,
-        labelledByWrapper: host ? host.querySelectorAll('label > input, label > select, label > textarea, label[for]').length : 0,
+        labelledByWrapper: host
+          ? host.querySelectorAll("label > input, label > select, label > textarea, label[for]")
+              .length
+          : 0,
         unnamed: interactive.length - named,
         positiveTabindex: positiveTabindex
       }
@@ -183,7 +204,12 @@
   var pending = null;
   function schedule() {
     if (pending) return;
-    pending = setTimeout(function () { pending = null; try { routeTick(); } catch {} }, 200);
+    pending = setTimeout(function () {
+      pending = null;
+      try {
+        routeTick();
+      } catch {}
+    }, 200);
   }
 
   function start() {

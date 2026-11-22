@@ -46,7 +46,9 @@
   var inFlight = {};
   var timers = {};
 
-  function nowIso() { return new Date().toISOString(); }
+  function nowIso() {
+    return new Date().toISOString();
+  }
 
   function read() {
     try {
@@ -137,7 +139,18 @@
         var result = window.__ariseLoadModule(src);
         // The loader returns a promise (true only when the module really ran).
         if (result && typeof result.then === "function") {
-          return { ok: true, how: "loader", result: Promise.resolve(result).then(function (value) { return value === true; }, function () { return false; }) };
+          return {
+            ok: true,
+            how: "loader",
+            result: Promise.resolve(result).then(
+              function (value) {
+                return value === true;
+              },
+              function () {
+                return false;
+              }
+            )
+          };
         }
         return { ok: result !== false, how: "loader", result: result !== false };
       } catch (error) {
@@ -178,7 +191,10 @@
     timers[src] = setTimeout(function () {
       delete timers[src];
       inFlight[src] = false;
-      if (!online()) { plan.blocked = "offline"; return; }
+      if (!online()) {
+        plan.blocked = "offline";
+        return;
+      }
       var outcome = reloadModule(src);
       plan.outcome = outcome;
       if (outcome.how === "unavailable") {
@@ -188,20 +204,23 @@
       // The hook answers with a promise; a retry that fails must be allowed to
       // schedule the next (bounded) attempt, otherwise one retry is all a flaky
       // connection ever gets.
-      Promise.resolve(outcome && outcome.result).then(function (loaded) {
-        plan.loaded = loaded === true;
-        if (loaded === true) {
-          var placeholder = placeholderFor(src);
-          if (placeholder) placeholder.removeAttribute("data-failed");
-          finish(src);
-          return;
+      Promise.resolve(outcome && outcome.result).then(
+        function (loaded) {
+          plan.loaded = loaded === true;
+          if (loaded === true) {
+            var placeholder = placeholderFor(src);
+            if (placeholder) placeholder.removeAttribute("data-failed");
+            finish(src);
+            return;
+          }
+          var next = read()[src];
+          if (next && next.attempts < MAX_ATTEMPTS) schedule(src, next.reason || "failed");
+        },
+        function () {
+          var next = read()[src];
+          if (next && next.attempts < MAX_ATTEMPTS) schedule(src, next.reason || "failed");
         }
-        var next = read()[src];
-        if (next && next.attempts < MAX_ATTEMPTS) schedule(src, next.reason || "failed");
-      }, function () {
-        var next = read()[src];
-        if (next && next.attempts < MAX_ATTEMPTS) schedule(src, next.reason || "failed");
-      });
+      );
     }, plan.delay);
     return plan;
   }
@@ -210,17 +229,24 @@
 
   function summaries() {
     var state = read();
-    return Object.keys(state).sort().map(function (src) {
-      var entry = state[src];
-      return {
-        src: src,
-        name: String(src).split("/").pop().replace(/\.js$/, "").replace(/-widget$/, "").replace(/-/g, " "),
-        attempts: entry.attempts,
-        kind: classify(entry.reason),
-        retryable: shouldRetry(entry, entry.reason),
-        lastAt: entry.lastAt
-      };
-    });
+    return Object.keys(state)
+      .sort()
+      .map(function (src) {
+        var entry = state[src];
+        return {
+          src: src,
+          name: String(src)
+            .split("/")
+            .pop()
+            .replace(/\.js$/, "")
+            .replace(/-widget$/, "")
+            .replace(/-/g, " "),
+          attempts: entry.attempts,
+          kind: classify(entry.reason),
+          retryable: shouldRetry(entry, entry.reason),
+          lastAt: entry.lastAt
+        };
+      });
   }
 
   function describe() {
@@ -232,17 +258,44 @@
       return (item.kind === "missing" || item.kind === "broken") && item.attempts >= 2;
     });
     if (stuck.length) {
-      return stuck.length + " module" + (stuck.length === 1 ? "" : "s") + " will not load on this device (" +
-        stuck.map(function (item) { return item.name; }).join(", ") +
-        "). Reloading will not help; the file is missing or damaged.";
+      return (
+        stuck.length +
+        " module" +
+        (stuck.length === 1 ? "" : "s") +
+        " will not load on this device (" +
+        stuck
+          .map(function (item) {
+            return item.name;
+          })
+          .join(", ") +
+        "). Reloading will not help; the file is missing or damaged."
+      );
     }
-    var retrying = list.filter(function (item) { return item.attempts < MAX_ATTEMPTS; });
+    var retrying = list.filter(function (item) {
+      return item.attempts < MAX_ATTEMPTS;
+    });
     if (retrying.length) {
-      return retrying.length + " module" + (retrying.length === 1 ? " is" : "s are") +
-        " being retried automatically (" + retrying.map(function (item) { return item.name; }).join(", ") + ").";
+      return (
+        retrying.length +
+        " module" +
+        (retrying.length === 1 ? " is" : "s are") +
+        " being retried automatically (" +
+        retrying
+          .map(function (item) {
+            return item.name;
+          })
+          .join(", ") +
+        ")."
+      );
     }
-    return list.length + " module" + (list.length === 1 ? "" : "s") + " could not be loaded after " + MAX_ATTEMPTS +
-      " attempts. Check your connection, then reload.";
+    return (
+      list.length +
+      " module" +
+      (list.length === 1 ? "" : "s") +
+      " could not be loaded after " +
+      MAX_ATTEMPTS +
+      " attempts. Check your connection, then reload."
+    );
   }
 
   /* ------------------------------------------------------------- lifecycle -- */
@@ -268,9 +321,18 @@
       Object.keys(seen).forEach(function (src) {
         var selector;
         if (/^widget:|^updater:/.test(src)) return;
-        selector = 'script[data-loaded-module="' + src + '"], script[data-module="' + src + '"][data-loaded="true"]';
+        selector =
+          'script[data-loaded-module="' +
+          src +
+          '"], script[data-module="' +
+          src +
+          '"][data-loaded="true"]';
         var loaded = false;
-        try { loaded = !!document.querySelector(selector); } catch { loaded = false; }
+        try {
+          loaded = !!document.querySelector(selector);
+        } catch {
+          loaded = false;
+        }
         if (loaded) finish(src);
       });
       if (window.__ariseWidgetsReady && !failures.length && !Object.keys(read()).length && timer) {
@@ -280,7 +342,13 @@
     };
     tick();
     timer = setInterval(tick, 2500);
-    window.addEventListener("arise:widgets-ready", function () { setTimeout(tick, 500); }, { once: true });
+    window.addEventListener(
+      "arise:widgets-ready",
+      function () {
+        setTimeout(tick, 500);
+      },
+      { once: true }
+    );
     window.addEventListener("arise:widget-failure", function () {
       tick();
       if (!timer) timer = setInterval(tick, 2500);
@@ -296,12 +364,16 @@
       var state = read();
       Object.keys(state).forEach(function (src) {
         if (state[src].attempts < MAX_ATTEMPTS) {
-          try { delete timers[src]; } catch {}
+          try {
+            delete timers[src];
+          } catch {}
           schedule(src, "network restored");
         }
       });
     });
-    window.addEventListener("offline", function () { clock.online = false; });
+    window.addEventListener("offline", function () {
+      clock.online = false;
+    });
     // A visible tab is when a retry is worth its request.
     document.addEventListener("visibilitychange", function () {
       if (!document.hidden) {
@@ -323,10 +395,19 @@
     schedule: schedule,
     reloadModule: reloadModule,
     summaries: summaries,
-    observed: function () { return Object.assign({}, observed); },
+    observed: function () {
+      return Object.assign({}, observed);
+    },
     describe: describe,
     attempts: read,
-    reset: function () { write({}); Object.keys(timers).forEach(function (src) { clearTimeout(timers[src]); delete timers[src]; }); return true; }
+    reset: function () {
+      write({});
+      Object.keys(timers).forEach(function (src) {
+        clearTimeout(timers[src]);
+        delete timers[src];
+      });
+      return true;
+    }
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

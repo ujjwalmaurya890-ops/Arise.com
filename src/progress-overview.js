@@ -43,7 +43,9 @@
     });
   }
 
-  function pad(v) { return (v < 10 ? "0" : "") + v; }
+  function pad(v) {
+    return (v < 10 ? "0" : "") + v;
+  }
   function dayKey(value) {
     var d = value instanceof Date ? value : new Date(value);
     if (isNaN(d.getTime())) return null;
@@ -62,7 +64,9 @@
     }
   }
 
-  function list(value) { return Array.isArray(value) ? value : []; }
+  function list(value) {
+    return Array.isArray(value) ? value : [];
+  }
   function ratio(part, whole) {
     if (!whole) return null;
     return Math.max(0, Math.min(1, part / whole));
@@ -99,8 +103,17 @@
           label: "Study time",
           value: Math.round(summary.minutes),
           unit: "m this week",
-          display: summary.minutes >= 60 ? (Math.round(summary.minutes / 6) / 10) + "h" : Math.round(summary.minutes) + "m",
-          detail: summary.activeDays + " active day" + (summary.activeDays === 1 ? "" : "s") + " · " + minutes7(now) + " over 7 days",
+          display:
+            summary.minutes >= 60
+              ? Math.round(summary.minutes / 6) / 10 + "h"
+              : Math.round(summary.minutes) + "m",
+          detail:
+            summary.activeDays +
+            " active day" +
+            (summary.activeDays === 1 ? "" : "s") +
+            " · " +
+            minutes7(now) +
+            " over 7 days",
           progress: ratio(summary.activeDays, 7),
           hasData: summary.hasData,
           source: KEYS.focus
@@ -125,8 +138,19 @@
       label: "Study time",
       value: Math.round(minutes || 0),
       unit: "m this week",
-      display: (minutes || 0) >= 60 ? (Math.round((minutes || 0) / 6) / 10) + "h" : Math.round(minutes || 0) + "m",
-      detail: days + " active day" + (days === 1 ? "" : "s") + " · " + sessions.length + " session" + (sessions.length === 1 ? "" : "s") + " logged",
+      display:
+        (minutes || 0) >= 60
+          ? Math.round((minutes || 0) / 6) / 10 + "h"
+          : Math.round(minutes || 0) + "m",
+      detail:
+        days +
+        " active day" +
+        (days === 1 ? "" : "s") +
+        " · " +
+        sessions.length +
+        " session" +
+        (sessions.length === 1 ? "" : "s") +
+        " logged",
       progress: ratio(days, 7),
       hasData: !!minutes,
       source: KEYS.focus
@@ -135,8 +159,14 @@
 
   function dsaArea() {
     var questions = list(read(KEYS.dsa));
-    var solved = questions.filter(function (q) { return q && q.solved === true; });
-    var byDifficulty = { Easy: { done: 0, total: 0 }, Medium: { done: 0, total: 0 }, Hard: { done: 0, total: 0 } };
+    var solved = questions.filter(function (q) {
+      return q && q.solved === true;
+    });
+    var byDifficulty = {
+      Easy: { done: 0, total: 0 },
+      Medium: { done: 0, total: 0 },
+      Hard: { done: 0, total: 0 }
+    };
     questions.forEach(function (q) {
       if (!q) return;
       var bucket = byDifficulty[q.difficulty];
@@ -151,9 +181,19 @@
       value: solved.length,
       unit: "of " + total + " solved",
       display: solved.length + "/" + total,
-      detail: "Easy " + byDifficulty.Easy.done + "/" + byDifficulty.Easy.total +
-        " · Medium " + byDifficulty.Medium.done + "/" + byDifficulty.Medium.total +
-        " · Hard " + byDifficulty.Hard.done + "/" + byDifficulty.Hard.total,
+      detail:
+        "Easy " +
+        byDifficulty.Easy.done +
+        "/" +
+        byDifficulty.Easy.total +
+        " · Medium " +
+        byDifficulty.Medium.done +
+        "/" +
+        byDifficulty.Medium.total +
+        " · Hard " +
+        byDifficulty.Hard.done +
+        "/" +
+        byDifficulty.Hard.total,
       progress: ratio(solved.length, total),
       hasData: total > 0,
       source: KEYS.dsa
@@ -175,7 +215,8 @@
       attended += present;
       held += total;
       var percent = (present / total) * 100;
-      if (percent < threshold) risky.push({ name: String(subject.name || "Subject"), percent: Math.round(percent) });
+      if (percent < threshold)
+        risky.push({ name: String(subject.name || "Subject"), percent: Math.round(percent) });
     });
     var percent = held ? Math.round((attended / held) * 100) : null;
     return {
@@ -185,7 +226,13 @@
       unit: percent == null ? "no classes" : "%",
       display: percent == null ? "—" : percent + "%",
       detail: held
-        ? attended + " of " + held + " classes · " + (risky.length ? risky.length + " below " + threshold + "%" : "all above " + threshold + "%")
+        ? attended +
+          " of " +
+          held +
+          " classes · " +
+          (risky.length
+            ? risky.length + " below " + threshold + "%"
+            : "all above " + threshold + "%")
         : "No classes logged yet (the widget's sample subjects are not counted)",
       progress: percent == null ? null : percent / 100,
       hasData: held > 0,
@@ -194,7 +241,7 @@
     };
   }
 
-  var GRADE_POINTS = { "O": 10, "A+": 9, "A": 8, "B+": 7, "B": 6, "C": 5, "P": 4, "F": 0 };
+  var GRADE_POINTS = { O: 10, "A+": 9, A: 8, "B+": 7, B: 6, C: 5, P: 4, F: 0 };
 
   function cgpaArea() {
     var store = read(KEYS.cgpa);
@@ -215,7 +262,10 @@
       });
     });
     var cgpa = credits ? Math.round((points / credits) * 100) / 100 : null;
-    var target = store && store.target && isFinite(Number(store.target.cgpa)) ? Number(store.target.cgpa) : null;
+    var target =
+      store && store.target && isFinite(Number(store.target.cgpa))
+        ? Number(store.target.cgpa)
+        : null;
     return {
       id: "cgpa",
       label: "CGPA",
@@ -223,7 +273,13 @@
       unit: cgpa == null ? "no graded subjects" : "credit-weighted",
       display: cgpa == null ? "—" : cgpa.toFixed(2),
       detail: graded
-        ? graded + " graded subject" + (graded === 1 ? "" : "s") + " · " + credits + " credits" + (target ? " · target " + target : "")
+        ? graded +
+          " graded subject" +
+          (graded === 1 ? "" : "s") +
+          " · " +
+          credits +
+          " credits" +
+          (target ? " · target " + target : "")
         : "No graded subjects yet (sample semesters are not counted)",
       progress: cgpa == null ? null : Math.max(0, Math.min(1, cgpa / 10)),
       hasData: graded > 0,
@@ -241,14 +297,22 @@
       if (!isFinite(progress)) return;
       scored.push(Math.max(0, Math.min(100, progress)));
     });
-    var average = scored.length ? Math.round(scored.reduce(function (sum, v) { return sum + v; }, 0) / scored.length) : null;
+    var average = scored.length
+      ? Math.round(
+          scored.reduce(function (sum, v) {
+            return sum + v;
+          }, 0) / scored.length
+        )
+      : null;
     return {
       id: "skills",
       label: "Skills",
       value: average,
       unit: scored.length ? "avg progress" : "no skills tracked",
       display: average == null ? "—" : average + "%",
-      detail: scored.length ? scored.length + " skill" + (scored.length === 1 ? "" : "s") + " tracked" : "No skills added yet",
+      detail: scored.length
+        ? scored.length + " skill" + (scored.length === 1 ? "" : "s") + " tracked"
+        : "No skills added yet",
       progress: average == null ? null : average / 100,
       hasData: scored.length > 0,
       source: KEYS.skills
@@ -279,15 +343,20 @@
     var store = read(KEYS.certificates);
     var certificates = list(store && store.certificates);
     var verified = certificates.filter(function (cert) {
-      return cert && (cert.verified === true || cert.verificationStatus === "verified" || cert.verificationId);
+      return (
+        cert &&
+        (cert.verified === true || cert.verificationStatus === "verified" || cert.verificationId)
+      );
     });
     return {
       id: "certificates",
       label: "Certificates",
       value: certificates.length,
-      unit: certificates.length ? (verified.length + " verified") : "of 0 saved",
+      unit: certificates.length ? verified.length + " verified" : "of 0 saved",
       display: String(certificates.length),
-      detail: certificates.length ? verified.length + " with a verification reference" : "No certificates saved yet",
+      detail: certificates.length
+        ? verified.length + " with a verification reference"
+        : "No certificates saved yet",
       progress: ratio(verified.length, certificates.length),
       hasData: certificates.length > 0,
       source: KEYS.certificates
@@ -311,7 +380,13 @@
       value: solved.length,
       unit: solved.length ? "logged" : "none yet",
       display: String(solved.length),
-      detail: platforms.length + " connected profile" + (platforms.length === 1 ? "" : "s") + " · " + problems.length + " logged",
+      detail:
+        platforms.length +
+        " connected profile" +
+        (platforms.length === 1 ? "" : "s") +
+        " · " +
+        problems.length +
+        " logged",
       progress: ratio(solved.length, problems.length),
       hasData: problems.length > 0 || platforms.length > 0,
       source: KEYS.cp
@@ -319,10 +394,26 @@
   }
 
   function overview(options) {
-    var now = (options && options.now instanceof Date) ? options.now : new Date((options && options.now) || Date.now());
-    var areas = [studyArea(now), dsaArea(), attendanceArea(), cgpaArea(), skillsArea(), projectsArea(), certificatesArea(), cpArea()];
-    var withData = areas.filter(function (area) { return area.hasData; });
-    var scored = withData.filter(function (area) { return typeof area.progress === "number"; });
+    var now =
+      options && options.now instanceof Date
+        ? options.now
+        : new Date((options && options.now) || Date.now());
+    var areas = [
+      studyArea(now),
+      dsaArea(),
+      attendanceArea(),
+      cgpaArea(),
+      skillsArea(),
+      projectsArea(),
+      certificatesArea(),
+      cpArea()
+    ];
+    var withData = areas.filter(function (area) {
+      return area.hasData;
+    });
+    var scored = withData.filter(function (area) {
+      return typeof area.progress === "number";
+    });
     return {
       areas: areas,
       covered: withData.length,
@@ -331,15 +422,33 @@
       // An average of only the areas that actually contain data: counting an
       // empty area as zero would punish a new user for not having used it yet.
       average: scored.length
-        ? Math.round((scored.reduce(function (sum, area) { return sum + area.progress; }, 0) / scored.length) * 100)
+        ? Math.round(
+            (scored.reduce(function (sum, area) {
+              return sum + area.progress;
+            }, 0) /
+              scored.length) *
+              100
+          )
         : null,
-      missing: areas.filter(function (area) { return !area.hasData; }).map(function (area) { return area.id; }),
-      sources: areas.map(function (area) { return area.source; })
+      missing: areas
+        .filter(function (area) {
+          return !area.hasData;
+        })
+        .map(function (area) {
+          return area.id;
+        }),
+      sources: areas.map(function (area) {
+        return area.source;
+      })
     };
   }
 
   function area(id) {
-    return overview().areas.filter(function (row) { return row.id === id; })[0] || null;
+    return (
+      overview().areas.filter(function (row) {
+        return row.id === id;
+      })[0] || null
+    );
   }
 
   /* ------------------------------------------------------------------- UI -- */
@@ -361,36 +470,72 @@
   function barHtml(progress) {
     if (typeof progress !== "number") return '<span class="po-bar" data-empty="true"></span>';
     var percent = Math.round(Math.max(0, Math.min(1, progress)) * 100);
-    return '<span class="po-bar"><span class="po-bar-fill" style="--po-w:' + percent + '%"></span></span>';
+    return (
+      '<span class="po-bar"><span class="po-bar-fill" style="--po-w:' +
+      percent +
+      '%"></span></span>'
+    );
   }
 
   function cardHtml(state) {
-    var rows = state.areas.map(function (row) {
-      return '<li class="po-row" data-area="' + esc(row.id) + '" data-has-data="' + (row.hasData ? "true" : "false") + '">' +
-        '<div class="po-row-head"><span class="po-label">' + esc(row.label) + '</span>' +
-        '<span class="po-value">' + esc(row.display) + '<span class="po-unit">' + esc(row.unit) + "</span></span></div>" +
-        barHtml(row.progress) +
-        '<p class="po-detail">' + esc(row.detail) + "</p></li>";
-    }).join("");
+    var rows = state.areas
+      .map(function (row) {
+        return (
+          '<li class="po-row" data-area="' +
+          esc(row.id) +
+          '" data-has-data="' +
+          (row.hasData ? "true" : "false") +
+          '">' +
+          '<div class="po-row-head"><span class="po-label">' +
+          esc(row.label) +
+          "</span>" +
+          '<span class="po-value">' +
+          esc(row.display) +
+          '<span class="po-unit">' +
+          esc(row.unit) +
+          "</span></span></div>" +
+          barHtml(row.progress) +
+          '<p class="po-detail">' +
+          esc(row.detail) +
+          "</p></li>"
+        );
+      })
+      .join("");
 
-    return '<div class="po-head"><div><h2 class="po-title" id="po-title">Progress overview</h2>' +
+    return (
+      '<div class="po-head"><div><h2 class="po-title" id="po-title">Progress overview</h2>' +
       '<p class="po-sub">One read-only line per area, computed from what you have actually logged.</p></div>' +
-      '<span class="po-completeness" title="Areas with real data">' + state.covered + "/" + state.total + "</span></div>" +
+      '<span class="po-completeness" title="Areas with real data">' +
+      state.covered +
+      "/" +
+      state.total +
+      "</span></div>" +
       (state.average == null
         ? '<p class="po-note">Nothing has been logged yet, so there is nothing to average. The areas below fill in as you use their widgets.</p>'
-        : '<p class="po-note">Average of the ' + state.covered + " area" + (state.covered === 1 ? "" : "s") +
-          " that contain data: <strong>" + state.average + "%</strong>. Empty areas are excluded, not counted as zero.</p>") +
-      '<ul class="po-rows">' + rows + "</ul>" +
-      '<p class="po-hint">Sources: ' + esc(state.sources.length + " stores read, none written") + ". Sample rows that some widgets display before you add your own data are deliberately ignored.</p>";
+        : '<p class="po-note">Average of the ' +
+          state.covered +
+          " area" +
+          (state.covered === 1 ? "" : "s") +
+          " that contain data: <strong>" +
+          state.average +
+          "%</strong>. Empty areas are excluded, not counted as zero.</p>") +
+      '<ul class="po-rows">' +
+      rows +
+      "</ul>" +
+      '<p class="po-hint">Sources: ' +
+      esc(state.sources.length + " stores read, none written") +
+      ". Sample rows that some widgets display before you add your own data are deliberately ignored.</p>"
+    );
   }
 
-  function render() {
+  function render(options) {
     if (!mounted) return;
     var body = mounted.querySelector(".po-body");
-    if (body) body.innerHTML = cardHtml(overview());
+    // `now` is injectable so rendering can be verified at a fixed moment.
+    if (body) body.innerHTML = cardHtml(overview(options));
   }
 
-  function mount() {
+  function mount(options) {
     if (!routeWantsCard()) return false;
     var target = host();
     if (!target) return false;
@@ -402,7 +547,7 @@
       mounted.innerHTML = '<div class="po-body"></div>';
     }
     if (mounted.parentElement !== target) target.appendChild(mounted);
-    render();
+    render(options);
     return true;
   }
 
@@ -430,7 +575,10 @@
   }
   function schedule() {
     if (pending) return;
-    pending = setTimeout(function () { pending = null; tick(); }, 240);
+    pending = setTimeout(function () {
+      pending = null;
+      tick();
+    }, 240);
   }
   function start() {
     tick();

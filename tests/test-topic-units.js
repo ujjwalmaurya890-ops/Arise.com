@@ -15,25 +15,39 @@ const path = require("path");
 const { JSDOM } = require("jsdom");
 
 const BASE = path.join(path.resolve(__dirname, ".."), "src", "features", "semester-risk");
-let pass = 0, fail = 0;
-function ok(cond, msg) { if (cond) { pass++; } else { fail++; console.error("FAIL: " + msg); } }
-function eq(a, b, msg) { ok(a === b, msg + " (got " + JSON.stringify(a) + ", expected " + JSON.stringify(b) + ")"); }
+let pass = 0,
+  fail = 0;
+function ok(cond, msg) {
+  if (cond) {
+    pass++;
+  } else {
+    fail++;
+    console.error("FAIL: " + msg);
+  }
+}
+function eq(a, b, msg) {
+  ok(a === b, msg + " (got " + JSON.stringify(a) + ", expected " + JSON.stringify(b) + ")");
+}
 
 function freshDom() {
-  const dom = new JSDOM(
-    `<!doctype html><html><body><div id="sem-1"></div></body></html>`,
-    { url: "https://example.test/", runScripts: "dangerously" }
-  );
+  const dom = new JSDOM(`<!doctype html><html><body><div id="sem-1"></div></body></html>`, {
+    url: "https://example.test/",
+    runScripts: "dangerously"
+  });
   const { window } = dom;
   // localStorage polyfill (jsdom's is origin-restricted in some setups; roll our own to be safe)
   const store = {};
   Object.defineProperty(window, "localStorage", {
     configurable: true,
     value: {
-      getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null),
-      setItem: (k, v) => { store[k] = String(v); },
-      removeItem: (k) => { delete store[k]; },
-    },
+      getItem: k => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null),
+      setItem: (k, v) => {
+        store[k] = String(v);
+      },
+      removeItem: k => {
+        delete store[k];
+      }
+    }
   });
   return { dom, window, document: window.document };
 }
@@ -47,7 +61,9 @@ function loadScripts(window) {
   // still 'loading' (true for a freshly-constructed jsdom document) - fire
   // it manually so the panel mounts synchronously for the test.
   if (window.document.readyState === "loading") {
-    window.document.dispatchEvent(new window.Event("DOMContentLoaded", { bubbles: true, cancelable: true }));
+    window.document.dispatchEvent(
+      new window.Event("DOMContentLoaded", { bubbles: true, cancelable: true })
+    );
   }
 }
 
@@ -58,9 +74,9 @@ function loadScripts(window) {
   const cfg = window.AriseCSEFullSyllabusConfig;
   ok(!!cfg, "config loaded");
   eq(cfg.SUBJECTS.length, 56, "56 subjects in flattened SUBJECTS");
-  const withUnits = cfg.SUBJECTS.filter((s) => s.units);
+  const withUnits = cfg.SUBJECTS.filter(s => s.units);
   eq(withUnits.length, 56, "every subject has a units[] array");
-  const badWeights = withUnits.filter((s) => {
+  const badWeights = withUnits.filter(s => {
     const total = s.units.reduce((a, u) => a + u.weightagePct, 0);
     return total !== 100;
   });
@@ -89,11 +105,17 @@ function loadScripts(window) {
   unitRows[0].checked = true;
   unitRows[0].dispatchEvent(new window.Event("change", { bubbles: true }));
   const stored = JSON.parse(window.localStorage.getItem("cse-syllabus-topic-progress-v1"));
-  ok(stored && stored["s1-1"] && Object.keys(stored["s1-1"]).length === 1, "checking one unit persists to cse-syllabus-topic-progress-v1");
+  ok(
+    stored && stored["s1-1"] && Object.keys(stored["s1-1"]).length === 1,
+    "checking one unit persists to cse-syllabus-topic-progress-v1"
+  );
 
   const panel3 = document.getElementById("cse-syllabus-plus-panel");
   const chip3 = panel3.querySelector('[data-units-toggle="s1-1"]');
-  ok(/20%/.test(chip3.textContent), "chip updates to 20% after checking the first (20%-weighted) unit");
+  ok(
+    /20%/.test(chip3.textContent),
+    "chip updates to 20% after checking the first (20%-weighted) unit"
+  );
 }
 
 // ---- Test 3: marking the whole subject done shows 100% regardless of units ----
@@ -105,7 +127,10 @@ function loadScripts(window) {
   check.dispatchEvent(new window.Event("click", { bubbles: true }));
   const panel = document.getElementById("cse-syllabus-plus-panel");
   const chip = panel.querySelector('[data-units-toggle="s1-2"]');
-  ok(/100%/.test(chip.textContent), "marking whole subject done reports 100% unit coverage even with no units individually checked");
+  ok(
+    /100%/.test(chip.textContent),
+    "marking whole subject done reports 100% unit coverage even with no units individually checked"
+  );
 }
 
 // ---- Test 4: priority queue is weighted down by partial unit coverage ----
@@ -117,7 +142,7 @@ function loadScripts(window) {
   // Mark every subject except s1-1 as done, so the (top-5-only) priority
   // panel isn't just showing unrelated higher-scoring subjects — this
   // isolates s1-1's own score before/after its units change.
-  cfg.SUBJECTS.filter((s) => s.id !== "s1-1").forEach((s) => {
+  cfg.SUBJECTS.filter(s => s.id !== "s1-1").forEach(s => {
     const check = document.querySelector('[data-toggle="' + s.id + '"]');
     if (check) check.dispatchEvent(new window.Event("click", { bubbles: true }));
   });
@@ -132,7 +157,10 @@ function loadScripts(window) {
   }
 
   const beforeS11 = scoreFor("s1-1"); // Mathematics I, untouched, now the only pending subject
-  ok(beforeS11 !== null && beforeS11 > 0, "s1-1 is the sole entry in the priority queue with a nonzero score");
+  ok(
+    beforeS11 !== null && beforeS11 > 0,
+    "s1-1 is the sole entry in the priority queue with a nonzero score"
+  );
 
   // Cover 80% of s1-1's units (4 of 5, each weighted 20%) — still "pending" overall
   const panel = document.getElementById("cse-syllabus-plus-panel");
@@ -140,17 +168,31 @@ function loadScripts(window) {
   chip.dispatchEvent(new window.Event("click", { bubbles: true }));
   const panel2 = document.getElementById("cse-syllabus-plus-panel");
   const unitRows = Array.from(panel2.querySelectorAll('[data-unit-toggle^="s1-1:"]')).slice(0, 4);
-  unitRows.forEach((el) => {
+  unitRows.forEach(el => {
     el.checked = true;
     el.dispatchEvent(new window.Event("change", { bubbles: true }));
   });
 
   const afterS11 = scoreFor("s1-1");
-  ok(afterS11 !== null, "s1-1 still appears in the priority queue at 80% unit coverage (not yet marked fully done)");
-  ok(afterS11 !== null && afterS11 < beforeS11, "s1-1's priority score dropped after covering 80% of its units (" + beforeS11 + " -> " + afterS11 + ")");
+  ok(
+    afterS11 !== null,
+    "s1-1 still appears in the priority queue at 80% unit coverage (not yet marked fully done)"
+  );
+  ok(
+    afterS11 !== null && afterS11 < beforeS11,
+    "s1-1's priority score dropped after covering 80% of its units (" +
+      beforeS11 +
+      " -> " +
+      afterS11 +
+      ")"
+  );
   // Expected multiplier ~ max(0.05, 1-0.8) = 0.2
   const ratio = afterS11 / beforeS11;
-  ok(Math.abs(ratio - 0.2) < 0.02, "score dropped by roughly the expected 0.2x (20% remaining) factor, got ratio " + ratio.toFixed(3));
+  ok(
+    Math.abs(ratio - 0.2) < 0.02,
+    "score dropped by roughly the expected 0.2x (20% remaining) factor, got ratio " +
+      ratio.toFixed(3)
+  );
 }
 
 // ---- Test 5: a subject with no units[] (custom subject) is unaffected ----
@@ -160,15 +202,20 @@ function loadScripts(window) {
   const addToggle = document.getElementById("csp-add-toggle");
   addToggle.dispatchEvent(new window.Event("click", { bubbles: true }));
   document.getElementById("csp-f-name").value = "Elective: Quantum Computing";
-  document.querySelector('[data-add-save]').dispatchEvent(new window.Event("click", { bubbles: true }));
+  document
+    .querySelector("[data-add-save]")
+    .dispatchEvent(new window.Event("click", { bubbles: true }));
 
   const panel = document.getElementById("cse-syllabus-plus-panel");
   // find the custom row by name
   const rows = Array.from(panel.querySelectorAll(".csp-row"));
-  const customRow = rows.find((r) => /Quantum Computing/.test(r.textContent));
+  const customRow = rows.find(r => /Quantum Computing/.test(r.textContent));
   ok(!!customRow, "custom subject row rendered");
   const chip = customRow.querySelector("[data-units-toggle]");
-  ok(!chip, "no units chip rendered for a custom subject (no units[] breakdown) — falls back cleanly");
+  ok(
+    !chip,
+    "no units chip rendered for a custom subject (no units[] breakdown) — falls back cleanly"
+  );
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

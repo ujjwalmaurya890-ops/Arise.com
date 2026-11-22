@@ -4,7 +4,7 @@
 
 **Implemented in the repository, not activated against a live Firebase project.** Unconfigured deployments deliberately remain locked. No production project, Google consent configuration, five real emails, or private credentials were supplied or created. Do not treat mocked login tests as a real Google-provider test.
 
-Completed: audit, Google Auth integration, server authorization, private exactly-five policy, Firestore persistence, account isolation, automatic saving/retry, offline recovery, conflict handling, consented migration, lossless file backup, UI integration, tests and safe build. See [audit](SECURE-SYNC-AUDIT.md), [storage mapping](SYNC-STORAGE-MAP.md), [test results](SECURE-SYNC-TESTS.md) and [exact changed files](SECURE-SYNC-CHANGES.md).
+Completed: audit, Google Auth integration, server authorization, private approved-account policy, Firestore persistence, account isolation, automatic saving/retry, offline recovery, conflict handling, consented migration, lossless file backup, UI integration, tests and safe build. See [audit](SECURE-SYNC-AUDIT.md), [storage mapping](SYNC-STORAGE-MAP.md), [test results](SECURE-SYNC-TESTS.md) and [exact changed files](SECURE-SYNC-CHANGES.md).
 
 Before production, the owner must configure Firebase/Google/Netlify, deploy rules, insert five real approved emails, execute the real emulator suite and complete the two-device/provider checklist below. Legacy remote sync copies also need owner review; they are **not** deleted automatically.
 
@@ -79,12 +79,12 @@ The service-account `private_key` must retain its JSON `\n` escapes. Use a prope
 
 Do not set `FIREBASE_AUTH_EMULATOR_HOST` or `FIRESTORE_EMULATOR_HOST` in deployed functions. Production services explicitly refuse them. Emulator tests use a separate dependency-injected test handler, not an unsigned-token bypass in production.
 
-## 4. Configure exactly five approved emails
+## 4. Configure the approved emails
 
 ### Preferred: owner script (no frontend rebuild/redeploy required)
 
 1. Copy `config/approved-users.example.json` to **`config/approved-users.json`** (ignored by Git).
-2. Replace all five `.invalid` placeholders with five **distinct actual verified Google emails**. Keep `enabled: true`. Entries are normalized on validation; use lowercase for readability.
+2. Replace the `.invalid` placeholders with **distinct actual verified Google emails**. Keep `enabled: true`. Entries are normalized on validation; use lowercase for readability. One to 50 addresses are supported — five is only the shipped example.
 3. In a trusted local shell, configure `.env` with the confirmed project's server credential, then run:
 
 ```sh
@@ -93,17 +93,22 @@ npm run configure:access -- config/approved-users.json --project YOUR_PROJECT_ID
 npm run configure:access -- config/approved-users.json --project YOUR_PROJECT_ID --apply
 ```
 
-The script validates first, requires explicit project confirmation and writes the private document **`_config/access`** atomically with `enabled`, `approvedEmails`, `schemaVersion`, `updatedAt`. The example intentionally fails validation until all five entries are replaced. Do not publish the real JSON file.
+The script validates first, requires explicit project confirmation and writes the private document **`_config/access`** atomically with `enabled`, `approvedEmails`, `schemaVersion`, `updatedAt`. The example intentionally fails validation until every `.invalid` placeholder is replaced; the owner script is strict and aborts on any malformed or duplicate row. Do not publish the real JSON file.
 
 ### Console alternative / updates / emergency lock
 
 As a project administrator, edit Firestore `_config/access` with fields:
 
 - `enabled` boolean `true`
-- `approvedEmails` array of **exactly five strings**
+- `approvedEmails` array of **1–50 distinct strings**
 - Optional `schemaVersion` number `1`, `updatedAt` timestamp
 
-Replace the whole five-element array in one saved edit. Do not create a client-writable `users/{uid}.approved` flag. Every API call rechecks the document; transaction commits recheck it inside the transaction as well. No cached custom claims or frontend rebuild are involved. To remove one person, replace their entry with the next explicitly approved Google email. Their old UID data remains retained but inaccessible to them; it does not transfer to the replacement person.
+Replace or extend the whole array in one saved edit. Resolution is fail-soft: a
+missing, disabled, empty or wholly malformed policy fails closed with
+`503 access-unavailable`, but individual malformed or duplicate rows are ignored
+(count logged server-side, addresses never logged) so one typo cannot lock every
+approved account out. Existing valid entries keep working when someone is added
+or removed. Do not create a client-writable `users/{uid}.approved` flag. Every API call rechecks the document; transaction commits recheck it inside the transaction as well. No cached custom claims or frontend rebuild are involved. To remove one person, delete their entry (the remaining entries keep working). Their old UID data remains retained but inaccessible to them; it does not transfer to the replacement person.
 
 For an emergency lock set `enabled=false`. All protected requests then fail closed. To revoke a compromised session also disable the user or revoke refresh tokens through trusted Firebase administration. Other devices' local offline copies cannot be remotely erased; server access remains denied and the UI locks when it next checks online.
 
@@ -256,9 +261,9 @@ Recovery snapshots are content-addressed in `arise-secure-sync-v1` under `recove
 
 Use separate real browsers/devices, not two tabs competing for the same local Web Lock.
 
-1. Sign in with each of the five approved Google accounts. Confirm name/photo/verified email. Cancel the popup and retry; try a popup-blocked/unauthorized development domain and verify a helpful error.
+1. Sign in with each approved Google account. Confirm name/photo/verified email. Cancel the popup and retry; try a popup-blocked/unauthorized development domain and verify a helpful error.
 2. Use a sixth Google account. It must see access denied and cannot retrieve `/api/cloud`, file chunks, activity, direct Firestore records or config—even if Firebase sign-in succeeds.
-3. Disable/remove the policy in a controlled maintenance window, then restore all five entries. Verify fail-closed behavior and immediate server rejection of a removed user's existing token. Disable/revoke a test Auth user and confirm session lock.
+3. Disable/remove the policy in a controlled maintenance window, then restore the entries. Verify fail-closed behavior, fail-soft single-row recovery and immediate server rejection of a removed user's existing token. Disable/revoke a test Auth user and confirm session lock.
 4. On Device A, create/update records in tasks/daily goals, study sessions/streaks, DSA/dev progress, CP/aptitude/placement, academics/attendance/CGPA, exams/revision/syllabus, expenses/history, notes/wiki, achievements/projects/hackathons/certificates/social/water and preferences. Attach a real file to each supported file database. Wait for **Saved**.
 5. Close/refresh A: session restores appropriately; logout locks the app. Sign into the same Google account on B: IDs, counts, completion states, amounts, file bytes, timestamps, theme and original list order match. No fresh empty profile replaces old cloud data.
 6. Sign in as a different approved person on the same browser and on B. No previous person's notes, files, cached UI or pending writes may appear as theirs. Try importing their tagged backup: it must be rejected.

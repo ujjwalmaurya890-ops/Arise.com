@@ -25,7 +25,7 @@ const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
 const root = path.resolve(__dirname, "..");
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 const WIDGET = "src/career-command-center-widget.js";
 
@@ -56,7 +56,7 @@ function bootWidget(widgetFile, storedValues) {
     w.localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
   }
   const errors = [];
-  w.addEventListener("error", (event) => errors.push(String(event.message || event.error)));
+  w.addEventListener("error", event => errors.push(String(event.message || event.error)));
   w.__ariseReportWidgetError = () => {};
   w.eval(
     "window.__ARISE_MUTATION_BUS__={mute:function(f){return f()},subscribe:function(){return function(){}}};" +
@@ -69,7 +69,9 @@ function bootWidget(widgetFile, storedValues) {
   w.document.getElementById("arise-main").appendChild(container);
 
   let thrown = null;
-  const mount = Object.keys(w).find((key) => key.startsWith("__mount") && typeof w[key] === "function");
+  const mount = Object.keys(w).find(
+    key => key.startsWith("__mount") && typeof w[key] === "function"
+  );
   try {
     if (mount) w[mount](container);
   } catch (error) {
@@ -81,11 +83,20 @@ function bootWidget(widgetFile, storedValues) {
 console.log("Career Command Center — wrong-shaped stored data");
 
 const CORRUPT_CASES = [
-  ["a JSON null where a list is expected", { dsaQuestions: "null", devTasks: "null", projects: "null" }],
+  [
+    "a JSON null where a list is expected",
+    { dsaQuestions: "null", devTasks: "null", projects: "null" }
+  ],
   ["a boolean where a list is expected", { dsaQuestions: "true", devTasks: "false" }],
   ["a number where a list is expected", { dsaQuestions: "42" }],
-  ["an object where a list is expected", { dsaQuestions: '{"a":1}', devTasks: '{"b":2}', projects: '{"c":3}' }],
-  ["an array where an object is expected", { "cse-syllabus-progress-v1": "[1,2,3]", interviewSheetsProgress: "[4]" }],
+  [
+    "an object where a list is expected",
+    { dsaQuestions: '{"a":1}', devTasks: '{"b":2}', projects: '{"c":3}' }
+  ],
+  [
+    "an array where an object is expected",
+    { "cse-syllabus-progress-v1": "[1,2,3]", interviewSheetsProgress: "[4]" }
+  ],
   ["a string where an object is expected", { "cse-syllabus-progress-v1": '"oops"' }],
   ["unparseable JSON", { dsaQuestions: "{not json", devTasks: "[[[" }],
   ["null sessions", { studySessions: "null", "arise-sessions": "{}" }],
@@ -102,7 +113,9 @@ for (const [label, values] of CORRUPT_CASES) {
 
 test("still renders its section from a valid store", () => {
   const { thrown, container } = bootWidget(WIDGET, {
-    dsaQuestions: [{ id: "a", solved: true, difficulty: "Easy", dateSolved: "2026-02-09T10:00:00.000Z" }],
+    dsaQuestions: [
+      { id: "a", solved: true, difficulty: "Easy", dateSolved: "2026-02-09T10:00:00.000Z" }
+    ],
     devTasks: [{ id: "d1", completed: true, category: "Frontend", difficulty: "Intermediate" }]
   });
   assert.equal(thrown, null);
@@ -116,7 +129,10 @@ test("a corrupt list does not hide the rest of the panel", () => {
     devTasks: [{ id: "d1", completed: true, category: "Frontend", difficulty: "Intermediate" }]
   });
   assert.equal(thrown, null);
-  assert.ok(container.textContent.replace(/\s+/g, "").length > 30, "expected a partial panel, got a blank one");
+  assert.ok(
+    container.textContent.replace(/\s+/g, "").length > 30,
+    "expected a partial panel, got a blank one"
+  );
 });
 
 console.log("\nRepository-wide guard: no widget crashes on hostile storage");
@@ -135,7 +151,10 @@ test("every widget that exposes __mount survives wrong-shaped storage", () => {
     focusSessionsV2: "{}"
   };
   const failuresHere = [];
-  const files = fs.readdirSync(path.join(root, "src")).filter((f) => f.endsWith(".js")).sort();
+  const files = fs
+    .readdirSync(path.join(root, "src"))
+    .filter(f => f.endsWith(".js"))
+    .sort();
   for (const file of files) {
     let result;
     try {
@@ -151,7 +170,9 @@ test("every widget that exposes __mount survives wrong-shaped storage", () => {
     }
     // Widgets install intervals/listeners; close the window so the process can
     // exit instead of being held open by a live timer.
-    try { result.window.close(); } catch (_) {}
+    try {
+      result.window.close();
+    } catch (_) {}
   }
   assert.deepEqual(failuresHere, []);
 });

@@ -76,7 +76,9 @@
     if (!dayKey) return null;
     var parts = String(dayKey).slice(0, 10).split("-");
     if (parts.length !== 3) return null;
-    var y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+    var y = Number(parts[0]),
+      m = Number(parts[1]),
+      d = Number(parts[2]);
     if (!y || !m || !d) return null;
     var stamp = Date.UTC(y, m - 1, d);
     return Number.isFinite(stamp) ? stamp : null;
@@ -143,17 +145,29 @@
       var days = daysBetween(dayStart, stamp);
       // A passed exam is not actionable; the tracker shows its own history.
       if (days < 0 || days > 30) return;
-      out.push(item({
-        id: "exam:" + (exam.id || exam.title || exam.examName) + ":" + days,
-        kind: "Exam",
-        title: exam.examName || exam.title || "Exam",
-        detail: [exam.subjectName, exam.examType, days < 0 ? "date passed" : days === 0 ? "is today" : "in " + days + " day" + (days === 1 ? "" : "s")].filter(Boolean).join(" · "),
-        due: stamp,
-        days: days,
-        tone: toneFor(days),
-        route: "exam-tracker",
-        source: "Exam Tracker"
-      }));
+      out.push(
+        item({
+          id: "exam:" + (exam.id || exam.title || exam.examName) + ":" + days,
+          kind: "Exam",
+          title: exam.examName || exam.title || "Exam",
+          detail: [
+            exam.subjectName,
+            exam.examType,
+            days < 0
+              ? "date passed"
+              : days === 0
+                ? "is today"
+                : "in " + days + " day" + (days === 1 ? "" : "s")
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          due: stamp,
+          days: days,
+          tone: toneFor(days),
+          route: "exam-tracker",
+          source: "Exam Tracker"
+        })
+      );
     });
 
     /* -------------------------------------------------------- hackathons -- */
@@ -164,39 +178,63 @@
       if (stamp === null) return;
       var days = daysBetween(dayStart, stamp);
       if (days < 0 || days > 30) return;
-      out.push(item({
-        id: "hackathon:" + (entry.id || entry.name) + ":" + days,
-        kind: "Deadline",
-        title: entry.name || entry.event || "Hackathon",
-        detail: [entry.status, days === 0 ? "registration closes today" : days < 0 ? "registration closed" : "registration closes in " + days + " day" + (days === 1 ? "" : "s")].filter(Boolean).join(" · "),
-        due: stamp,
-        days: days,
-        tone: toneFor(days),
-        route: "hackathon-tracker",
-        source: "Hackathon Pipeline"
-      }));
+      out.push(
+        item({
+          id: "hackathon:" + (entry.id || entry.name) + ":" + days,
+          kind: "Deadline",
+          title: entry.name || entry.event || "Hackathon",
+          detail: [
+            entry.status,
+            days === 0
+              ? "registration closes today"
+              : days < 0
+                ? "registration closed"
+                : "registration closes in " + days + " day" + (days === 1 ? "" : "s")
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          due: stamp,
+          days: days,
+          tone: toneFor(days),
+          route: "hackathon-tracker",
+          source: "Hackathon Pipeline"
+        })
+      );
     });
 
     /* --------------------------------------------------------- placement -- */
     var placement = readJSON("arise_placement_tracker_v1", null);
-    var applications = placement && Array.isArray(placement.applications) ? placement.applications : [];
+    var applications =
+      placement && Array.isArray(placement.applications) ? placement.applications : [];
     applications.slice(0, MAX_PER_SOURCE).forEach(function (app) {
       if (!app) return;
       var stamp = normalize(app.interviewDate || app.deadline || app.nextRoundDate);
       if (stamp === null) return;
       var days = daysBetween(dayStart, stamp);
       if (days < 0 || days > 21) return;
-      out.push(item({
-        id: "placement:" + (app.id || app.company) + ":" + days,
-        kind: "Interview",
-        title: [app.company, app.role].filter(Boolean).join(" · ") || "Application",
-        detail: [app.status, app.interviewMode, days === 0 ? "is today" : days < 0 ? "has passed" : "in " + days + " day" + (days === 1 ? "" : "s")].filter(Boolean).join(" · "),
-        due: stamp,
-        days: days,
-        tone: toneFor(days),
-        route: "placement-tracker",
-        source: "Placement Tracker"
-      }));
+      out.push(
+        item({
+          id: "placement:" + (app.id || app.company) + ":" + days,
+          kind: "Interview",
+          title: [app.company, app.role].filter(Boolean).join(" · ") || "Application",
+          detail: [
+            app.status,
+            app.interviewMode,
+            days === 0
+              ? "is today"
+              : days < 0
+                ? "has passed"
+                : "in " + days + " day" + (days === 1 ? "" : "s")
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          due: stamp,
+          days: days,
+          tone: toneFor(days),
+          route: "placement-tracker",
+          source: "Placement Tracker"
+        })
+      );
     });
 
     /* ------------------------------------------------------------- tasks -- */
@@ -213,17 +251,28 @@
         if (stamp === null) return;
         var days = daysBetween(dayStart, stamp);
         if (days < -1 || days > 7) return;
-        out.push(item({
-          id: "task:" + store.key + ":" + (task.id || task.title) + ":" + days,
-          kind: "Task",
-          title: task.title || task.text || "Open task",
-          detail: [task.priority, days === 0 ? "due today" : days < 0 ? "overdue" : "due in " + days + " day" + (days === 1 ? "" : "s")].filter(Boolean).join(" · "),
-          due: stamp,
-          days: days,
-          tone: toneFor(days),
-          route: store.route,
-          source: store.source
-        }));
+        out.push(
+          item({
+            id: "task:" + store.key + ":" + (task.id || task.title) + ":" + days,
+            kind: "Task",
+            title: task.title || task.text || "Open task",
+            detail: [
+              task.priority,
+              days === 0
+                ? "due today"
+                : days < 0
+                  ? "overdue"
+                  : "due in " + days + " day" + (days === 1 ? "" : "s")
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            due: stamp,
+            days: days,
+            tone: toneFor(days),
+            route: store.route,
+            source: store.source
+          })
+        );
       });
     });
 
@@ -243,17 +292,24 @@
         var days = daysBetween(dayStart, stamp);
         if (days > 0) return; // revision is only "due" once the date arrives
         count += 1;
-        out.push(item({
-          id: "revision:" + store.key + ":" + id + ":" + Math.max(days, -1),
-          kind: "Revision",
-          title: (card && (card.title || card.name || card.question)) || "Revision card",
-          detail: [store.label, days === 0 ? "due today" : "overdue by " + Math.abs(days) + " day" + (days === -1 ? "" : "s")].join(" · "),
-          due: stamp,
-          days: days,
-          tone: days < 0 ? "overdue" : "today",
-          route: store.route,
-          source: "Spaced repetition"
-        }));
+        out.push(
+          item({
+            id: "revision:" + store.key + ":" + id + ":" + Math.max(days, -1),
+            kind: "Revision",
+            title: (card && (card.title || card.name || card.question)) || "Revision card",
+            detail: [
+              store.label,
+              days === 0
+                ? "due today"
+                : "overdue by " + Math.abs(days) + " day" + (days === -1 ? "" : "s")
+            ].join(" · "),
+            due: stamp,
+            days: days,
+            tone: days < 0 ? "overdue" : "today",
+            route: store.route,
+            source: "Spaced repetition"
+          })
+        );
       });
     });
 
@@ -266,12 +322,14 @@
     var now = typeof opts.now === "number" ? opts.now : Date.now();
     var withinDays = typeof opts.withinDays === "number" ? opts.withinDays : 30;
     var read = readState();
-    var items = collect(now).filter(function (entry) {
-      return entry.days <= withinDays;
-    }).map(function (entry) {
-      entry.read = !!read[entry.id];
-      return entry;
-    });
+    var items = collect(now)
+      .filter(function (entry) {
+        return entry.days <= withinDays;
+      })
+      .map(function (entry) {
+        entry.read = !!read[entry.id];
+        return entry;
+      });
     items.sort(function (a, b) {
       if (a.read !== b.read) return a.read ? 1 : -1;
       return a.due - b.due;
@@ -285,7 +343,9 @@
   }
 
   function unreadCount(options) {
-    return compute(options).filter(function (entry) { return !entry.read; }).length;
+    return compute(options).filter(function (entry) {
+      return !entry.read;
+    }).length;
   }
 
   function markRead(id) {
@@ -297,10 +357,12 @@
     return saved;
   }
 
-  function markAllRead() {
+  function markAllRead(options) {
     var state = readState();
     var stamp = new Date().toISOString();
-    compute().forEach(function (entry) { state[entry.id] = stamp; });
+    compute(options).forEach(function (entry) {
+      state[entry.id] = stamp;
+    });
     var saved = writeState(state);
     render();
     return saved;
@@ -333,18 +395,51 @@
     var html = "";
     ["overdue", "today", "soon", "later"].forEach(function (tone) {
       if (!groups[tone].length) return;
-      html += '<div class="anc-group-title" role="presentation">' + TONE_LABEL[tone] + " (" + groups[tone].length + ")</div>";
+      html +=
+        '<div class="anc-group-title" role="presentation">' +
+        TONE_LABEL[tone] +
+        " (" +
+        groups[tone].length +
+        ")</div>";
       groups[tone].forEach(function (entry) {
-        html += '<div class="anc-item" data-anc-id="' + esc(entry.id) + '" data-tone="' + esc(entry.tone) + '" data-read="' + (entry.read ? "true" : "false") + '">' +
+        html +=
+          '<div class="anc-item" data-anc-id="' +
+          esc(entry.id) +
+          '" data-tone="' +
+          esc(entry.tone) +
+          '" data-read="' +
+          (entry.read ? "true" : "false") +
+          '">' +
           '<div class="anc-item-main">' +
-          '<span class="anc-kind">' + esc(entry.kind) + "</span>" +
-          '<span class="anc-title">' + esc(entry.title) + "</span>" +
-          '<span class="anc-detail">' + esc(entry.detail) + "</span>" +
-          '<span class="anc-source">' + esc(entry.source) + "</span>" +
+          '<span class="anc-kind">' +
+          esc(entry.kind) +
+          "</span>" +
+          '<span class="anc-title">' +
+          esc(entry.title) +
+          "</span>" +
+          '<span class="anc-detail">' +
+          esc(entry.detail) +
+          "</span>" +
+          '<span class="anc-source">' +
+          esc(entry.source) +
+          "</span>" +
           "</div>" +
           '<div class="anc-item-actions">' +
-          '<button type="button" class="anc-btn" data-anc-action="open" data-route="' + esc(entry.route) + '" aria-label="Open ' + esc(entry.title) + ' in ' + esc(entry.source) + '">Open</button>' +
-          '<button type="button" class="anc-btn" data-anc-action="read" aria-pressed="' + (entry.read ? "true" : "false") + '" aria-label="' + (entry.read ? "Mark unread: " : "Mark as read: ") + esc(entry.title) + '">' + (entry.read ? "Unread" : "Read") + "</button>" +
+          '<button type="button" class="anc-btn" data-anc-action="open" data-route="' +
+          esc(entry.route) +
+          '" aria-label="Open ' +
+          esc(entry.title) +
+          " in " +
+          esc(entry.source) +
+          '">Open</button>' +
+          '<button type="button" class="anc-btn" data-anc-action="read" aria-pressed="' +
+          (entry.read ? "true" : "false") +
+          '" aria-label="' +
+          (entry.read ? "Mark unread: " : "Mark as read: ") +
+          esc(entry.title) +
+          '">' +
+          (entry.read ? "Unread" : "Read") +
+          "</button>" +
           "</div></div>";
       });
     });
@@ -357,19 +452,28 @@
     return fn();
   }
 
-  function render() {
+  function render(options) {
     var panel = host();
     if (!panel) return;
-    var items = compute();
+    // `now` is injectable so the rendered list can be verified at a fixed moment.
+    var items = compute(options);
     var body = panel.querySelector(".anc-list");
     if (body) {
       var nextHtml = renderRows(items);
-      if (body.innerHTML !== nextHtml) runMuted(function () { body.innerHTML = nextHtml; });
+      if (body.innerHTML !== nextHtml)
+        runMuted(function () {
+          body.innerHTML = nextHtml;
+        });
     }
-    var unread = items.filter(function (entry) { return !entry.read; }).length;
+    var unread = items.filter(function (entry) {
+      return !entry.read;
+    }).length;
     var status = panel.querySelector(".anc-status");
     var nextStatus = unread + " unread · " + items.length + " tracked";
-    if (status && status.textContent !== nextStatus) runMuted(function () { status.textContent = nextStatus; });
+    if (status && status.textContent !== nextStatus)
+      runMuted(function () {
+        status.textContent = nextStatus;
+      });
     updateBadge();
   }
 
@@ -394,13 +498,14 @@
     launcher.className = "anc-launcher";
     launcher.setAttribute("aria-label", "Open notifications");
     launcher.setAttribute("aria-haspopup", "dialog");
-    launcher.innerHTML = '<span aria-hidden="true">🔔</span><span id="anc-badge" class="anc-badge" hidden>0</span>';
+    launcher.innerHTML =
+      '<span aria-hidden="true">🔔</span><span id="anc-badge" class="anc-badge" hidden>0</span>';
     launcher.addEventListener("click", open);
     document.body.appendChild(launcher);
     updateBadge();
   }
 
-  function open() {
+  function open(options) {
     var panel = host();
     if (!panel) {
       panel = document.createElement("div");
@@ -424,7 +529,7 @@
     panel.setAttribute("data-open", "true");
     panel.setAttribute("aria-hidden", "false");
     document.addEventListener("keydown", onKeydown, true);
-    render();
+    render(options);
     var closeBtn = panel.querySelector(".anc-close");
     if (closeBtn) closeBtn.focus();
     return true;
@@ -438,7 +543,11 @@
     panel.setAttribute("aria-hidden", "true");
     var previous = panel.__previous;
     if (previous && typeof previous.focus === "function" && previous.isConnected) {
-      try { previous.focus({ preventScroll: true }); } catch { previous.focus(); }
+      try {
+        previous.focus({ preventScroll: true });
+      } catch {
+        previous.focus();
+      }
     }
     return true;
   }
@@ -463,9 +572,14 @@
     }
     if (event.key !== "Tab") return;
     var dialog = panel.querySelector(".anc-dialog");
-    var focusable = dialog ? Array.prototype.slice.call(dialog.querySelectorAll("button, [href], [tabindex]:not([tabindex='-1'])")).filter(visible) : [];
+    var focusable = dialog
+      ? Array.prototype.slice
+          .call(dialog.querySelectorAll("button, [href], [tabindex]:not([tabindex='-1'])"))
+          .filter(visible)
+      : [];
     if (!focusable.length) return;
-    var first = focusable[0], last = focusable[focusable.length - 1];
+    var first = focusable[0],
+      last = focusable[focusable.length - 1];
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
@@ -485,7 +599,9 @@
       dsa: "DSA Tracker",
       dev: "Development"
     }[route];
-    var buttons = Array.prototype.slice.call(document.querySelectorAll("#arise-desktop-nav button, #arise-mobile-nav button, aside button"));
+    var buttons = Array.prototype.slice.call(
+      document.querySelectorAll("#arise-desktop-nav button, #arise-mobile-nav button, aside button")
+    );
     for (var i = 0; i < buttons.length; i++) {
       var text = (buttons[i].textContent || "").replace(/\s+/g, " ").trim();
       if (label && (text === label || text.indexOf(label) !== -1)) {
@@ -543,7 +659,14 @@
     function onMutations(records) {
       for (var i = 0; i < records.length; i++) {
         var t = records[i].target;
-        if (t && (t.id === "anc-launcher" || t.id === "anc-panel" || t.id === "anc-badge" || (t.closest && (t.closest("#anc-launcher") || t.closest("#anc-panel"))))) continue;
+        if (
+          t &&
+          (t.id === "anc-launcher" ||
+            t.id === "anc-panel" ||
+            t.id === "anc-badge" ||
+            (t.closest && (t.closest("#anc-launcher") || t.closest("#anc-panel"))))
+        )
+          continue;
         var added = records[i].addedNodes || [];
         for (var j = 0; j < added.length; j++) {
           var node = added[j];

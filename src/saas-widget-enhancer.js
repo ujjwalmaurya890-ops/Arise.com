@@ -51,13 +51,14 @@
     if (!flexBody) return [];
     // Supplemental Settings diagnostics may briefly precede the React route
     // during navigation. They are not the route's card container.
-    var l1 = Array.prototype.find.call(flexBody.children, function (child) {
-      return child.id !== 'upp-data-health-card';
-    }) || flexBody;
+    var l1 =
+      Array.prototype.find.call(flexBody.children, function (child) {
+        return child.id !== "upp-data-health-card";
+      }) || flexBody;
     var container = l1.firstElementChild || l1;
     // The Analytics error boundary is a layout wrapper, not a widget. Keep
     // existing quick-jump/filter discovery aimed at the actual chart cards.
-    if (container.classList && container.classList.contains('arise-route-state')) {
+    if (container.classList && container.classList.contains("arise-route-state")) {
       container = container.firstElementChild || container;
     }
     var candidates = [];
@@ -73,7 +74,9 @@
       var cls = String(child.className || "");
       var isMultiGrid =
         /\bgrid\b/.test(cls) &&
-        !/\b(glass|card|rounded-2xl|ptx|crt|exw|na-wrap|pw-wrap|csu|csp|att|cgpa|cp-wrap)\b/.test(cls);
+        !/\b(glass|card|rounded-2xl|ptx|crt|exw|na-wrap|pw-wrap|csu|csp|att|cgpa|cp-wrap)\b/.test(
+          cls
+        );
       if (isMultiGrid && child.children.length >= 2 && child.children.length <= 8) {
         Array.prototype.slice.call(child.children).forEach(function (sub) {
           if (sub && sub.nodeType === 1) candidates.push(sub);
@@ -185,7 +188,8 @@
         "scroll",
         function () {
           if (scrollRaf) return;
-          var sched = typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout;
+          var sched =
+            typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout;
           scrollRaf = sched(function () {
             scrollRaf = 0;
             updateVis();
@@ -202,20 +206,21 @@
     var isCompact = document.documentElement.getAttribute("data-density") === "compact";
     var pressedStr = String(isCompact);
     var labelStr = isCompact ? "Compact ✓" : "Compact";
-    if (btn.getAttribute("aria-pressed") !== pressedStr) btn.setAttribute("aria-pressed", pressedStr);
+    if (btn.getAttribute("aria-pressed") !== pressedStr)
+      btn.setAttribute("aria-pressed", pressedStr);
     if (btn.textContent !== labelStr) btn.textContent = labelStr;
   }
 
   var ASYNC_MULTI_SECTIONS = {
-    "Dashboard": 1,
-    "Learning": 1,
+    Dashboard: 1,
+    Learning: 1,
     "DSA Tracker": 1,
-    "Development": 1,
-    "Projects": 1,
+    Development: 1,
+    Projects: 1,
     "CSE Syllabus": 1,
-    "Analytics": 1,
-    "Achievements": 1,
-    "Settings": 1
+    Analytics: 1,
+    Achievements: 1,
+    Settings: 1
   };
   var routeSettleUntil = 0;
   var routeSettleTimer = null;
@@ -272,7 +277,11 @@
     }
     var widgets = discoverWidgets(mainEl);
     var routeLoading = !!mainEl.querySelector("[data-arise-route-loading]");
-    var asyncSettling = !!(window.__ariseWidgetsReady && ASYNC_MULTI_SECTIONS[title] && Date.now() < routeSettleUntil);
+    var asyncSettling = !!(
+      window.__ariseWidgetsReady &&
+      ASYNC_MULTI_SECTIONS[title] &&
+      Date.now() < routeSettleUntil
+    );
     if (widgets.length < 3 && !routeLoading && !asyncSettling) {
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
       return;
@@ -310,7 +319,8 @@
       });
 
       bar.querySelector("#arise-subbar-chips").addEventListener("click", function (ev) {
-        var chip = ev.target && ev.target.closest ? ev.target.closest("[data-arise-jump-idx]") : null;
+        var chip =
+          ev.target && ev.target.closest ? ev.target.closest("[data-arise-jump-idx]") : null;
         if (!chip) return;
         var idx = Number(chip.getAttribute("data-arise-jump-idx"));
         var curList = discoverWidgets(getMain());
@@ -322,7 +332,10 @@
           if (inp) inp.value = "";
           applyFilter(getMain());
         }
-        target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+        target.scrollIntoView({
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+          block: "start"
+        });
         target.classList.add("arise-widget-spotlight");
         setTimeout(function () {
           target.classList.remove("arise-widget-spotlight");
@@ -337,10 +350,13 @@
     // Preserve the bar's footprint while a lazy route or external widget mount is pending.
     // Removing it and reinserting it after the asset/widget loads shifted the entire route body.
     var pending = (routeLoading || asyncSettling) && widgets.length < 3;
-    bar.style.visibility = pending ? 'hidden' : '';
+    bar.style.visibility = pending ? "hidden" : "";
     bar.inert = pending;
-    if (pending) { bar.setAttribute('aria-hidden', 'true'); return; }
-    bar.removeAttribute('aria-hidden');
+    if (pending) {
+      bar.setAttribute("aria-hidden", "true");
+      return;
+    }
+    bar.removeAttribute("aria-hidden");
 
     var inpEl = bar.querySelector("#arise-pwb-input");
     if (inpEl && document.activeElement !== inpEl && inpEl.value !== filterQuery) {
@@ -351,7 +367,13 @@
     var chipsHtml = widgets
       .slice(0, 14)
       .map(function (w, idx) {
-        return "<button type='button' class='arise-pwb-chip' data-arise-jump-idx='" + idx + "'>" + esc(w.label) + "</button>";
+        return (
+          "<button type='button' class='arise-pwb-chip' data-arise-jump-idx='" +
+          idx +
+          "'>" +
+          esc(w.label) +
+          "</button>"
+        );
       })
       .join("");
     var chipsBox = bar.querySelector("#arise-subbar-chips");
@@ -404,7 +426,10 @@
   function onMutations(records) {
     if (document.hidden) return;
     if (!hasStructuralMainChange(records)) return;
-    if (!document.getElementById("arise-page-widget-bar") && document.getElementById("arise-main")) {
+    if (
+      !document.getElementById("arise-page-widget-bar") &&
+      document.getElementById("arise-main")
+    ) {
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;

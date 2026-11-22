@@ -108,10 +108,19 @@
   function renderStats(el) {
     var s = computeStats();
     var html =
-      "<span>Today: <b>" + formatDuration(s.todayMinutes) + "</b></span>" +
-      "<span>This week: <b>" + formatDuration(s.weekMinutes) + "</b></span>" +
-      "<span>Best category: <b>" + s.bestCategory + "</b></span>" +
-      "<span>Avg rating: <b>" + s.avgRating + (s.avgRating !== "—" ? " / 5" : "") + "</b></span>";
+      "<span>Today: <b>" +
+      formatDuration(s.todayMinutes) +
+      "</b></span>" +
+      "<span>This week: <b>" +
+      formatDuration(s.weekMinutes) +
+      "</b></span>" +
+      "<span>Best category: <b>" +
+      s.bestCategory +
+      "</b></span>" +
+      "<span>Avg rating: <b>" +
+      s.avgRating +
+      (s.avgRating !== "—" ? " / 5" : "") +
+      "</b></span>";
     if (el.__tuHtml !== html) {
       el.__tuHtml = html;
       el.innerHTML = html;
@@ -217,8 +226,12 @@
       overlay.remove();
     }
 
-    skipBtn.addEventListener("click", function () { finish(false); });
-    saveBtn.addEventListener("click", function () { finish(true); });
+    skipBtn.addEventListener("click", function () {
+      finish(false);
+    });
+    saveBtn.addEventListener("click", function () {
+      finish(true);
+    });
 
     actions.appendChild(skipBtn);
     actions.appendChild(saveBtn);
@@ -244,7 +257,11 @@
         try {
           if (key === STUDY_KEY) {
             var arr;
-            try { arr = JSON.parse(value); } catch { arr = null; }
+            try {
+              arr = JSON.parse(value);
+            } catch {
+              arr = null;
+            }
             if (!Array.isArray(arr) || arr.length <= lastStudyLen) {
               lastStudyLen = Array.isArray(arr) ? arr.length : lastStudyLen;
               return res;
@@ -254,7 +271,9 @@
             if (latest && typeof latest === "object") {
               var mins = Number(latest.minutes) || 0;
               if (mins > 0) {
-                try { window.dispatchEvent(new CustomEvent("studySessions:updated")); } catch {}
+                try {
+                  window.dispatchEvent(new CustomEvent("studySessions:updated"));
+                } catch {}
                 var rec = {
                   id: makeId(),
                   task: (activeSession && activeSession.task) || "Untitled session",
@@ -283,8 +302,16 @@
     function (ev) {
       var btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
       if (btn && (btn.textContent || "").trim() === "Start") {
-        for (var node = btn.parentElement, depth = 0; node && depth < 8; depth++, node = node.parentElement) {
-          if (node.querySelector && node.querySelector(":scope > ." + PANEL_CLS) && panelMap.has(node)) {
+        for (
+          var node = btn.parentElement, depth = 0;
+          node && depth < 8;
+          depth++, node = node.parentElement
+        ) {
+          if (
+            node.querySelector &&
+            node.querySelector(":scope > ." + PANEL_CLS) &&
+            panelMap.has(node)
+          ) {
             var refs = panelMap.get(node);
             activeSession = {
               task: (refs.taskInput.value || "").trim() || "Untitled session",
@@ -302,15 +329,37 @@
   function ensureStyles() {
     if (document.getElementById(STYLE_ID)) return;
     var css =
-      "." + PANEL_CLS + "{width:100%;max-width:26rem;margin-top:.75rem;display:flex;flex-direction:column;gap:.6rem;}" +
-      "." + PANEL_CLS + " .arise-tu-row{display:flex;gap:.5rem;flex-wrap:wrap;}" +
-      "." + PANEL_CLS + " input[type=text],." + PANEL_CLS + " select{flex:1 1 8rem;min-width:8rem;background:var(--surface-muted,#141420);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:.6rem;padding:.45rem .6rem;font-size:.75rem;color:var(--text-primary,#e5e7eb);}" +
-      "." + PANEL_CLS + " input[type=text]:focus,." + PANEL_CLS + " select:focus{outline:none;border-color:var(--info);}" +
-      "." + PANEL_CLS + " .arise-tu-again{padding:.45rem .8rem;border-radius:.6rem;font-size:.72rem;font-weight:500;background:color-mix(in srgb, var(--secondary) 15%, transparent);color:var(--secondary);border:1px solid color-mix(in srgb, var(--secondary) 30%, transparent);cursor:pointer;white-space:nowrap;}" +
-      "." + PANEL_CLS + " .arise-tu-again:hover{background:color-mix(in srgb, var(--secondary) 25%, transparent);}" +
-      "." + PANEL_CLS + " .arise-tu-again:disabled{opacity:.4;cursor:not-allowed;}" +
-      "." + PANEL_CLS + " .arise-tu-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;font-size:.68rem;color:var(--text-tertiary,#9ca3af);}" +
-      "." + PANEL_CLS + " .arise-tu-stats b{color:var(--text-primary,#e5e7eb);font-weight:600;}" +
+      "." +
+      PANEL_CLS +
+      "{width:100%;max-width:26rem;margin-top:.75rem;display:flex;flex-direction:column;gap:.6rem;}" +
+      "." +
+      PANEL_CLS +
+      " .arise-tu-row{display:flex;gap:.5rem;flex-wrap:wrap;}" +
+      "." +
+      PANEL_CLS +
+      " input[type=text],." +
+      PANEL_CLS +
+      " select{flex:1 1 8rem;min-width:8rem;background:var(--surface-muted,#141420);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:.6rem;padding:.45rem .6rem;font-size:.75rem;color:var(--text-primary,#e5e7eb);}" +
+      "." +
+      PANEL_CLS +
+      " input[type=text]:focus,." +
+      PANEL_CLS +
+      " select:focus{outline:none;border-color:var(--info);}" +
+      "." +
+      PANEL_CLS +
+      " .arise-tu-again{padding:.45rem .8rem;border-radius:.6rem;font-size:.72rem;font-weight:500;background:color-mix(in srgb, var(--secondary) 15%, transparent);color:var(--secondary);border:1px solid color-mix(in srgb, var(--secondary) 30%, transparent);cursor:pointer;white-space:nowrap;}" +
+      "." +
+      PANEL_CLS +
+      " .arise-tu-again:hover{background:color-mix(in srgb, var(--secondary) 25%, transparent);}" +
+      "." +
+      PANEL_CLS +
+      " .arise-tu-again:disabled{opacity:.4;cursor:not-allowed;}" +
+      "." +
+      PANEL_CLS +
+      " .arise-tu-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;font-size:.68rem;color:var(--text-tertiary,#9ca3af);}" +
+      "." +
+      PANEL_CLS +
+      " .arise-tu-stats b{color:var(--text-primary,#e5e7eb);font-weight:600;}" +
       "#arise-tu-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;background:rgba(5,5,10,.72);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);padding:1rem;}" +
       "#arise-tu-overlay .arise-tu-card{width:100%;max-width:26rem;background:var(--surface,#12121c);border:1px solid var(--cyber-border,rgba(255,255,255,.15));border-radius:1rem;padding:1.25rem;display:flex;flex-direction:column;gap:.85rem;box-shadow:0 10px 40px rgba(0,0,0,.5);}" +
       "#arise-tu-overlay h3{font-size:.95rem;font-weight:600;color:var(--text-primary,#e5e7eb);margin:0;}" +
@@ -478,7 +527,9 @@
           if (
             n &&
             n.nodeType === 1 &&
-            ((n.classList && (n.classList.contains("timer-ring-container") || n.classList.contains("focus-mode"))) ||
+            ((n.classList &&
+              (n.classList.contains("timer-ring-container") ||
+                n.classList.contains("focus-mode"))) ||
               (n.querySelector && n.querySelector(".timer-ring-container")))
           ) {
             relevant = true;
@@ -499,12 +550,19 @@
   if (window.__ARISE_MUTATION_BUS__) {
     window.__ARISE_MUTATION_BUS__.subscribe(onMutations);
   } else {
-    new MutationObserver(onMutations).observe(document.documentElement, { childList: true, subtree: true });
+    new MutationObserver(onMutations).observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
   }
 
-  window.__mountFocusTimerUpgrade = function () { install(); };
+  window.__mountFocusTimerUpgrade = function () {
+    install();
+  };
   window.__unmountFocusTimerUpgrade = function () {
-    document.querySelectorAll("." + PANEL_CLS).forEach(function (el) { el.remove(); });
+    document.querySelectorAll("." + PANEL_CLS).forEach(function (el) {
+      el.remove();
+    });
     var ov = document.getElementById("arise-tu-overlay");
     if (ov) ov.remove();
   };

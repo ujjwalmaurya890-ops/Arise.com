@@ -12,7 +12,13 @@
     if (!key) return fallback;
     try {
       var val = localStorage.getItem(key);
-      if (val && sections.some(function (s) { return s.id === val; })) return val;
+      if (
+        val &&
+        sections.some(function (s) {
+          return s.id === val;
+        })
+      )
+        return val;
     } catch {}
     return fallback;
   }
@@ -75,7 +81,9 @@
           if (backBtn) backBtn.hidden = true;
           activeScrolledRail = null;
         }
-        try { if (item.io) item.io.disconnect(); } catch {}
+        try {
+          if (item.io) item.io.disconnect();
+        } catch {}
         trackedRails.splice(j, 1);
       }
     }
@@ -83,7 +91,11 @@
 
   function ensureCleanupBus() {
     if (cleanupBusBound) return;
-    if (!window.__ARISE_MUTATION_BUS__ || typeof window.__ARISE_MUTATION_BUS__.subscribe !== "function") return;
+    if (
+      !window.__ARISE_MUTATION_BUS__ ||
+      typeof window.__ARISE_MUTATION_BUS__.subscribe !== "function"
+    )
+      return;
     cleanupBusBound = true;
     window.__ARISE_MUTATION_BUS__.subscribe(function (records) {
       if (!trackedRails.length && !resizeEntries.length) return;
@@ -106,7 +118,8 @@
       "resize",
       function () {
         if (resizeRaf) return;
-        var sched = typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout;
+        var sched =
+          typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout;
         resizeRaf = sched(function () {
           resizeRaf = 0;
           pruneDisconnectedRails();
@@ -200,8 +213,12 @@
       var scrollByStep = function (delta) {
         rail.scrollBy({ left: delta, behavior: prefersReducedMotion() ? "auto" : "smooth" });
       };
-      prevBtn.addEventListener("click", function () { scrollByStep(-140); });
-      nextBtn.addEventListener("click", function () { scrollByStep(140); });
+      prevBtn.addEventListener("click", function () {
+        scrollByStep(-140);
+      });
+      nextBtn.addEventListener("click", function () {
+        scrollByStep(140);
+      });
 
       var parent = rail.parentNode;
       if (parent) {
@@ -335,7 +352,9 @@
               '" tabindex="' +
               (isAct ? "0" : "-1") +
               '">' +
-              (sec.icon ? '<span class="wnav-icon" aria-hidden="true">' + sec.icon + "</span>" : "") +
+              (sec.icon
+                ? '<span class="wnav-icon" aria-hidden="true">' + sec.icon + "</span>"
+                : "") +
               "<span>" +
               esc(sec.label) +
               "</span></button>"
@@ -413,7 +432,13 @@
     }
 
     function setActive(id, host, setOpts) {
-      if (!sections.some(function (s) { return s.id === id; }) || id === activeId) return;
+      if (
+        !sections.some(function (s) {
+          return s.id === id;
+        }) ||
+        id === activeId
+      )
+        return;
       // Shared top progress line: one short transition, never a fake percentage.
       if (window.AriseLoading && window.AriseLoading.progress) {
         window.AriseLoading.progress.pulse();
@@ -425,12 +450,18 @@
       hydrateActive(host);
       scrollActivePillIntoView(host, true);
       if (!setOpts || !setOpts.silent) {
-        announce(sections.find(function (s) { return s.id === id; }));
+        announce(
+          sections.find(function (s) {
+            return s.id === id;
+          })
+        );
       }
     }
 
     function stepTab(dir, host) {
-      var idx = sections.findIndex(function (s) { return s.id === activeId; });
+      var idx = sections.findIndex(function (s) {
+        return s.id === activeId;
+      });
       if (idx < 0) return;
       var nextIdx = (idx + dir + sections.length) % sections.length;
       setActive(sections[nextIdx].id, host);
@@ -444,7 +475,8 @@
       if (idx < 0) return;
       var nextIdx = -1;
       if (ev.key === "ArrowRight" || ev.key === "ArrowDown") nextIdx = (idx + 1) % pills.length;
-      if (ev.key === "ArrowLeft" || ev.key === "ArrowUp") nextIdx = (idx - 1 + pills.length) % pills.length;
+      if (ev.key === "ArrowLeft" || ev.key === "ArrowUp")
+        nextIdx = (idx - 1 + pills.length) % pills.length;
       if (ev.key === "Home") nextIdx = 0;
       if (ev.key === "End") nextIdx = pills.length - 1;
       if (nextIdx >= 0) {
@@ -476,7 +508,9 @@
         var oldRail = host.__wnavActiveRail;
         var newRailCheck = host.querySelector("[data-wnav-root]");
         if (oldRail !== newRailCheck) {
-          try { oldRail.__wnavIO.disconnect(); } catch {}
+          try {
+            oldRail.__wnavIO.disconnect();
+          } catch {}
         }
       }
       syncAria(host, false);
@@ -499,7 +533,14 @@
           handleKeydown(ev, host);
         });
         wireScrollStateAndChevrons(rail);
-        wireSwipe(host, sections.length > 1 ? function (dir) { stepTab(dir, host); } : null);
+        wireSwipe(
+          host,
+          sections.length > 1
+            ? function (dir) {
+                stepTab(dir, host);
+              }
+            : null
+        );
         if (!opts.sticky) observeBackToTabs(rail);
       }
     }
@@ -509,7 +550,9 @@
       panelWrap: panelWrap,
       wire: wire,
       setActive: setActive,
-      getActive: function () { return activeId; },
+      getActive: function () {
+        return activeId;
+      },
       sections: sections
     };
   }

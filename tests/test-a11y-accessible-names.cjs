@@ -26,7 +26,7 @@ const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
 const root = path.resolve(__dirname, "..");
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 let passed = 0;
 const failures = [];
@@ -46,7 +46,7 @@ async function runQueued() {
     }
   }
 }
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function boot(html) {
   const dom = new JSDOM("<!doctype html><html><body>" + (html || "") + "</body></html>", {
@@ -82,7 +82,9 @@ test("is idempotent (double load is a no-op)", () => {
 console.log("\nNaming rules");
 
 test("uses the placeholder as the name, without mangling the author's prose", () => {
-  const w = boot('<form><input id="a" type="number" placeholder="Invested amount (₹), e.g. 5000"></form>');
+  const w = boot(
+    '<form><input id="a" type="number" placeholder="Invested amount (₹), e.g. 5000"></form>'
+  );
   w.eval(API).scan(w.document);
   const el = w.document.getElementById("a");
   assert.equal(el.getAttribute("aria-label"), "Invested amount (₹), e.g. 5000");
@@ -91,7 +93,9 @@ test("uses the placeholder as the name, without mangling the author's prose", ()
 
 test("never uses a bare example placeholder as the field name", () => {
   // "e.g. 5000" answers no question on its own, so the semantic attribute wins.
-  const w = boot('<form><input id="a" type="number" placeholder="e.g. 5000" data-role="monthly-income"></form>');
+  const w = boot(
+    '<form><input id="a" type="number" placeholder="e.g. 5000" data-role="monthly-income"></form>'
+  );
   w.eval(API).scan(w.document);
   assert.equal(w.document.getElementById("a").getAttribute("aria-label"), "Monthly income");
 });
@@ -160,7 +164,9 @@ test("keeps an existing aria-label", () => {
 });
 
 test("keeps a name provided by aria-labelledby", () => {
-  const w = boot('<span id="lbl">Task title</span><input id="a" type="text" aria-labelledby="lbl">');
+  const w = boot(
+    '<span id="lbl">Task title</span><input id="a" type="text" aria-labelledby="lbl">'
+  );
   w.eval(API).scan(w.document);
   assert.equal(w.document.getElementById("a").getAttribute("aria-label"), null);
 });
@@ -189,7 +195,11 @@ test("skips disabled, readonly and aria-hidden controls", () => {
   const api = w.eval(API);
   api.scan(w.document);
   for (const id of ["d", "r", "h"]) {
-    assert.equal(w.document.getElementById(id).getAttribute("aria-label"), null, id + " must be untouched");
+    assert.equal(
+      w.document.getElementById(id).getAttribute("aria-label"),
+      null,
+      id + " must be untouched"
+    );
   }
 });
 
@@ -201,7 +211,11 @@ test("ignores buttons, submit inputs and hidden inputs", () => {
   );
   w.eval(API).scan(w.document);
   for (const id of ["b", "s", "h"]) {
-    assert.equal(w.document.getElementById(id).getAttribute("aria-label"), null, id + " must be untouched");
+    assert.equal(
+      w.document.getElementById(id).getAttribute("aria-label"),
+      null,
+      id + " must be untouched"
+    );
   }
 });
 
@@ -220,7 +234,10 @@ test("does not change layout attributes, ids or values", () => {
   assert.equal(w.document.getElementById("a").id, "a");
   assert.equal(w.document.getElementById("a").className, "exw-input");
   assert.equal(w.document.getElementById("a").value, "laptop");
-  assert.equal(after.replace(/\s*data-uxa-name="added"/, "").replace(/\s*aria-label="[^"]*"/, ""), before);
+  assert.equal(
+    after.replace(/\s*data-uxa-name="added"/, "").replace(/\s*aria-label="[^"]*"/, ""),
+    before
+  );
 });
 
 console.log("\nReactivity");

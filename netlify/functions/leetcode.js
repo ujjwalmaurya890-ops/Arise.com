@@ -67,13 +67,17 @@ exports.handler = async function (event) {
   }
 
   try {
-    const data = await retry(function () {
-      return kind === "profile"
-        ? fetchProfileViaGraphQL(username)
-        : kind === "contest"
-        ? fetchContestViaGraphQL(username)
-        : fetchCalendarViaGraphQL(username);
-    }, 2, 500);
+    const data = await retry(
+      function () {
+        return kind === "profile"
+          ? fetchProfileViaGraphQL(username)
+          : kind === "contest"
+            ? fetchContestViaGraphQL(username)
+            : fetchCalendarViaGraphQL(username);
+      },
+      2,
+      500
+    );
 
     cache.set(cacheKey, { data: data, expiresAt: Date.now() + CACHE_TTL_MS });
     return respond(200, data, Object.assign({ "x-lc-source": "graphql" }, cors));
@@ -81,9 +85,13 @@ exports.handler = async function (event) {
     // Official API unreachable/blocked — fall back to the community mirror
     // so the feature still works, just without the cold-start protection.
     try {
-      const data = await retry(function () {
-        return fetchViaMirror(kind, username);
-      }, 1, 500);
+      const data = await retry(
+        function () {
+          return fetchViaMirror(kind, username);
+        },
+        1,
+        500
+      );
       cache.set(cacheKey, { data: data, expiresAt: Date.now() + CACHE_TTL_MS });
       return respond(200, data, Object.assign({ "x-lc-source": "mirror-fallback" }, cors));
     } catch (mirrorErr) {
@@ -92,8 +100,8 @@ exports.handler = async function (event) {
         status === 404
           ? "LeetCode user not found."
           : status === 429
-          ? "LeetCode is rate-limiting requests right now — please try again shortly."
-          : "Couldn't reach LeetCode right now (tried the official API and the backup mirror). Please try again shortly.";
+            ? "LeetCode is rate-limiting requests right now — please try again shortly."
+            : "Couldn't reach LeetCode right now (tried the official API and the backup mirror). Please try again shortly.";
       return respond(status === 404 ? 404 : 502, { error: message }, cors);
     }
   }
@@ -122,7 +130,9 @@ function parseRoute(path) {
 
 async function graphqlRequest(query, variables) {
   const controller = new AbortController();
-  const timeout = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(function () {
+    controller.abort();
+  }, FETCH_TIMEOUT_MS);
   let res;
   try {
     res = await fetch(LEETCODE_GRAPHQL, {
@@ -149,7 +159,13 @@ async function graphqlRequest(query, variables) {
   }
   const json = await res.json();
   if (json.errors && json.errors.length) {
-    const err = new Error(json.errors.map(function (e) { return e.message; }).join("; "));
+    const err = new Error(
+      json.errors
+        .map(function (e) {
+          return e.message;
+        })
+        .join("; ")
+    );
     err.status = 502;
     throw err;
   }
@@ -181,7 +197,10 @@ async function fetchProfileViaGraphQL(username) {
   }
 
   const totalsByDifficulty = toDifficultyMap(data.allQuestionsCount, "count");
-  const acByDifficulty = toDifficultyMap(user.submitStatsGlobal && user.submitStatsGlobal.acSubmissionNum, "count");
+  const acByDifficulty = toDifficultyMap(
+    user.submitStatsGlobal && user.submitStatsGlobal.acSubmissionNum,
+    "count"
+  );
   const totalSubByDifficulty = toDifficultyMap(
     user.submitStatsGlobal && user.submitStatsGlobal.totalSubmissionNum,
     "submissions"
@@ -202,7 +221,8 @@ async function fetchProfileViaGraphQL(username) {
     acceptanceRate: totalSubAll > 0 ? Math.round((acAll / totalSubAll) * 1000) / 10 : null,
     ranking: user.profile && user.profile.ranking != null ? user.profile.ranking : null,
     reputation: user.profile && user.profile.reputation != null ? user.profile.reputation : null,
-    contributionPoint: user.contributions && user.contributions.points != null ? user.contributions.points : null
+    contributionPoint:
+      user.contributions && user.contributions.points != null ? user.contributions.points : null
   };
 }
 
@@ -232,12 +252,18 @@ async function fetchContestViaGraphQL(username) {
     contestRating: summary && summary.rating != null ? summary.rating : null,
     contestGlobalRanking: summary && summary.globalRanking != null ? summary.globalRanking : null,
     contestTopPercentage: summary && summary.topPercentage != null ? summary.topPercentage : null,
-    contestAttend: summary && summary.attendedContestsCount != null ? summary.attendedContestsCount : null,
+    contestAttend:
+      summary && summary.attendedContestsCount != null ? summary.attendedContestsCount : null,
     contestParticipation: history
-      .filter(function (h) { return h && h.attended; })
+      .filter(function (h) {
+        return h && h.attended;
+      })
       .map(function (h) {
         return {
-          contest: { title: (h.contest && h.contest.title) || "Contest", startTime: h.contest && h.contest.startTime },
+          contest: {
+            title: (h.contest && h.contest.title) || "Contest",
+            startTime: h.contest && h.contest.startTime
+          },
           rating: h.rating,
           ranking: h.ranking
         };
@@ -281,11 +307,13 @@ async function fetchViaMirror(kind, username) {
     kind === "profile"
       ? "/userProfile/" + encodeURIComponent(username)
       : kind === "contest"
-      ? "/" + encodeURIComponent(username) + "/contest"
-      : "/" + encodeURIComponent(username) + "/calendar";
+        ? "/" + encodeURIComponent(username) + "/contest"
+        : "/" + encodeURIComponent(username) + "/calendar";
 
   const controller = new AbortController();
-  const timeout = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(function () {
+    controller.abort();
+  }, FETCH_TIMEOUT_MS);
   let res;
   try {
     res = await fetch(MIRROR_BASE + path, { signal: controller.signal });
@@ -306,7 +334,9 @@ function retry(fn, retriesLeft, delayMs) {
   return fn().catch(function (err) {
     const retryable = !err.status || err.status === 429 || err.status >= 500;
     if (retriesLeft > 0 && retryable) {
-      return new Promise(function (resolve) { setTimeout(resolve, delayMs); }).then(function () {
+      return new Promise(function (resolve) {
+        setTimeout(resolve, delayMs);
+      }).then(function () {
         return retry(fn, retriesLeft - 1, delayMs * 2);
       });
     }

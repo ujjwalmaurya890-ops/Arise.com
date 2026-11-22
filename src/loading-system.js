@@ -126,7 +126,9 @@
 
   /* -------------------------------------------------------------- skeletons */
   function shape(cls, style) {
-    return '<span class="ars-skel ' + cls + '"' + (style ? ' style="' + style + '"' : "") + "></span>";
+    return (
+      '<span class="ars-skel ' + cls + '"' + (style ? ' style="' + style + '"' : "") + "></span>"
+    );
   }
 
   function repeat(count, factory) {
@@ -196,7 +198,9 @@
       repeat(rows, function () {
         return (
           '<div class="ars-sk-table-row">' +
-          (withAvatar ? shape("ars-skel--avatar ars-skel--static") : shape("ars-skel--badge ars-skel--static")) +
+          (withAvatar
+            ? shape("ars-skel--avatar ars-skel--static")
+            : shape("ars-skel--badge ars-skel--static")) +
           '<div class="ars-sk-table-copy">' +
           shape("ars-sk-table-title ars-skel--static") +
           shape("ars-sk-table-meta ars-skel--static") +
@@ -219,7 +223,9 @@
       repeat(rows, function () {
         return (
           '<div class="ars-sk-list-row">' +
-          (avatar ? shape("ars-skel--avatar ars-skel--static") : shape("ars-skel--badge ars-skel--static")) +
+          (avatar
+            ? shape("ars-skel--avatar ars-skel--static")
+            : shape("ars-skel--badge ars-skel--static")) +
           '<div class="ars-sk-list-copy">' +
           shape("ars-sk-list-title ars-skel--static") +
           shape("ars-sk-list-meta ars-skel--static") +
@@ -267,10 +273,14 @@
           ? '<path class="ars-sk-line-area" d="M0,27 L0,36 L100,36 L100,5 L84,12 L70,7 L56,16 L42,11 L28,23 L14,19 Z"></path>'
           : "";
       body =
-        '<div class="ars-sk-line"' + (variant === "sparkline" ? ' style="min-height:2.5rem"' : "") + ">" +
+        '<div class="ars-sk-line"' +
+        (variant === "sparkline" ? ' style="min-height:2.5rem"' : "") +
+        ">" +
         '<svg class="ars-sk-plot" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" focusable="false">' +
         area +
-        '<polyline points="' + points + '" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></polyline>' +
+        '<polyline points="' +
+        points +
+        '" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></polyline>' +
         "</svg></div>" +
         '<div class="ars-sk-chart-legend">' +
         repeat(3, function () {
@@ -317,9 +327,11 @@
     } else {
       body =
         '<div class="ars-sk-bars">' +
-        [44, 66, 52, 78, 58, 88, 70, 62].map(function (height) {
-          return shape("ars-skel--static", "height:" + height + "%");
-        }).join("") +
+        [44, 66, 52, 78, 58, 88, 70, 62]
+          .map(function (height) {
+            return shape("ars-skel--static", "height:" + height + "%");
+          })
+          .join("") +
         "</div>" +
         '<div class="ars-sk-chart-legend">' +
         repeat(3, function () {
@@ -353,7 +365,12 @@
       case "dashboard":
         return navShapes() + statShapes(opts.stats || 4) + chartShapes("area", { tall: true });
       case "analytics":
-        return headShapes() + statShapes(opts.stats || 3) + chartShapes("line", { tall: true }) + chartShapes("bar", opts);
+        return (
+          headShapes() +
+          statShapes(opts.stats || 3) +
+          chartShapes("line", { tall: true }) +
+          chartShapes("bar", opts)
+        );
       case "stats":
       case "stat":
         return statShapes(opts.stats || opts.count || 4);
@@ -399,7 +416,10 @@
             return (
               '<div class="ars-sk-sidebar-row">' +
               shape("ars-sk-sidebar-icon ars-skel--static") +
-              shape("ars-sk-sidebar-label ars-skel--static", "width:" + (45 + ((i * 13) % 35)) + "%") +
+              shape(
+                "ars-sk-sidebar-label ars-skel--static",
+                "width:" + (45 + ((i * 13) % 35)) + "%"
+              ) +
               "</div>"
             );
           }) +
@@ -455,7 +475,10 @@
           "</div>" +
           '<div class="ars-sk-calendar-grid">' +
           repeat(28, function (i) {
-            return shape("ars-sk-calendar-cell ars-skel--static", "opacity:" + (i % 7 === 0 ? "1" : "0.72"));
+            return shape(
+              "ars-sk-calendar-cell ars-skel--static",
+              "opacity:" + (i % 7 === 0 ? "1" : "0.72")
+            );
           }) +
           "</div></div>"
         );
@@ -505,18 +528,22 @@
           "</div>"
         );
       case "notes":
-        return '<div class="ars-sk-list">' + repeat(Math.max(1, Math.min(8, opts.rows || 5)), function () {
-          return (
-            '<div class="ars-sk-list-row">' +
-            shape("ars-skel--badge ars-skel--static") +
-            '<div class="ars-sk-list-copy">' +
-            shape("ars-skel--line ars-skel-w-70 ars-skel--static") +
-            shape("ars-skel--line ars-skel-w-85 ars-skel--static") +
-            "</div>" +
-            shape("ars-sk-list-end ars-skel--static") +
-            "</div>"
-          );
-        }) + "</div>";
+        return (
+          '<div class="ars-sk-list">' +
+          repeat(Math.max(1, Math.min(8, opts.rows || 5)), function () {
+            return (
+              '<div class="ars-sk-list-row">' +
+              shape("ars-skel--badge ars-skel--static") +
+              '<div class="ars-sk-list-copy">' +
+              shape("ars-skel--line ars-skel-w-70 ars-skel--static") +
+              shape("ars-skel--line ars-skel-w-85 ars-skel--static") +
+              "</div>" +
+              shape("ars-sk-list-end ars-skel--static") +
+              "</div>"
+            );
+          }) +
+          "</div>"
+        );
       case "dsa":
         return (
           '<div class="ars-sk-table">' +
@@ -572,15 +599,24 @@
           "</div></div>"
         );
       case "widget":
-        return headShapes() + '<div class="ars-sk-card">' + shape("ars-skel--line ars-skel-w-85 ars-skel--static") + shape("ars-skel--line ars-skel-w-70 ars-skel--static") + shape("ars-skel--line ars-skel-w-55 ars-skel--static") + "</div>";
+        return (
+          headShapes() +
+          '<div class="ars-sk-card">' +
+          shape("ars-skel--line ars-skel-w-85 ars-skel--static") +
+          shape("ars-skel--line ars-skel-w-70 ars-skel--static") +
+          shape("ars-skel--line ars-skel-w-55 ars-skel--static") +
+          "</div>"
+        );
       case "section":
       default:
-        return headShapes() +
+        return (
+          headShapes() +
           '<div class="ars-sk-card">' +
           repeat(3, function () {
             return shape("ars-skel--line ars-skel--static");
           }) +
-          "</div>";
+          "</div>"
+        );
     }
   }
 
@@ -642,9 +678,19 @@
     // six placeholders at once, and six polite regions would announce six times.
     // Loading is announced once through announceLoading() instead.
     return (
-      '<div class="' + classes.join(" ") + '" role="progressbar" aria-label="' + escapeHtml(label) + '" aria-busy="true" data-ars-skeleton="1"' + style + ">" +
-      '<span class="ars-sr">' + escapeHtml(label) + "</span>" +
-      '<div class="ars-sk-body" aria-hidden="true">' + body + "</div>" +
+      '<div class="' +
+      classes.join(" ") +
+      '" role="progressbar" aria-label="' +
+      escapeHtml(label) +
+      '" aria-busy="true" data-ars-skeleton="1"' +
+      style +
+      ">" +
+      '<span class="ars-sr">' +
+      escapeHtml(label) +
+      "</span>" +
+      '<div class="ars-sk-body" aria-hidden="true">' +
+      body +
+      "</div>" +
       "</div>"
     );
   }
@@ -670,7 +716,9 @@
     var size = o.size === "lg" ? "md" : o.size === "sm" ? "xs" : "sm";
     return (
       '<span class="ars-inline-loader" role="status" aria-live="polite">' +
-      '<span class="ars-spinner ars-spinner--' + size + '" aria-hidden="true"></span>' +
+      '<span class="ars-spinner ars-spinner--' +
+      size +
+      '" aria-hidden="true"></span>' +
       (o.label ? "<span>" + escapeHtml(o.label) + "</span>" : "") +
       "</span>"
     );
@@ -688,7 +736,9 @@
       '<div class="ars-page-loader__brand">' +
       '<span class="arise-brand-mark arise-brand-mark--loading ars-page-loader__logo" aria-hidden="true">A</span>' +
       "<span>Arise</span></div>" +
-      '<div class="ars-page-loader__label">' + escapeHtml(o.label || "Preparing your workspace…") + "</div>" +
+      '<div class="ars-page-loader__label">' +
+      escapeHtml(o.label || "Preparing your workspace…") +
+      "</div>" +
       '<div class="ars-page-loader__bar" aria-hidden="true"></div>';
     return el;
   }
@@ -720,7 +770,11 @@
     if (!el) return;
     el.removeAttribute("aria-busy");
     el.classList.remove("ars-refreshing");
-    if (el.firstElementChild && el.firstElementChild.hasAttribute("data-ars-skeleton") && el.children.length === 1) {
+    if (
+      el.firstElementChild &&
+      el.firstElementChild.hasAttribute("data-ars-skeleton") &&
+      el.children.length === 1
+    ) {
       el.innerHTML = "";
     }
   }
@@ -730,7 +784,9 @@
     var o = opts || {};
     return (
       '<div class="uxa-empty-state" role="status">' +
-      '<div class="uxa-state-title">' + escapeHtml(o.title || "Nothing here yet") + "</div>" +
+      '<div class="uxa-state-title">' +
+      escapeHtml(o.title || "Nothing here yet") +
+      "</div>" +
       (o.message ? '<div class="uxa-state-desc">' + escapeHtml(o.message) + "</div>" : "") +
       (o.actionHtml || "") +
       "</div>"
@@ -741,11 +797,17 @@
     var o = opts || {};
     return (
       '<div class="uxa-error-state" role="alert">' +
-      '<div class="uxa-state-title">' + escapeHtml(o.title || "Unable to load this section") + "</div>" +
-      '<div class="uxa-state-desc">' + escapeHtml(o.message || "The request did not complete. Your saved data is unchanged.") + "</div>" +
+      '<div class="uxa-state-title">' +
+      escapeHtml(o.title || "Unable to load this section") +
+      "</div>" +
+      '<div class="uxa-state-desc">' +
+      escapeHtml(o.message || "The request did not complete. Your saved data is unchanged.") +
+      "</div>" +
       (o.retry === false
         ? ""
-        : '<button type="button" class="uxa-retry-btn" data-ars-retry="1">' + escapeHtml(o.retryLabel || "Retry") + "</button>") +
+        : '<button type="button" class="uxa-retry-btn" data-ars-retry="1">' +
+          escapeHtml(o.retryLabel || "Retry") +
+          "</button>") +
       "</div>"
     );
   }
@@ -754,9 +816,19 @@
     var o = opts || {};
     return (
       '<div class="uxa-offline-state" role="status">' +
-      '<div class="uxa-state-title">' + escapeHtml(o.title || "You are offline") + "</div>" +
-      '<div class="uxa-state-desc">' + escapeHtml(o.message || "This section needs a network connection. Cached data is still available.") + "</div>" +
-      (o.retry === false ? "" : '<button type="button" class="uxa-retry-btn" data-ars-retry="1">' + escapeHtml(o.retryLabel || "Try again") + "</button>") +
+      '<div class="uxa-state-title">' +
+      escapeHtml(o.title || "You are offline") +
+      "</div>" +
+      '<div class="uxa-state-desc">' +
+      escapeHtml(
+        o.message || "This section needs a network connection. Cached data is still available."
+      ) +
+      "</div>" +
+      (o.retry === false
+        ? ""
+        : '<button type="button" class="uxa-retry-btn" data-ars-retry="1">' +
+          escapeHtml(o.retryLabel || "Try again") +
+          "</button>") +
       "</div>"
     );
   }
@@ -770,7 +842,11 @@
     el.removeAttribute("data-ars-skeleton");
     el.removeAttribute("aria-busy");
     if (name === "ready") {
-      if (el.firstElementChild && el.firstElementChild.getAttribute("data-ars-skeleton") === "1" && el.children.length === 1) {
+      if (
+        el.firstElementChild &&
+        el.firstElementChild.getAttribute("data-ars-skeleton") === "1" &&
+        el.children.length === 1
+      ) {
         el.innerHTML = "";
       }
       return el;
@@ -838,9 +914,12 @@
     // A newer run supersedes the previous one: signal the old request to stop so
     // its result cannot overwrite fresher content.
     if (target.__arsRunCtrl) {
-      try { target.__arsRunCtrl.abort(); } catch (_) {}
+      try {
+        target.__arsRunCtrl.abort();
+      } catch (_) {}
     }
-    var ctrl = typeof AbortController === "function" && s.abortable !== false ? new AbortController() : null;
+    var ctrl =
+      typeof AbortController === "function" && s.abortable !== false ? new AbortController() : null;
     target.__arsRunCtrl = ctrl;
 
     target.setAttribute("aria-busy", "true");
@@ -848,13 +927,27 @@
       target.classList.add("ars-refreshing");
       if (s.chip !== false) showRefreshChip(target, label);
     } else if (!hadContent) {
-      target.innerHTML = skeleton(kind, { label: label, rows: s.rows, stats: s.stats, type: s.type, height: s.height, subtle: s.subtle });
+      target.innerHTML = skeleton(kind, {
+        label: label,
+        rows: s.rows,
+        stats: s.stats,
+        type: s.type,
+        height: s.height,
+        subtle: s.subtle
+      });
       skeletonShownAt = now();
       announceLoading(label);
     } else {
       skeletonTimer = setTimeout(function () {
         if (!live()) return;
-        target.innerHTML = skeleton(kind, { label: label, rows: s.rows, stats: s.stats, type: s.type, height: s.height, subtle: s.subtle });
+        target.innerHTML = skeleton(kind, {
+          label: label,
+          rows: s.rows,
+          stats: s.stats,
+          type: s.type,
+          height: s.height,
+          subtle: s.subtle
+        });
         skeletonShownAt = now();
         announceLoading(label);
       }, startDelay);
@@ -862,7 +955,9 @@
 
     var taskPromise;
     try {
-      taskPromise = Promise.resolve(s.task ? s.task({ signal: ctrl ? ctrl.signal : undefined }) : s.data);
+      taskPromise = Promise.resolve(
+        s.task ? s.task({ signal: ctrl ? ctrl.signal : undefined }) : s.data
+      );
     } catch (err) {
       taskPromise = Promise.reject(err);
     }
@@ -884,67 +979,69 @@
       removeRefreshChip(target);
     }
 
-    return taskPromise.then(
-      function (data) {
-        return settle().then(function () {
-          if (!live()) return data;
-          finishLoadingUi();
-          var isEmpty = false;
-          if (typeof s.empty === "function") {
-            try {
-              isEmpty = !!s.empty(data);
-            } catch (_) {
-              isEmpty = false;
+    return taskPromise
+      .then(
+        function (data) {
+          return settle().then(function () {
+            if (!live()) return data;
+            finishLoadingUi();
+            var isEmpty = false;
+            if (typeof s.empty === "function") {
+              try {
+                isEmpty = !!s.empty(data);
+              } catch (_) {
+                isEmpty = false;
+              }
             }
-          }
-          if (isEmpty) {
-            target.innerHTML =
-              (typeof s.emptyHtml === "string" && s.emptyHtml) ||
-              emptyState(Object.assign({}, s.emptyState || {}));
-            announce((s.emptyState && s.emptyState.announce) || "Loaded — no results to show.");
+            if (isEmpty) {
+              target.innerHTML =
+                (typeof s.emptyHtml === "string" && s.emptyHtml) ||
+                emptyState(Object.assign({}, s.emptyState || {}));
+              announce((s.emptyState && s.emptyState.announce) || "Loaded — no results to show.");
+              return data;
+            }
+            var rendered;
+            if (typeof s.render === "function") rendered = s.render(data, target);
+            if (typeof rendered === "string") target.innerHTML = rendered;
+            else if (rendered && rendered.nodeType === 1) {
+              target.innerHTML = "";
+              target.appendChild(rendered);
+            }
+            if (s.announceSuccess) announce(s.announceSuccess);
             return data;
-          }
-          var rendered;
-          if (typeof s.render === "function") rendered = s.render(data, target);
-          if (typeof rendered === "string") target.innerHTML = rendered;
-          else if (rendered && rendered.nodeType === 1) {
-            target.innerHTML = "";
-            target.appendChild(rendered);
-          }
-          if (s.announceSuccess) announce(s.announceSuccess);
-          return data;
-        });
-      },
-      function (err) {
-        return settle().then(function () {
-          if (!live()) return null;
-          finishLoadingUi();
-          var message = (err && err.message) || "The request did not complete.";
-          if (s.busyMessage) message = s.busyMessage;
-          if (typeof s.onError === "function") {
-            try {
-              s.onError(err, target);
-            } catch (_) {}
-          } else if (preserved) {
-            showRefreshChip(target, "Could not refresh", { tone: "error" });
-          } else {
-            target.innerHTML = errorState({
-              title: s.errorTitle || "Unable to load this section",
-              message: s.errorMessage || message
-            });
-            bindRetry(target, function () {
-              return run(Object.assign({}, s, { target: target }));
-            });
-          }
-          announce((s.errorTitle || "Loading failed") + ": " + message, { assertive: true });
-          if (s.rethrow) throw err;
-          return null;
-        });
-      }
-    ).then(function (result) {
-      if (target.__arsRunCtrl === ctrl) target.__arsRunCtrl = null;
-      return result;
-    });
+          });
+        },
+        function (err) {
+          return settle().then(function () {
+            if (!live()) return null;
+            finishLoadingUi();
+            var message = (err && err.message) || "The request did not complete.";
+            if (s.busyMessage) message = s.busyMessage;
+            if (typeof s.onError === "function") {
+              try {
+                s.onError(err, target);
+              } catch (_) {}
+            } else if (preserved) {
+              showRefreshChip(target, "Could not refresh", { tone: "error" });
+            } else {
+              target.innerHTML = errorState({
+                title: s.errorTitle || "Unable to load this section",
+                message: s.errorMessage || message
+              });
+              bindRetry(target, function () {
+                return run(Object.assign({}, s, { target: target }));
+              });
+            }
+            announce((s.errorTitle || "Loading failed") + ": " + message, { assertive: true });
+            if (s.rethrow) throw err;
+            return null;
+          });
+        }
+      )
+      .then(function (result) {
+        if (target.__arsRunCtrl === ctrl) target.__arsRunCtrl = null;
+        return result;
+      });
   }
 
   function showRefreshChip(target, text, opts) {
@@ -956,7 +1053,9 @@
     chip.setAttribute("role", "status");
     if (o.tone === "error") chip.setAttribute("data-tone", "error");
     chip.innerHTML =
-      '<span class="ars-spinner ars-spinner--xs" aria-hidden="true"></span><span>' + escapeHtml(text) + "</span>";
+      '<span class="ars-spinner ars-spinner--xs" aria-hidden="true"></span><span>' +
+      escapeHtml(text) +
+      "</span>";
     chip.style.position = "absolute";
     chip.style.top = "0.5rem";
     chip.style.right = "0.5rem";
@@ -992,7 +1091,10 @@
         btn.disabled = true;
         btn.classList.add("ars-btn-busy");
         var text = label != null ? label : (btn.textContent || "").trim() || "Working…";
-        btn.innerHTML = '<span class="ars-spinner ars-spinner--xs" aria-hidden="true"></span><span>' + escapeHtml(text) + "</span>";
+        btn.innerHTML =
+          '<span class="ars-spinner ars-spinner--xs" aria-hidden="true"></span><span>' +
+          escapeHtml(text) +
+          "</span>";
       } else {
         if (btn.getAttribute("data-ars-busy") !== "true") return;
         btn.removeAttribute("data-ars-busy");
@@ -1032,7 +1134,12 @@
         result = typeof fn === "function" ? fn() : null;
       } catch (err) {
         return release().then(function () {
-          announce((o.errorPrefix || "Action failed") + ": " + ((err && err.message) || "Unexpected error"), { assertive: true });
+          announce(
+            (o.errorPrefix || "Action failed") +
+              ": " +
+              ((err && err.message) || "Unexpected error"),
+            { assertive: true }
+          );
           throw err;
         });
       }
@@ -1044,7 +1151,12 @@
         },
         function (err) {
           return release().then(function () {
-            announce((o.errorPrefix || "Action failed") + ": " + ((err && err.message) || "Unexpected error"), { assertive: true });
+            announce(
+              (o.errorPrefix || "Action failed") +
+                ": " +
+                ((err && err.message) || "Unexpected error"),
+              { assertive: true }
+            );
             if (o.rethrow === false) return null;
             throw err;
           });
@@ -1106,12 +1218,16 @@
       el.removeAttribute("data-mode");
       el.setAttribute("data-state", "active");
       setBar(0.08);
-      progressState.timers.push(setTimeout(function () {
-        if (progressState.count > 0) setBar(0.42);
-      }, 120));
-      progressState.timers.push(setTimeout(function () {
-        if (progressState.count > 0) setBar(0.72);
-      }, config.progressCreep));
+      progressState.timers.push(
+        setTimeout(function () {
+          if (progressState.count > 0) setBar(0.42);
+        }, 120)
+      );
+      progressState.timers.push(
+        setTimeout(function () {
+          if (progressState.count > 0) setBar(0.72);
+        }, config.progressCreep)
+      );
       return progress;
     },
     /** Real determinate progress (0..1). Only call when a true fraction exists. */
@@ -1168,17 +1284,23 @@
       clearProgressTimers();
       el.setAttribute("data-state", "active");
       setBar(0.1);
-      progressState.timers.push(setTimeout(function () {
-        setBar(0.65);
-      }, 90));
-      progressState.timers.push(setTimeout(function () {
-        setBar(1);
-        el.setAttribute("data-state", "done");
-        progressState.timers.push(setTimeout(function () {
-          el.setAttribute("data-state", "idle");
-          el.style.setProperty("--ars-progress", "0");
-        }, config.progressDone));
-      }, 300));
+      progressState.timers.push(
+        setTimeout(function () {
+          setBar(0.65);
+        }, 90)
+      );
+      progressState.timers.push(
+        setTimeout(function () {
+          setBar(1);
+          el.setAttribute("data-state", "done");
+          progressState.timers.push(
+            setTimeout(function () {
+              el.setAttribute("data-state", "idle");
+              el.style.setProperty("--ars-progress", "0");
+            }, config.progressDone)
+          );
+        }, 300)
+      );
       return progress;
     },
     element: function () {
@@ -1272,7 +1394,11 @@
     if (!text) return;
     var o = opts || {};
     var stamp = now();
-    if (!o.assertive && text === lastAnnouncement.text && stamp - lastAnnouncement.at < config.announceThrottle) {
+    if (
+      !o.assertive &&
+      text === lastAnnouncement.text &&
+      stamp - lastAnnouncement.at < config.announceThrottle
+    ) {
       return;
     }
     lastAnnouncement = { text: text, at: stamp };

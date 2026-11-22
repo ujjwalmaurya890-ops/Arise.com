@@ -17,9 +17,18 @@ const MAX_CHARS = 6000; // guards against runaway prompts / cost
 // function alive until the platform killed it, with no useful client response.
 const FETCH_TIMEOUT_MS = 20000;
 
-const { authorize } = require('../../server/access.cjs');
-const { getServices } = require('../../server/firebase.cjs');
-const { fail } = require('../../server/http.cjs');
+const { authorize } = require("../../server/access.cjs");
+const { getServices } = require("../../server/firebase.cjs");
+const { fail } = require("../../server/http.cjs");
+const { createRateLimiter } = require("../../server/rate-limit.cjs");
+// Per-UID abuse bound (per lambda instance). Without this, any approved
+// identity could loop this endpoint and spend the Anthropic budget
+// unboundedly. Env-tunable; defaults are generous for legitimate use.
+const aiLimiter = createRateLimiter();
+const AI_RATE_LIMIT =
+  Number(process.env.ARISE_AI_RATE_LIMIT) > 0 ? Number(process.env.ARISE_AI_RATE_LIMIT) : 120;
+const AI_DAILY_LIMIT =
+  Number(process.env.ARISE_AI_DAILY_LIMIT) > 0 ? Number(process.env.ARISE_AI_DAILY_LIMIT) : 1000;
 
 // AI responses are user-specific and must never be stored in a shared cache.
 // These mirror the headers server/http.cjs puts on every authenticated API
@@ -28,36 +37,61 @@ function respond(statusCode, bodyObj) {
   return {
     statusCode,
     headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store, private',
-      'X-Content-Type-Options': 'nosniff',
-      'Referrer-Policy': 'no-referrer'
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store, private",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer"
     },
     body: JSON.stringify(bodyObj)
   };
 }
 
 exports.handler = async function (event) {
-  try { await authorize(event, getServices()); } catch (error) { return fail(error); }
+  let actor;
+  try {
+    actor = await authorize(event, getServices());
+  } catch (error) {
+    return fail(error);
+  }
   if (event.httpMethod !== "POST") {
     return respond(405, { error: "Method not allowed." });
+  }
+  const uid = (actor && actor.identity && actor.identity.uid) || "anonymous";
+  const minute = aiLimiter.check("ai:" + uid, AI_RATE_LIMIT, 60 * 1000);
+  const daily = aiLimiter.check("ai-daily:" + uid, AI_DAILY_LIMIT, 24 * 60 * 60 * 1000);
+  if (!minute.allowed || !daily.allowed) {
+    return {
+      statusCode: 429,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store, private",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+        "Retry-After": String(Math.max(minute.retryAfter, daily.retryAfter))
+      },
+      body: JSON.stringify({ error: "AI rate limit exceeded. Please wait and try again." })
+    };
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return respond(500, {
-      error: "Server is missing ANTHROPIC_API_KEY. Set it in Netlify: Site configuration -> Environment variables."
+      error:
+        "Server is missing ANTHROPIC_API_KEY. Set it in Netlify: Site configuration -> Environment variables."
     });
   }
 
-  const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : event.body || '{}';
+  const raw = event.isBase64Encoded
+    ? Buffer.from(event.body || "", "base64").toString("utf8")
+    : event.body || "{}";
   // Both 6,000-character fields may contain four-byte Unicode. Bound the raw
   // body as well, so unrelated fields cannot force an unbounded JSON parse.
-  if (Buffer.byteLength(raw, 'utf8') > 64 * 1024) return respond(413, { error: 'Request too large.' });
+  if (Buffer.byteLength(raw, "utf8") > 64 * 1024)
+    return respond(413, { error: "Request too large." });
   let body;
   try {
     body = JSON.parse(raw);
-    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
   } catch (e) {
     return respond(400, { error: "Expected a JSON object." });
   }
@@ -66,9 +100,12 @@ exports.handler = async function (event) {
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
   const model = ALLOWED_MODELS.indexOf(body.model) !== -1 ? body.model : DEFAULT_MODEL;
   const requestedTokens = body.maxTokens === undefined ? 500 : Number(body.maxTokens);
-  if (body.maxTokens !== undefined && !['number', 'string'].includes(typeof body.maxTokens) ||
-      !Number.isSafeInteger(requestedTokens) || requestedTokens < 1) {
-    return respond(400, { error: 'maxTokens must be a positive integer.' });
+  if (
+    (body.maxTokens !== undefined && !["number", "string"].includes(typeof body.maxTokens)) ||
+    !Number.isSafeInteger(requestedTokens) ||
+    requestedTokens < 1
+  ) {
+    return respond(400, { error: "maxTokens must be a positive integer." });
   }
   const maxTokens = Math.min(requestedTokens, MAX_TOKENS_CAP);
 
@@ -78,7 +115,9 @@ exports.handler = async function (event) {
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS);
+  const timer = setTimeout(function () {
+    controller.abort();
+  }, FETCH_TIMEOUT_MS);
   try {
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -96,16 +135,30 @@ exports.handler = async function (event) {
       signal: controller.signal
     });
 
-    const data = await anthropicRes.json().catch(function () { return {}; });
+    const data = await anthropicRes.json().catch(function () {
+      return {};
+    });
 
     if (!anthropicRes.ok) {
-      const msg = (data && data.error && data.error.message) ||
-        "Anthropic request failed (" + anthropicRes.status + ").";
-      return respond(anthropicRes.status === 429 ? 429 : 502, { error: msg });
+      // Never return the provider's error text to the client (it can leak
+      // account/quota internals). Log server-side, return a generic message.
+      console.error(
+        "[ai-ask] upstream error",
+        anthropicRes.status,
+        data && data.error && data.error.message
+      );
+      return respond(anthropicRes.status === 429 ? 429 : 502, {
+        error:
+          anthropicRes.status === 429
+            ? "The AI service is rate-limiting. Please try again shortly."
+            : "The AI service is unavailable. Please try again."
+      });
     }
 
-    const block = (Array.isArray(data?.content) ? data.content : []).find(function (b) { return b && b.type === "text"; });
-    if (!block || typeof block.text !== 'string' || !block.text.trim()) {
+    const block = (Array.isArray(data?.content) ? data.content : []).find(function (b) {
+      return b && b.type === "text";
+    });
+    if (!block || typeof block.text !== "string" || !block.text.trim()) {
       return respond(502, { error: "Model returned no text." });
     }
 
@@ -114,7 +167,8 @@ exports.handler = async function (event) {
     if (err && err.name === "AbortError") {
       return respond(504, { error: "The AI service took too long to respond. Please try again." });
     }
-    return respond(502, { error: "Failed to reach Anthropic: " + err.message });
+    console.error("[ai-ask] upstream failure", err && err.message);
+    return respond(502, { error: "Failed to reach the AI service. Please try again." });
   } finally {
     clearTimeout(timer);
   }

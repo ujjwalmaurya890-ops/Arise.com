@@ -29,16 +29,39 @@ async function main() {
   const swJs = fs.readFileSync(path.join(root, "service-worker.js"), "utf8");
   const netlifyToml = fs.readFileSync(path.join(root, "netlify.toml"), "utf8");
 
-  check("index.html links ./styles/saas-upgrade.css in <head>", indexHtml.includes('href="./styles/saas-upgrade.css"'));
-  check("index.html defines window.__ariseFlushReadyMounts progressive mount helper", indexHtml.includes("window.__ariseFlushReadyMounts"));
-  check("styles/theme.css dark input bevel no longer uses #fff9 white top highlight", !themeCss.includes("inset 0 1px #fff9"));
-  check("styles/typography-upgrade.css has balanced block comments", (typoCss.match(/\/\*/g) || []).length === (typoCss.match(/\*\//g) || []).length);
-  check("styles/saas-upgrade.css includes .arise-saas-backdrop, .arise-bento-grid, and #upp-command-fab",
-    saasCss.includes(".arise-saas-backdrop") && saasCss.includes(".arise-bento-grid") && saasCss.includes("#upp-command-fab"));
-  check("service-worker.js caches ./styles/saas-upgrade.css in CORE_SHELL and skips duplicate individual JS files when chunks are cached",
-    swJs.includes('"./styles/saas-upgrade.css"') && swJs.includes("chunksOk"));
-  check("netlify.toml serves /assets/chunks/* with immutable Cache-Control",
-    netlifyToml.includes('for = "/assets/chunks/*"') && netlifyToml.includes("immutable"));
+  check(
+    "index.html links ./styles/saas-upgrade.css in <head>",
+    indexHtml.includes('href="./styles/saas-upgrade.css"')
+  );
+  check(
+    "widget loader defines window.__ariseFlushReadyMounts progressive mount helper",
+    indexHtml.includes("window.__ariseFlushReadyMounts") ||
+      fs
+        .readFileSync(path.join(root, "src/boot/widget-loader.js"), "utf8")
+        .includes("window.__ariseFlushReadyMounts")
+  );
+  check(
+    "styles/theme.css dark input bevel no longer uses #fff9 white top highlight",
+    !themeCss.includes("inset 0 1px #fff9")
+  );
+  check(
+    "styles/typography-upgrade.css has balanced block comments",
+    (typoCss.match(/\/\*/g) || []).length === (typoCss.match(/\*\//g) || []).length
+  );
+  check(
+    "styles/saas-upgrade.css includes .arise-saas-backdrop, .arise-bento-grid, and #upp-command-fab",
+    saasCss.includes(".arise-saas-backdrop") &&
+      saasCss.includes(".arise-bento-grid") &&
+      saasCss.includes("#upp-command-fab")
+  );
+  check(
+    "service-worker.js caches ./styles/saas-upgrade.css in CORE_SHELL and skips duplicate individual JS files when chunks are cached",
+    swJs.includes('"./styles/saas-upgrade.css"') && swJs.includes("chunksOk")
+  );
+  check(
+    "netlify.toml serves /assets/chunks/* with immutable Cache-Control",
+    netlifyToml.includes('for = "/assets/chunks/*"') && netlifyToml.includes("immutable")
+  );
 
   // 2. Full JSDOM integration check of Landing -> Workspace -> Sidebar -> Docked Theme Toggle -> Global Command Palette
   const dom = new JSDOM(
@@ -52,7 +75,7 @@ async function main() {
   const { window } = dom;
   window.innerWidth = 1440;
   window.innerHeight = 900;
-  window.matchMedia = (q) => ({
+  window.matchMedia = q => ({
     matches: q.includes("dark"),
     media: q,
     addEventListener: () => {},
@@ -60,8 +83,16 @@ async function main() {
     addListener: () => {},
     removeListener: () => {}
   });
-  window.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
-  window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+  window.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  window.IntersectionObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
   window.scrollTo = () => {};
   window.HTMLElement.prototype.scrollIntoView = () => {};
   window.fetch = async () => ({
@@ -81,14 +112,17 @@ async function main() {
     "src/animation-upgrade.js"
   ];
   const runtimeErrors = [];
-  window.addEventListener("error", (ev) => {
+  window.addEventListener("error", ev => {
     runtimeErrors.push(ev.message || String(ev.error || ev));
   });
 
   for (const rel of scriptsToEval) {
     let code = fs.readFileSync(path.join(root, rel), "utf8");
     if (rel === "assets/app-bundle.js") {
-      code = code.replace(/\bimport\.meta\b/g, '({url:"https://arise.example.com/assets/app-bundle.js",env:{}})');
+      code = code.replace(
+        /\bimport\.meta\b/g,
+        '({url:"https://arise.example.com/assets/app-bundle.js",env:{}})'
+      );
     }
     window.eval(code);
   }
@@ -98,7 +132,7 @@ async function main() {
     while (Date.now() - t0 < timeoutMs) {
       const res = pred();
       if (res) return res;
-      await new Promise((r) => setTimeout(r, 40));
+      await new Promise(r => setTimeout(r, 40));
     }
     return pred();
   }
@@ -110,56 +144,82 @@ async function main() {
   // Verify zero-CPU backdrop replaced animated <canvas>
   const backdrop = window.document.querySelector(".arise-saas-backdrop");
   const bgCanvas = window.document.querySelector("canvas.fixed.inset-0");
-  check("CSS .arise-saas-backdrop mounted and full-viewport particle <canvas> removed", !!backdrop && !bgCanvas);
+  check(
+    "CSS .arise-saas-backdrop mounted and full-viewport particle <canvas> removed",
+    !!backdrop && !bgCanvas
+  );
 
   // Verify SaaS Landing hero & 6 Bento launchers
   const bentoCards = window.document.querySelectorAll(".arise-bento-card");
-  const enterBtn = Array.from(window.document.querySelectorAll("button")).find((b) =>
+  const enterBtn = Array.from(window.document.querySelectorAll("button")).find(b =>
     (b.textContent || "").includes("Enter Dashboard")
   );
-  check("SaaS Landing renders 6 interactive Bento capability cards and Enter Dashboard CTA",
-    bentoCards.length === 6 && !!enterBtn);
+  check(
+    "SaaS Landing renders 6 interactive Bento capability cards and Enter Dashboard CTA",
+    bentoCards.length === 6 && !!enterBtn
+  );
 
   // Click Enter Dashboard to enter Workspace
   enterBtn.click();
   await waitFor(() => window.document.querySelector("aside"));
 
   const aside = window.document.querySelector("aside");
-  check("Desktop sidebar renders expanded (w-60) by default with 'Arise' + 'OS' brand",
-    !!aside && aside.className.includes("w-60") && aside.textContent.includes("Arise") && aside.textContent.includes("OS"));
+  check(
+    "Desktop sidebar renders expanded (w-60) by default with 'Arise' + 'OS' brand",
+    !!aside &&
+      aside.className.includes("w-60") &&
+      aside.textContent.includes("Arise") &&
+      aside.textContent.includes("OS")
+  );
 
   const navButtons = aside ? aside.querySelectorAll("nav button.nav-item") : [];
   const navSvgs = aside ? aside.querySelectorAll("nav button.nav-item svg") : [];
-  const anyEmojiLabel = Array.from(navButtons).some((b) => /[\u{1F300}-\u{1FAFF}]/u.test(b.textContent || ""));
-  check("All 20 sidebar navigation items render crisp inline SVG icons and clean emoji-free labels",
-    navButtons.length === 20 && navSvgs.length >= 20 && !anyEmojiLabel);
+  const anyEmojiLabel = Array.from(navButtons).some(b =>
+    /[\u{1F300}-\u{1FAFF}]/u.test(b.textContent || "")
+  );
+  check(
+    "All 20 sidebar navigation items render crisp inline SVG icons and clean emoji-free labels",
+    navButtons.length === 20 && navSvgs.length >= 20 && !anyEmojiLabel
+  );
 
   // WCAG 2.2 AA 1.4.3: the "OS" badge text on the light themes previously measured 4.31:1
   // (Clean White) / 4.48:1 (Apple Glass Light) against its 13% primary wash. Guard the
   // light-mode-only override that swaps in the theme's darker --primary-hover token.
-  check("styles/saas-upgrade.css keeps the light-theme .arise-sb-brand-badge contrast override",
-    saasCss.includes("html[data-theme-mode=light] .arise-sb-brand-badge{color:var(--primary-hover, var(--primary))}")
-    && saasCss.includes(".arise-sb-brand-badge{font-family:var(--font-mono, monospace)"));
+  check(
+    "styles/saas-upgrade.css keeps the light-theme .arise-sb-brand-badge contrast override",
+    saasCss.includes(
+      "html[data-theme-mode=light] .arise-sb-brand-badge{color:var(--primary-hover, var(--primary))}"
+    ) && saasCss.includes(".arise-sb-brand-badge{font-family:var(--font-mono, monospace)")
+  );
 
   // Verify shared singleton fetchInterviewSheets helper & Page Widget Quick-Jump Bar on Dashboard
-  check("widget-shared-utils exposes singleton fetchInterviewSheets() deduplicator",
-    !!(window.__ARISE_WIDGET_UTILS__ && typeof window.__ARISE_WIDGET_UTILS__.fetchInterviewSheets === "function"));
+  check(
+    "widget-shared-utils exposes singleton fetchInterviewSheets() deduplicator",
+    !!(
+      window.__ARISE_WIDGET_UTILS__ &&
+      typeof window.__ARISE_WIDGET_UTILS__.fetchInterviewSheets === "function"
+    )
+  );
 
   await waitFor(() => window.document.getElementById("arise-page-widget-bar"));
   const subbar = window.document.getElementById("arise-page-widget-bar");
   const jumpChips = subbar ? subbar.querySelectorAll(".arise-pwb-chip") : [];
-  check("saas-widget-enhancer mounts Page Quick-Jump & Filter Bar on multi-widget Dashboard",
-    !!subbar && jumpChips.length >= 3);
+  check(
+    "saas-widget-enhancer mounts Page Quick-Jump & Filter Bar on multi-widget Dashboard",
+    !!subbar && jumpChips.length >= 3
+  );
 
   // Toggle Compact Density from Page Widget Bar
   const densityBtn = subbar && subbar.querySelector("#arise-pwb-density");
   if (densityBtn) densityBtn.click();
-  check("Compact SaaS density toggle sets html[data-density='compact']",
-    window.document.documentElement.getAttribute("data-density") === "compact");
+  check(
+    "Compact SaaS density toggle sets html[data-density='compact']",
+    window.document.documentElement.getAttribute("data-density") === "compact"
+  );
   if (densityBtn) densityBtn.click();
 
   // Navigate to a non-Dashboard section (e.g. DSA Tracker) and verify clean topbar H1 + Command Palette works there!
-  const dsaBtn = Array.from(navButtons).find((b) => (b.textContent || "").trim() === "DSA Tracker");
+  const dsaBtn = Array.from(navButtons).find(b => (b.textContent || "").trim() === "DSA Tracker");
   assert(dsaBtn, "DSA Tracker nav button should exist");
   dsaBtn.click();
   await waitFor(() => {
@@ -168,8 +228,10 @@ async function main() {
   });
 
   const headerH1 = window.document.querySelector("header h1");
-  check("Topbar H1 displays clean emoji-free section title ('DSA Tracker')",
-    !!headerH1 && headerH1.textContent.trim() === "DSA Tracker");
+  check(
+    "Topbar H1 displays clean emoji-free section title ('DSA Tracker')",
+    !!headerH1 && headerH1.textContent.trim() === "DSA Tracker"
+  );
 
   // Wait for shell sync (120ms debounce in src/premium-productivity-features.js)
   await waitFor(() => {
@@ -177,16 +239,20 @@ async function main() {
     const toggle = window.document.getElementById("arise-theme-quick-toggle");
     // The elements can exist in their undocked fallback locations until the
     // asynchronous header coordinator has run on a freshly changed route.
-    return fab?.classList.contains("upp-command-fab--docked") &&
-      toggle?.classList.contains("arise-theme-quick-toggle--docked");
+    return (
+      fab?.classList.contains("upp-command-fab--docked") &&
+      toggle?.classList.contains("arise-theme-quick-toggle--docked")
+    );
   });
   const themeBtn = window.document.getElementById("arise-theme-quick-toggle");
   const cmdFab = window.document.getElementById("upp-command-fab");
-  check("Theme toggle and ⌘K Search bar both dock cleanly inside Workspace header",
+  check(
+    "Theme toggle and ⌘K Search bar both dock cleanly inside Workspace header",
     !!themeBtn &&
-    themeBtn.classList.contains("arise-theme-quick-toggle--docked") &&
-    !!cmdFab &&
-    cmdFab.classList.contains("upp-command-fab--docked"));
+      themeBtn.classList.contains("arise-theme-quick-toggle--docked") &&
+      !!cmdFab &&
+      cmdFab.classList.contains("upp-command-fab--docked")
+  );
 
   // Verify Command Palette opens while on non-Dashboard section ("DSA")!
   cmdFab.click();
@@ -195,23 +261,34 @@ async function main() {
     return ov && ov.getAttribute("data-open") === "true";
   });
   const paletteOverlay = window.document.getElementById("upp-command-overlay");
-  check("Global Command Palette (⌘K) opens from non-Dashboard sections ('DSA')",
-    !!paletteOverlay && paletteOverlay.getAttribute("data-open") === "true");
+  check(
+    "Global Command Palette (⌘K) opens from non-Dashboard sections ('DSA')",
+    !!paletteOverlay && paletteOverlay.getAttribute("data-open") === "true"
+  );
 
   // Toggle theme and verify data-theme switches cleanly
-  window.document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  window.document.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+  );
   const initialTheme = window.document.documentElement.getAttribute("data-theme");
   themeBtn.click();
   const nextTheme = window.document.documentElement.getAttribute("data-theme");
-  check("Docked theme toggle switches between Dark and Light SaaS themes cleanly",
-    initialTheme !== nextTheme && (nextTheme === "appleGlassLight" || nextTheme === "cyberMidnightPro"));
+  check(
+    "Docked theme toggle switches between Dark and Light SaaS themes cleanly",
+    initialTheme !== nextTheme &&
+      (nextTheme === "appleGlassLight" || nextTheme === "cyberMidnightPro")
+  );
 
   // Verify '?' Keyboard Shortcuts Modal & 'G then P' Go-To Chord Navigation
   window.document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "?", bubbles: true }));
   const scOverlay = window.document.getElementById("upp-shortcuts-overlay");
-  check("'?' key opens SaaS Keyboard Shortcuts modal",
-    !!scOverlay && scOverlay.getAttribute("data-open") === "true");
-  window.document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  check(
+    "'?' key opens SaaS Keyboard Shortcuts modal",
+    !!scOverlay && scOverlay.getAttribute("data-open") === "true"
+  );
+  window.document.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+  );
 
   window.document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "g", bubbles: true }));
   window.document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "p", bubbles: true }));
@@ -219,8 +296,10 @@ async function main() {
     const h = window.document.querySelector("header h1");
     return h && h.textContent.trim() === "Projects";
   });
-  check("Linear-style 'G then P' chord shortcut navigates straight to Projects",
-    window.document.querySelector("header h1").textContent.trim() === "Projects");
+  check(
+    "Linear-style 'G then P' chord shortcut navigates straight to Projects",
+    window.document.querySelector("header h1").textContent.trim() === "Projects"
+  );
 
   // Verify Ctrl + Shift + K Theme Settings shortcut & conflict guards
   const themePanel = window.document.querySelector(".theme-switcher-panel");
@@ -261,8 +340,10 @@ async function main() {
   if (window.document.activeElement && typeof window.document.activeElement.blur === "function") {
     window.document.activeElement.blur();
   }
-  check("Ctrl + Shift + K does not trigger or preventDefault inside input, textarea, search, or contenteditable fields",
-    editableBlockedAll && themePanel.getAttribute("data-open") === "false");
+  check(
+    "Ctrl + Shift + K does not trigger or preventDefault inside input, textarea, search, or contenteditable fields",
+    editableBlockedAll && themePanel.getAttribute("data-open") === "false"
+  );
 
   // 2. Unrelated modifier combos (Shift+K, Alt+Shift+K, Ctrl+Alt+Shift+K) do not open Theme Settings
   for (const mods of [
@@ -270,16 +351,24 @@ async function main() {
     { altKey: true, shiftKey: true },
     { ctrlKey: true, altKey: true, shiftKey: true }
   ]) {
-    const ev = new window.KeyboardEvent("keydown", Object.assign({
-      key: "K",
-      code: "KeyK",
-      bubbles: true,
-      cancelable: true
-    }, mods));
+    const ev = new window.KeyboardEvent(
+      "keydown",
+      Object.assign(
+        {
+          key: "K",
+          code: "KeyK",
+          bubbles: true,
+          cancelable: true
+        },
+        mods
+      )
+    );
     window.document.dispatchEvent(ev);
   }
-  check("Unrelated modifier combinations do not open Theme Settings panel",
-    themePanel.getAttribute("data-open") === "false");
+  check(
+    "Unrelated modifier combinations do not open Theme Settings panel",
+    themePanel.getAttribute("data-open") === "false"
+  );
 
   // 3. Ctrl + Shift + K opens Theme Settings panel without opening Command Palette
   const openEv = new window.KeyboardEvent("keydown", {
@@ -293,35 +382,41 @@ async function main() {
   window.document.dispatchEvent(openEv);
   const allThemeKeys = Object.keys(window.AriseThemeSystem.allThemes());
   const renderedSwatches = themePanel.querySelectorAll("[data-theme-option]");
-  check("Ctrl + Shift + K opens Theme Settings panel with all supported themes and does not trigger Command Palette",
+  check(
+    "Ctrl + Shift + K opens Theme Settings panel with all supported themes and does not trigger Command Palette",
     openEv.defaultPrevented === true &&
-    themePanel.getAttribute("data-open") === "true" &&
-    themePanel.getAttribute("aria-hidden") === "false" &&
-    themeTrigger.getAttribute("aria-expanded") === "true" &&
-    paletteOverlay.getAttribute("data-open") === "false" &&
-    renderedSwatches.length === allThemeKeys.length &&
-    renderedSwatches.length >= 41);
+      themePanel.getAttribute("data-open") === "true" &&
+      themePanel.getAttribute("aria-hidden") === "false" &&
+      themeTrigger.getAttribute("aria-expanded") === "true" &&
+      paletteOverlay.getAttribute("data-open") === "false" &&
+      renderedSwatches.length === allThemeKeys.length &&
+      renderedSwatches.length >= 41
+  );
 
   // 4. Repeated Ctrl + Shift + K presses do not duplicate panel or reset search state
   themeSearchInput.value = "dracula";
   themeSearchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
   for (let i = 0; i < 3; i++) {
-    window.document.dispatchEvent(new window.KeyboardEvent("keydown", {
-      key: "K",
-      code: "KeyK",
-      ctrlKey: true,
-      shiftKey: true,
-      repeat: i > 0,
-      bubbles: true,
-      cancelable: true
-    }));
+    window.document.dispatchEvent(
+      new window.KeyboardEvent("keydown", {
+        key: "K",
+        code: "KeyK",
+        ctrlKey: true,
+        shiftKey: true,
+        repeat: i > 0,
+        bubbles: true,
+        cancelable: true
+      })
+    );
   }
-  check("Repeated Ctrl + Shift + K presses keep single panel instance and preserve search input filter",
+  check(
+    "Repeated Ctrl + Shift + K presses keep single panel instance and preserve search input filter",
     window.document.querySelectorAll(".theme-switcher-root").length === 1 &&
-    window.document.querySelectorAll(".theme-switcher-panel").length === 1 &&
-    themePanel.getAttribute("data-open") === "true" &&
-    themeSearchInput.value === "dracula" &&
-    themePanel.querySelectorAll("[data-theme-option]").length === 1);
+      window.document.querySelectorAll(".theme-switcher-panel").length === 1 &&
+      themePanel.getAttribute("data-open") === "true" &&
+      themeSearchInput.value === "dracula" &&
+      themePanel.querySelectorAll("[data-theme-option]").length === 1
+  );
 
   // 5. Selecting a theme from the opened panel applies and persists it
   const draculaSwatch = themePanel.querySelector('[data-theme-option="dracula"]');
@@ -329,13 +424,19 @@ async function main() {
   draculaSwatch.click();
   themeSearchInput.value = "";
   themeSearchInput.dispatchEvent(new window.Event("input", { bubbles: true }));
-  check("Selecting a theme inside Theme Settings applies data-theme and persists to localStorage",
+  check(
+    "Selecting a theme inside Theme Settings applies data-theme and persists to localStorage",
     window.document.documentElement.getAttribute("data-theme") === "dracula" &&
-    window.localStorage.getItem(window.AriseThemeSystem.storageKey) === "dracula");
+      window.localStorage.getItem(window.AriseThemeSystem.storageKey) === "dracula"
+  );
 
   // 6. Escape closes the panel, Cmd+Shift+K reopens it, and close button closes it
-  window.document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  const closedByEsc = themePanel.getAttribute("data-open") === "false" && themePanel.getAttribute("aria-hidden") === "true";
+  window.document.dispatchEvent(
+    new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+  );
+  const closedByEsc =
+    themePanel.getAttribute("data-open") === "false" &&
+    themePanel.getAttribute("aria-hidden") === "true";
   const macEv = new window.KeyboardEvent("keydown", {
     key: "k",
     code: "KeyK",
@@ -345,18 +446,23 @@ async function main() {
     cancelable: true
   });
   window.document.dispatchEvent(macEv);
-  const reopenedByCmdShiftK = macEv.defaultPrevented && themePanel.getAttribute("data-open") === "true";
+  const reopenedByCmdShiftK =
+    macEv.defaultPrevented && themePanel.getAttribute("data-open") === "true";
   themeCloseBtn.click();
-  const closedByBtn = themePanel.getAttribute("data-open") === "false" && themeTrigger.getAttribute("aria-expanded") === "false";
-  check("Escape and close button close Theme Settings panel and Cmd + Shift + K reopens it",
-    closedByEsc && reopenedByCmdShiftK && closedByBtn);
+  const closedByBtn =
+    themePanel.getAttribute("data-open") === "false" &&
+    themeTrigger.getAttribute("aria-expanded") === "false";
+  check(
+    "Escape and close button close Theme Settings panel and Cmd + Shift + K reopens it",
+    closedByEsc && reopenedByCmdShiftK && closedByBtn
+  );
 
   dom.window.close();
   console.log(`\nSaaS Upgrade Verification: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error(err);
   process.exit(1);
 });

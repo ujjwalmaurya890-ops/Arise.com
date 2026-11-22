@@ -68,18 +68,47 @@ test("default-src is 'self' and nothing broader", () => {
   assert.deepEqual(d["default-src"], ["'self'"]);
 });
 
-test("script-src blocks remote and evaluated script", () => {
-  const script = d["script-src"] || [];
-  assert.ok(script.length, "script-src must be explicit, not inherited from a lax default");
-  assert.ok(script.includes("'self'"));
-  // index.html still ships inline bootstrap blocks, so 'unsafe-inline' stays
-  // for now (a nonce needs a per-response generator, which a static header
-  // cannot provide). The high-value half of the directive is still enforced:
-  assert.ok(!script.includes("'unsafe-eval'"), "the bundles do not use eval or new Function");
-  assert.ok(!script.includes("*"), "no wildcard");
-  assert.ok(!script.some((source) => source.startsWith("http") || source.startsWith("//")),
-    "loading a script from another origin is the payload this policy exists to block: " + script.join(" "));
-  assert.ok(!script.includes("data:") && !script.includes("blob:"), "no script may be built from an inline data/blob payload");
+test("script-src is 'self' only - no inline, eval, remote or blob script", () => {
+  assert.deepEqual(
+    d["script-src"],
+    ["'self'"],
+    "all inline bootstrap scripts were extracted to src/boot/*.js; script-src must not regain 'unsafe-inline'"
+  );
+});
+
+test("index.html ships no inline executable script", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const inline = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)]
+    .filter(
+      m =>
+        !/\bsrc\s*=/.test(m[1]) &&
+        !/application\/x-arise-protected/.test(m[1]) &&
+        !/application\/json/.test(m[1])
+    )
+    .map(m => m[1].trim() + " len=" + m[2].length);
+  assert.deepEqual(
+    inline,
+    [],
+    "inline executable scripts must live in src/boot/*.js: " + inline.join(" | ")
+  );
+  for (const file of [
+    "purge-legacy-secrets.js",
+    "promote-stylesheets.js",
+    "runtime-errors.js",
+    "mount-stubs.js",
+    "perf-lite.js",
+    "theme-bootstrap.js",
+    "ambient-sound.js",
+    "widget-loader.js"
+  ]) {
+    assert.ok(fs.existsSync(path.join(root, "src/boot", file)), "src/boot/" + file + " must exist");
+    assert.ok(html.includes("./src/boot/" + file), "index.html must load src/boot/" + file);
+  }
+});
+
+test("netlify.toml CSP matches server/http-policy.cjs (single source of truth)", () => {
+  const { CONTENT_SECURITY_POLICY } = require(path.join(root, "server/http-policy.cjs"));
+  assert.equal(policy, CONTENT_SECURITY_POLICY);
 });
 
 test("no page markup still relies on inline event-handler attributes", () => {
@@ -87,9 +116,16 @@ test("no page markup still relies on inline event-handler attributes", () => {
   // Inline on*="" attributes are ignored under a policy without script
   // 'unsafe-inline' - the deferred stylesheets used to depend on one, which
   // would have left the page unstyled. They now use a delegated listener.
-  const offenders = [...html.matchAll(/<[a-zA-Z][^>]*?\son(?:load|error|click|change|submit)\s*=\s*["'][^"']*["'][^>]*>/g)]
-    .map((match) => match[0].slice(0, 90));
-  assert.deepEqual(offenders, [], "inline event handlers must be replaced by listeners: " + offenders.join(" | "));
+  const offenders = [
+    ...html.matchAll(
+      /<[a-zA-Z][^>]*?\son(?:load|error|click|change|submit)\s*=\s*["'][^"']*["'][^>]*>/g
+    )
+  ].map(match => match[0].slice(0, 90));
+  assert.deepEqual(
+    offenders,
+    [],
+    "inline event handlers must be replaced by listeners: " + offenders.join(" | ")
+  );
   assert.match(html, /data-promote-on-load/, "the deferred stylesheets must still exist");
 });
 
@@ -100,7 +136,10 @@ test("style-src allows the inline blocks the app really ships", () => {
   const style = d["style-src"] || [];
   assert.ok(style.includes("'self'"));
   assert.ok(style.includes("'unsafe-inline'"));
-  assert.ok(!style.some((source) => source.startsWith("http")), "no remote stylesheets are referenced");
+  assert.ok(
+    !style.some(source => source.startsWith("http")),
+    "no remote stylesheets are referenced"
+  );
 });
 
 test("img-src only allows the same-origin identity assets that remain", () => {
@@ -118,15 +157,15 @@ test("connect-src is an explicit allow-list matching the sources in the repo", (
   const connect = d["connect-src"] || [];
   assert.ok(connect.includes("'self'"), "the app talks to its own /api/* proxies");
   assert.ok(
-    connect.some((source) => source.includes("identitytoolkit.googleapis.com")),
+    connect.some(source => source.includes("identitytoolkit.googleapis.com")),
     "Firebase Auth signs in against identitytoolkit"
   );
   assert.ok(
-    connect.some((source) => source.includes("securetoken.googleapis.com")),
+    connect.some(source => source.includes("securetoken.googleapis.com")),
     "Firebase Auth refreshes tokens against securetoken"
   );
   assert.ok(
-    connect.some((source) => source.includes("open-meteo.com")),
+    connect.some(source => source.includes("open-meteo.com")),
     "src/water-reminder-widget.js fetches api.open-meteo.com"
   );
   assert.ok(!connect.includes("*"), "connect-src must not be a wildcard");
@@ -148,51 +187,85 @@ test("connect-src is an explicit allow-list matching the sources in the repo", (
  * broken test, not a broken app.
  */
 const CONNECT_JUSTIFICATIONS = {
-  "identitytoolkit.googleapis.com": { kind: "sdk", pkg: "firebase", importedBy: "src/cloud/auth-entry.js" },
-  "securetoken.googleapis.com": { kind: "sdk", pkg: "firebase", importedBy: "src/cloud/auth-entry.js" },
+  "identitytoolkit.googleapis.com": {
+    kind: "sdk",
+    pkg: "firebase",
+    importedBy: "src/cloud/auth-entry.js"
+  },
+  "securetoken.googleapis.com": {
+    kind: "sdk",
+    pkg: "firebase",
+    importedBy: "src/cloud/auth-entry.js"
+  },
   "api.open-meteo.com": { kind: "literal" }
 };
 
 test("connect-src does not over-grant: every host is justified by committed source", () => {
   const srcDir = path.join(root, "src");
-  const walk = (dir) =>
-    fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+  const walk = dir =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) return walk(full);
       return entry.name.endsWith(".js") ? [fs.readFileSync(full, "utf8")] : [];
     });
-  const corpus = [fs.readFileSync(path.join(root, "index.html"), "utf8"), ...walk(srcDir)].join("\n");
+  const corpus = [fs.readFileSync(path.join(root, "index.html"), "utf8"), ...walk(srcDir)].join(
+    "\n"
+  );
   const declaredDeps = Object.keys(require(path.join(root, "package.json")).dependencies || {});
   const ignored = new Set(["'self'", "'none'"]);
 
-  for (const source of (d["connect-src"] || []).filter((value) => !ignored.has(value))) {
+  for (const source of (d["connect-src"] || []).filter(value => !ignored.has(value))) {
     const host = source.replace(/^https:\/\//, "").replace(/\/$/, "");
     const rule = CONNECT_JUSTIFICATIONS[host];
-    assert.ok(rule, "connect-src grants " + host + " with no recorded justification - add one or remove the host");
+    assert.ok(
+      rule,
+      "connect-src grants " + host + " with no recorded justification - add one or remove the host"
+    );
 
     if (rule.kind === "literal") {
-      assert.ok(corpus.includes(host), "connect-src grants " + host + " but no committed source references it");
+      assert.ok(
+        corpus.includes(host),
+        "connect-src grants " + host + " but no committed source references it"
+      );
       continue;
     }
 
-    assert.ok(declaredDeps.includes(rule.pkg), host + " is justified by the " + rule.pkg + " dependency, which package.json must declare");
+    assert.ok(
+      declaredDeps.includes(rule.pkg),
+      host + " is justified by the " + rule.pkg + " dependency, which package.json must declare"
+    );
     const importer = fs.readFileSync(path.join(root, rule.importedBy), "utf8");
-    assert.match(importer, new RegExp("from ['\"]" + rule.pkg + "/" ), rule.importedBy + " must actually import " + rule.pkg);
+    assert.match(
+      importer,
+      new RegExp("from ['\"]" + rule.pkg + "/"),
+      rule.importedBy + " must actually import " + rule.pkg
+    );
   }
 });
 
 test("no justification is left over for a host that was removed from the policy", () => {
   const granted = new Set(
-    (d["connect-src"] || []).filter((value) => !value.startsWith("'")).map((value) => value.replace(/^https:\/\//, "").replace(/\/$/, ""))
+    (d["connect-src"] || [])
+      .filter(value => !value.startsWith("'"))
+      .map(value => value.replace(/^https:\/\//, "").replace(/\/$/, ""))
   );
   for (const host of Object.keys(CONNECT_JUSTIFICATIONS)) {
-    assert.ok(granted.has(host), "CONNECT_JUSTIFICATIONS documents " + host + " but connect-src no longer allows it - drop the stale entry");
+    assert.ok(
+      granted.has(host),
+      "CONNECT_JUSTIFICATIONS documents " +
+        host +
+        " but connect-src no longer allows it - drop the stale entry"
+    );
   }
 });
 
 test("the page cannot be framed, base-tag hijacked, or plugin-embedded", () => {
   assert.deepEqual(d["base-uri"], ["'self'"]);
-  assert.deepEqual(d["frame-ancestors"], ["'none'"], "a signed-in study dashboard must not be frameable");
+  assert.deepEqual(
+    d["frame-ancestors"],
+    ["'none'"],
+    "a signed-in study dashboard must not be frameable"
+  );
   assert.ok(d["object-src"], "object-src must be set to 'none'");
   assert.deepEqual(d["object-src"], ["'none'"]);
 });
@@ -207,7 +280,7 @@ test("form-action and worker/manifest sources are constrained", () => {
 test("upgrade-insecure-requests is not sneaking in a plaintext origin", () => {
   // Netlify terminates TLS; adding this would rewrite local dev URLs.
   const sources = (d["default-src"] || []).concat(d["connect-src"] || []);
-  assert.ok(!sources.some((source) => source.startsWith("http://")), "no http:// source is allowed");
+  assert.ok(!sources.some(source => source.startsWith("http://")), "no http:// source is allowed");
 });
 
 test("the security headers that go with a CSP are present", () => {

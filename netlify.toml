@@ -136,14 +136,13 @@
     # directives at all - so any injected <script src="//evil"> would load and
     # run with full access to the user's study data.
     #
-    # script-src: 'unsafe-inline' is still required because index.html ships six
-    #   inline bootstrap blocks (theme bootstrap, mount stubs, expedite loader).
-    #   What IS enforced now: no remote origin and no 'unsafe-eval', so the
-    #   attacker's usual payload - loading a script from their own host - is
-    #   blocked outright, and the app cannot be tricked into string-eval.
-    #   Migrating those blocks to nonces is the next step and is tracked in the
-    #   audit; it cannot be done from a static _headers file, which has no way
-    #   to generate a per-response nonce.
+    # script-src: 'self' only. All former inline bootstrap blocks (theme
+    #   bootstrap, mount stubs, runtime-error recorder, perf-lite, stylesheet
+    #   promoter, ambient sound, widget loader) now live in src/boot/*.js and
+    #   are loaded as same-origin files, so no 'unsafe-inline' or nonce is
+    #   needed. The widget manifest is a non-executable application/json
+    #   data block, not a script. tests/test-csp-policy.cjs fails if any
+    #   inline executable <script> returns to index.html.
     # style-src:  'unsafe-inline' is also required (inline <style> blocks and
     #   widget style attributes); CSS is a far smaller privilege than JS.
     # connect-src: same-origin /api/* proxies, Firebase Auth (identitytoolkit +
@@ -152,7 +151,7 @@
     # worker-src blob: because widgets construct their workers from blobs.
     # object-src 'none' + frame-ancestors 'none' because the dashboard embeds no
     #   plugins and must not be framed.
-    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self' data:; media-src 'self' blob: data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.open-meteo.com; worker-src 'self' blob:; manifest-src 'self'"
+    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self' data:; media-src 'self' blob: data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.open-meteo.com; worker-src 'self' blob:; manifest-src 'self'"
 
 [[headers]]
   for = "/assets/cloud-auth.js"

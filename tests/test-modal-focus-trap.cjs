@@ -27,7 +27,7 @@ const path = require("node:path");
 const { JSDOM } = require("jsdom");
 
 const root = path.resolve(__dirname, "..");
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 let passed = 0;
 const failures = [];
@@ -47,7 +47,7 @@ async function runQueued() {
     }
   }
 }
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const DIALOG_HTML = `
   <body>
@@ -74,7 +74,9 @@ function boot(html) {
   const w = dom.window;
   w.__ariseReportWidgetError = () => {};
   w.eval("window.__ariseWidgetsReady = true;");
-  w.eval("window.matchMedia = window.matchMedia || function(){return {matches:false,addEventListener:function(){},addListener:function(){}}};");
+  w.eval(
+    "window.matchMedia = window.matchMedia || function(){return {matches:false,addEventListener:function(){},addListener:function(){}}};"
+  );
   w.eval(read("src/mutation-bus.js"));
   w.eval(read("src/animation-upgrade.js"));
   return w;
@@ -160,7 +162,11 @@ async function main() {
   await test("skips disabled, hidden and aria-hidden controls", () => {
     const w = boot();
     w.AriseAnimationUpgrade.adoptModals();
-    const ids = JSON.parse(JSON.stringify(w.AriseAnimationUpgrade.getFocusable(w.document.getElementById("overlay")).map((el) => el.id)));
+    const ids = JSON.parse(
+      JSON.stringify(
+        w.AriseAnimationUpgrade.getFocusable(w.document.getElementById("overlay")).map(el => el.id)
+      )
+    );
     assert.deepEqual(ids, ["first", "middle", "last"]);
   });
 
@@ -170,7 +176,11 @@ async function main() {
     const w = boot();
     const overlay = w.document.getElementById("overlay");
     let closed = 0;
-    w.AriseAnimationUpgrade.bindModalA11y(overlay, { onClose: () => { closed += 1; } });
+    w.AriseAnimationUpgrade.bindModalA11y(overlay, {
+      onClose: () => {
+        closed += 1;
+      }
+    });
     openOverlay(w);
     const event = press(w, "Escape");
     assert.equal(closed, 1);
@@ -180,7 +190,11 @@ async function main() {
   await test("does nothing on Escape when closed", () => {
     const w = boot();
     let closed = 0;
-    w.AriseAnimationUpgrade.bindModalA11y(w.document.getElementById("overlay"), { onClose: () => { closed += 1; } });
+    w.AriseAnimationUpgrade.bindModalA11y(w.document.getElementById("overlay"), {
+      onClose: () => {
+        closed += 1;
+      }
+    });
     press(w, "Escape");
     assert.equal(closed, 0);
   });
@@ -196,9 +210,21 @@ async function main() {
     const outer = w.document.getElementById("outer");
     let innerClosed = 0;
     let outerClosed = 0;
-    w.AriseAnimationUpgrade.bindModalA11y(inner, { onClose: () => { innerClosed += 1; } });
-    w.AriseAnimationUpgrade.bindModalA11y(outer, { onClose: () => { outerClosed += 1; } });
-    const event = new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    w.AriseAnimationUpgrade.bindModalA11y(inner, {
+      onClose: () => {
+        innerClosed += 1;
+      }
+    });
+    w.AriseAnimationUpgrade.bindModalA11y(outer, {
+      onClose: () => {
+        outerClosed += 1;
+      }
+    });
+    const event = new w.KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true
+    });
     w.document.getElementById("inner-btn").dispatchEvent(event);
     assert.equal(innerClosed, 1, "inner dialog must close");
     assert.equal(outerClosed, 0, "the containing dialog must stay open");
@@ -224,7 +250,11 @@ async function main() {
     await sleep(60);
     closeOverlay(w);
     await sleep(60);
-    assert.equal(w.document.activeElement.id, "open", "focus must return to the button that opened the dialog");
+    assert.equal(
+      w.document.activeElement.id,
+      "open",
+      "focus must return to the button that opened the dialog"
+    );
   });
 
   await test("honours an explicit initialFocus target", async () => {
@@ -243,19 +273,33 @@ async function main() {
     const source = read("src/animation-upgrade.js");
     const bootStart = source.lastIndexOf("function boot()");
     // Anchor on the module's export object, not the first local `var api = {`.
-    const bootBody = source.slice(bootStart, source.indexOf("prefersReducedMotion: prefersReducedMotion"));
+    const bootBody = source.slice(
+      bootStart,
+      source.indexOf("prefersReducedMotion: prefersReducedMotion")
+    );
     assert.ok(bootStart > 0, "boot() must exist");
     assert.match(bootBody, /adoptModals\(\)/, "boot() must adopt existing widget dialogs");
-    assert.match(bootBody, /adoptModals\(\)[\s\S]{0,400}subscribe/, "adoption must re-run on the mutation bus");
+    assert.match(
+      bootBody,
+      /adoptModals\(\)[\s\S]{0,400}subscribe/,
+      "adoption must re-run on the mutation bus"
+    );
   });
 
   await test("the overlay state observer is disconnected with the element lifetime", () => {
     // A long-lived observer on a detached node is a leak; the observer only
     // watches one overlay's attributes and stops when the node is gone.
     const source = read("src/animation-upgrade.js");
-    const fn = source.slice(source.indexOf("function bindModalA11y"), source.indexOf("function adoptModals"));
+    const fn = source.slice(
+      source.indexOf("function bindModalA11y"),
+      source.indexOf("function adoptModals")
+    );
     assert.match(fn, /attributeFilter: \["data-open", "hidden", "aria-hidden"\]/);
-    assert.doesNotMatch(fn, /subtree: true/, "the overlay observer must not watch the whole subtree");
+    assert.doesNotMatch(
+      fn,
+      /subtree: true/,
+      "the overlay observer must not watch the whole subtree"
+    );
   });
 
   await runQueued();
@@ -266,7 +310,7 @@ async function main() {
   console.log("\nAll " + passed + " modal focus-trap assertions passed.");
   process.exit(0);
 }
-main().catch((error) => {
+main().catch(error => {
   console.error(error);
   process.exit(1);
 });

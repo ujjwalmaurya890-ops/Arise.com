@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "fflate": "0.8.3",
-    "firebase": "12.19.0",
+    "firebase": "13.4.0",
     "firebase-admin": "14.5.0"
   },
   "devDependencies": {

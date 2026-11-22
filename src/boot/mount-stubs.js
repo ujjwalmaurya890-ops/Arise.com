@@ -154,6 +154,8 @@
           }
         }
         if (!already) queue.push(item);
+        if (typeof window.__ariseLoadForMount === "function")
+          window.__ariseLoadForMount(item.name);
         if (typeof window.__ariseRetryWidgetScripts === "function") {
           window.__ariseRetryWidgetScripts();
         } else if (typeof window.__ariseFlushMounts === "function") {
@@ -168,14 +170,27 @@
       if (flushing) return;
       var el = arguments[0];
       var args = Array.prototype.slice.call(arguments);
-      if (window.__ariseWidgetsReady) {
-        if (isStub(window[name])) {
-          renderMountFailure(el, { name: name, args: args });
-        }
+      // The widget's chunk can legitimately not be in memory yet: chunks now
+      // arrive with the screen that needs them instead of all at startup. Only
+      // report a failure when that chunk is known to have failed, or when the
+      // whole widget set has settled and this hook has no chunk at all.
+      var chunk = typeof window.__ariseMountChunk === "function" ? window.__ariseMountChunk(name) : null;
+      var chunkFailed =
+        typeof window.__ariseMountChunkFailed === "function" && window.__ariseMountChunkFailed(name);
+      // No chunk mapping at all = an optional panel this build does not ship
+      // (see UNAVAILABLE_MOUNTS). Waiting for every chunk to be attempted would
+      // leave those as endless skeletons on data-saver connections, where the
+      // background chunks are deliberately never fetched.
+      if (chunkFailed || (!chunk && window.__ariseWidgetsReady)) {
+        renderMountFailure(el, { name: name, args: args });
         return;
       }
-      if (DEFERRED_MOUNTS[name] && typeof window.__ariseExpedite === "function")
-        window.__ariseExpedite();
+      // Ask for just the chunk that owns this widget (the loader still runs the
+      // earlier chunks first, so load order is unchanged). Sections used to
+      // trigger a full "load every remaining chunk" burst, which made the first
+      // route opened on a slow connection download the whole widget payload.
+      if (typeof window.__ariseLoadForMount === "function") window.__ariseLoadForMount(name);
+      else if (typeof window.__ariseExpedite === "function") window.__ariseExpedite();
       renderMountSkeleton(el, !!DEFERRED_MOUNTS[name], name);
       for (var i = 0; i < queue.length; i++) {
         if (queue[i].name === name && queue[i].args[0] === el) return;

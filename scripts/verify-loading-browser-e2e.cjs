@@ -72,6 +72,9 @@ const bundle = buildSync({
 
   const pageErrors = [];
   const consoleErrors = [];
+  // Set while the connectivity check intentionally pulls the network: requests
+  // that die from the simulated outage are expected, everything else is not.
+  let simulatedOffline = false;
   const contexts = [];
   const metricsReport = {};
 
@@ -150,7 +153,11 @@ const bundle = buildSync({
     page.on("requestfailed", req => {
       const url = req.url();
       // Ignore sandbox-blocked external Google Fonts CDN DNS failures; fail on any broken local/same-origin asset
-      if (url.startsWith(origin) && !req.failure()?.errorText?.includes("ERR_ABORTED")) {
+      if (
+        !simulatedOffline &&
+        url.startsWith(origin) &&
+        !req.failure()?.errorText?.includes("ERR_ABORTED")
+      ) {
         consoleErrors.push(`Same-origin request failed: ${url} (${req.failure()?.errorText})`);
       }
     });
@@ -158,6 +165,7 @@ const bundle = buildSync({
       if (msg.type() === "error") {
         const txt = msg.text();
         if (
+          !(simulatedOffline && txt.includes("ERR_INTERNET_DISCONNECTED")) &&
           !txt.includes("Failed to load resource: the server responded with a status of 50") &&
           !txt.includes("net::ERR_NAME_NOT_RESOLVED")
         ) {
@@ -930,6 +938,14 @@ const bundle = buildSync({
     await offlineCtx.page.waitForFunction(() => window.__ariseWidgetsReady === true, {
       timeout: 30000
     });
+    // "Ready" now means the current screen is mounted; the remaining route
+    // chunks keep streaming afterwards. Let that queue finish before the
+    // network is pulled, so this check measures the offline banner rather than
+    // racing the tail of the widget payload.
+    await offlineCtx.page
+      .waitForFunction(() => window.__ariseWidgetsSettled === true, { timeout: 30000 })
+      .catch(() => {});
+    simulatedOffline = true;
     await offlineCtx.context.setOffline(true);
     await offlineCtx.page.waitForTimeout(250);
     const offlineVisible = await offlineCtx.page.evaluate(() => {
@@ -944,6 +960,7 @@ const bundle = buildSync({
     assert.match(offlineVisible.text, /offline/i, "the offline banner explains the state");
     assert.equal(offlineVisible.contentVisible, true, "offline mode keeps saved content visible");
     await offlineCtx.context.setOffline(false);
+    simulatedOffline = false;
     await offlineCtx.page.waitForTimeout(250);
     const offlineHidden = await offlineCtx.page.evaluate(
       () => document.querySelector(".ars-offline")?.hidden === true

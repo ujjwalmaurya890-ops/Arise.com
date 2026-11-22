@@ -8,6 +8,21 @@
   var filterQuery = "";
   var debounceTimer = null;
   var scrollBoundMain = null;
+  // Coalesces the "bar does not exist yet" fast path. During boot the route
+  // container mutates dozens of times (React commits + widget mounts); running
+  // the full widget discovery for each batch cost ~175 ms of main-thread time on
+  // a 4x-throttled phone. The trailing debounce below still guarantees a scan
+  // once the DOM settles, so the bar appears exactly as before.
+  var lastSyncAt = 0;
+  var SYNC_COALESCE_MS = 150;
+  // While the bar does not exist yet, the first structural mutation must be
+  // answered immediately: the bar has to be in the DOM before the route body
+  // lays out, otherwise inserting it moves every card on the page (measured
+  // 0.15 CLS). One immediate scan per BAR_SCAN_MS is enough to win that race
+  // and still keeps a boot-time mutation storm from running discovery dozens
+  // of times (that cost ~175 ms of main-thread time on a 4x-throttled phone).
+  var lastBarScanAt = 0;
+  var BAR_SCAN_MS = 250;
 
   function esc(val) {
     return String(val ?? "").replace(/[&<>"']/g, function (ch) {
@@ -248,6 +263,67 @@
     headerObserver.observe(hdr, { childList: true, characterData: true, subtree: true });
   }
 
+  // Creates the jump/filter bar and its handlers. Kept separate from the sync
+  // logic so the bar can also be created early as a hidden placeholder (see
+  // reserveBarSlot) without duplicating markup or listeners.
+  function ensureBar(hdr) {
+    var bar = document.createElement("div");
+    bar.id = "arise-page-widget-bar";
+    bar.className = "arise-page-widget-bar";
+    bar.setAttribute("role", "region");
+    bar.setAttribute("aria-label", "Page widget quick jump and filter");
+    bar.innerHTML =
+      "<div class='arise-pwb-inner'><div class='arise-pwb-left'><span id='arise-subbar-count' class='arise-pwb-count'></span><div id='arise-subbar-chips' class='arise-pwb-chips' role='navigation' aria-label='Jump to widget'></div></div><div class='arise-pwb-right'><div class='arise-pwb-filter'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><polygon points='22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3'/></svg><input id='arise-pwb-input' type='search' autocomplete='off' placeholder='Filter widgets\u2026' aria-label='Filter widgets on this page'></div><button id='arise-pwb-density' type='button' class='arise-pwb-density' title='Toggle Compact / Standard card density'></button></div></div>";
+
+    var input = bar.querySelector("#arise-pwb-input");
+    input.addEventListener("input", function () {
+      filterQuery = input.value || "";
+      runMuted(function () {
+        applyFilter(getMain());
+      });
+    });
+
+    var densityBtn = bar.querySelector("#arise-pwb-density");
+    densityBtn.addEventListener("click", function () {
+      var root = document.documentElement;
+      var next = root.getAttribute("data-density") === "compact" ? "comfortable" : "compact";
+      if (next === "compact") root.setAttribute("data-density", "compact");
+      else root.removeAttribute("data-density");
+      try {
+        localStorage.setItem(DENSITY_KEY, next);
+      } catch {}
+      syncDensityBtn(densityBtn);
+    });
+
+    bar.querySelector("#arise-subbar-chips").addEventListener("click", function (ev) {
+      var chip =
+        ev.target && ev.target.closest ? ev.target.closest("[data-arise-jump-idx]") : null;
+      if (!chip) return;
+      var idx = Number(chip.getAttribute("data-arise-jump-idx"));
+      var curList = discoverWidgets(getMain());
+      var target = curList[idx] && curList[idx].el;
+      if (!target) return;
+      if (target.hasAttribute("data-arise-filtered-out")) {
+        filterQuery = "";
+        var inp = document.getElementById("arise-pwb-input");
+        if (inp) inp.value = "";
+        applyFilter(getMain());
+      }
+      target.scrollIntoView({
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+        block: "start"
+      });
+      target.classList.add("arise-widget-spotlight");
+      setTimeout(function () {
+        target.classList.remove("arise-widget-spotlight");
+      }, 1300);
+    });
+
+    hdr.insertAdjacentElement("afterend", bar);
+    return bar;
+  }
+
+
   function syncEnhancementsCore() {
     var mainEl = getMain();
     syncScrollTopBtn(mainEl);
@@ -283,65 +359,21 @@
       Date.now() < routeSettleUntil
     );
     if (widgets.length < 3 && !routeLoading && !asyncSettling) {
+      // The reserved strip is kept while the widget payload is still
+      // streaming: dropping it here and adding the bar again a moment later
+      // moved the whole route body (75 px at 390 px wide). Once the payload has
+      // settled, a route with fewer than three widgets really has no bar.
+      if (bar && bar.hasAttribute("data-arise-bar-pending") && !window.__ariseWidgetsSettled) {
+        bar.style.visibility = "hidden";
+        return;
+      }
       if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
       return;
     }
     var hdr = mainEl.querySelector(":scope > header");
     if (!hdr) return;
 
-    if (!bar) {
-      bar = document.createElement("div");
-      bar.id = "arise-page-widget-bar";
-      bar.className = "arise-page-widget-bar";
-      bar.setAttribute("role", "region");
-      bar.setAttribute("aria-label", "Page widget quick jump and filter");
-      bar.innerHTML =
-        "<div class='arise-pwb-inner'><div class='arise-pwb-left'><span id='arise-subbar-count' class='arise-pwb-count'></span><div id='arise-subbar-chips' class='arise-pwb-chips' role='navigation' aria-label='Jump to widget'></div></div><div class='arise-pwb-right'><div class='arise-pwb-filter'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><polygon points='22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3'/></svg><input id='arise-pwb-input' type='search' autocomplete='off' placeholder='Filter widgets…' aria-label='Filter widgets on this page'></div><button id='arise-pwb-density' type='button' class='arise-pwb-density' title='Toggle Compact / Standard card density'></button></div></div>";
-
-      var input = bar.querySelector("#arise-pwb-input");
-      input.addEventListener("input", function () {
-        filterQuery = input.value || "";
-        runMuted(function () {
-          applyFilter(getMain());
-        });
-      });
-
-      var densityBtn = bar.querySelector("#arise-pwb-density");
-      densityBtn.addEventListener("click", function () {
-        var root = document.documentElement;
-        var next = root.getAttribute("data-density") === "compact" ? "comfortable" : "compact";
-        if (next === "compact") root.setAttribute("data-density", "compact");
-        else root.removeAttribute("data-density");
-        try {
-          localStorage.setItem(DENSITY_KEY, next);
-        } catch {}
-        syncDensityBtn(densityBtn);
-      });
-
-      bar.querySelector("#arise-subbar-chips").addEventListener("click", function (ev) {
-        var chip =
-          ev.target && ev.target.closest ? ev.target.closest("[data-arise-jump-idx]") : null;
-        if (!chip) return;
-        var idx = Number(chip.getAttribute("data-arise-jump-idx"));
-        var curList = discoverWidgets(getMain());
-        var target = curList[idx] && curList[idx].el;
-        if (!target) return;
-        if (target.hasAttribute("data-arise-filtered-out")) {
-          filterQuery = "";
-          var inp = document.getElementById("arise-pwb-input");
-          if (inp) inp.value = "";
-          applyFilter(getMain());
-        }
-        target.scrollIntoView({
-          behavior: prefersReducedMotion() ? "auto" : "smooth",
-          block: "start"
-        });
-        target.classList.add("arise-widget-spotlight");
-        setTimeout(function () {
-          target.classList.remove("arise-widget-spotlight");
-        }, 1300);
-      });
-    }
+    if (!bar) bar = ensureBar(hdr);
 
     if (bar.previousElementSibling !== hdr) {
       hdr.insertAdjacentElement("afterend", bar);
@@ -357,6 +389,7 @@
       return;
     }
     bar.removeAttribute("aria-hidden");
+    bar.removeAttribute("data-arise-bar-pending");
 
     var inpEl = bar.querySelector("#arise-pwb-input");
     if (inpEl && document.activeElement !== inpEl && inpEl.value !== filterQuery) {
@@ -389,7 +422,68 @@
     }
   }
 
+  // Reserves the bar's strip before the route body is painted. The bar can only
+  // be populated once the widget cards exist (~0.7 s); inserting it at that
+  // point pushed the whole dashboard down by its own height (measured ~0.15
+  // CLS). Creating the same element up front, hidden, keeps the space and the
+  // later sync only fills it in. The normal "not enough widgets" guard removes
+  // it again on routes that do not get a bar.
+  var barSlotReserved = false;
+  var barSlotObserver = null;
+  function reserveBarSlot() {
+    if (barSlotReserved) return true;
+    var mainEl = getMain();
+    if (!mainEl) return false;
+    if (document.documentElement.classList.contains("arise-focus-active")) return false;
+    var hdr = mainEl.querySelector(":scope > header");
+    if (!hdr) return false;
+    barSlotReserved = true;
+    if (barSlotObserver) {
+      barSlotObserver.disconnect();
+      barSlotObserver = null;
+    }
+    if (document.getElementById("arise-page-widget-bar")) return true;
+    var bar = ensureBar(hdr);
+    // Placeholder chips, not empty markup: below 600 px the bar wraps to two
+    // rows only once chips exist (44 px empty vs ~116 px populated), so an
+    // empty placeholder would reserve the wrong height and still move the page.
+    // The first real sync replaces them before the bar is ever shown.
+    var placeholderChips = bar.querySelector("#arise-subbar-chips");
+    if (placeholderChips) {
+      placeholderChips.innerHTML =
+        "<span class='arise-pwb-chip' aria-hidden='true'></span><span class='arise-pwb-chip' aria-hidden='true'></span><span class='arise-pwb-chip' aria-hidden='true'></span>";
+    }
+    bar.style.visibility = "hidden";
+    bar.inert = true;
+    bar.setAttribute("aria-hidden", "true");
+    bar.setAttribute("data-arise-bar-pending", "");
+    return true;
+  }
+
+  // The route container is mounted by React after the cloud gate resolves, so
+  // the first call usually finds nothing. Watch for the header once and reserve
+  // as soon as it exists.
+  function armBarSlotReservation() {
+    if (barSlotReserved || reserveBarSlot()) return;
+    if (typeof MutationObserver !== "function" || !document.body) return;
+    if (barSlotObserver) return;
+    barSlotObserver = new MutationObserver(function () {
+      if (reserveBarSlot() && barSlotObserver) {
+        barSlotObserver.disconnect();
+        barSlotObserver = null;
+      }
+    });
+    barSlotObserver.observe(document.body, { childList: true, subtree: true });
+    setTimeout(function () {
+      if (barSlotObserver) {
+        barSlotObserver.disconnect();
+        barSlotObserver = null;
+      }
+    }, 20000);
+  }
+
   function syncEnhancements() {
+    lastSyncAt = Date.now();
     runMuted(syncEnhancementsCore);
   }
 
@@ -428,8 +522,10 @@
     if (!hasStructuralMainChange(records)) return;
     if (
       !document.getElementById("arise-page-widget-bar") &&
-      document.getElementById("arise-main")
+      document.getElementById("arise-main") &&
+      Date.now() - lastBarScanAt > BAR_SCAN_MS
     ) {
+      lastBarScanAt = Date.now();
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
@@ -451,6 +547,7 @@
         document.documentElement.setAttribute("data-density", "compact");
       }
     } catch {}
+    armBarSlotReservation();
     syncEnhancements();
     if (window.__ARISE_MUTATION_BUS__) {
       window.__ARISE_MUTATION_BUS__.subscribe(onMutations);

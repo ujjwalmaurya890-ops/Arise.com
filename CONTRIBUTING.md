@@ -28,12 +28,19 @@ expects to be changed. It complements the project goals and security rules in
 4. **Write the regression first.** Every contribution in this repository ships
    with a `tests/test-*.cjs` file that fails before the change and passes after
    it. `npm test` runs all of them, including the cloud/auth/sync suite.
-5. **Register new assets.** A new module goes into the ordered `SCRIPTS` list in
+5. **Know the shell boundary.** `assets/app-bundle.js` and
+   `assets/app-analytics.js` are compiled bundles whose source/build pipeline is
+   not in this repository. Do not hand-edit them: new functionality should live
+   in maintained `src/` modules where possible. If a change truly requires the
+   React shell, obtain the matching upstream source and reproducible build
+   process first; document the bundle provenance and verification when updating
+   the vendored output. See [APP-BUNDLE-PROVENANCE.md](docs/APP-BUNDLE-PROVENANCE.md).
+6. **Register new assets.** A new module goes into the ordered `SCRIPTS` list in
    `index.html` and into `scripts/tools/sw-extended-base.json` (the offline
    shell). A new stylesheet goes into the CSS list in `index.html` and the same
    offline list. `npm run build` regenerates the hashed chunks; never hand-edit
    `assets/chunks/*`.
-6. **Check storage hygiene.** A new key means:
+7. **Check storage hygiene.** A new key means:
    `src/cloud/storage-schema.js` → `keys[]`, `src/storage-keys.js` (owner,
    description, sensitivity) and a clean `npm run audit:storage`.
 

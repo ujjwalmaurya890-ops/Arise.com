@@ -30,5 +30,22 @@ jobs:
           npm start > /tmp/arise-test-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" || true' EXIT
-          node -e "fetch('http://127.0.0.1:8123').catch(()=>new Promise(r=>setTimeout(r,1000))).then(()=>process.exit(0))"
+          node -e '
+            const url = "http://127.0.0.1:8123";
+            const deadline = Date.now() + 60000;
+            (async () => {
+              while (Date.now() < deadline) {
+                try {
+                  const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+                  if (response.ok) {
+                    console.log(`Test server ready (${response.status})`);
+                    return;
+                  }
+                } catch {}
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
+              console.error("Test server did not become ready within 60 seconds");
+              process.exit(1);
+            })();
+          '
           npm run test:browser

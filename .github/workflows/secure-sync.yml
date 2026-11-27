@@ -20,6 +20,7 @@ jobs:
           java-version: '21'
       - run: npm ci
       - run: npm run lint
+      - run: npm run check:emojis
       - run: npm run build
       - run: npm test
       - run: npm audit --audit-level=high
@@ -30,5 +31,18 @@ jobs:
           npm start > /tmp/arise-test-server.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" || true' EXIT
-          node -e "fetch('http://127.0.0.1:8123').catch(()=>new Promise(r=>setTimeout(r,1000))).then(()=>process.exit(0))"
+          node -e '
+            (async () => {
+              const deadline = Date.now() + 30000;
+              while (Date.now() < deadline) {
+                try {
+                  const res = await fetch("http://127.0.0.1:8123");
+                  if (res.ok) process.exit(0);
+                } catch {}
+                await new Promise(r => setTimeout(r, 250));
+              }
+              console.error("Server failed to start within 30s");
+              process.exit(1);
+            })();
+          ' || (cat /tmp/arise-test-server.log && exit 1)
           npm run test:browser

@@ -58,6 +58,11 @@ function allowedOrigin(event) {
   for (const name of ["URL", "DEPLOY_URL", "DEPLOY_PRIME_URL"]) {
     if (process.env[name]) allowed.add(process.env[name].replace(/\/$/, ""));
   }
+  // Vercel sets VERCEL_URL and VERCEL_PROJECT_PRODUCTION_URL as bare hostnames.
+  for (const name of ["VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL"]) {
+    const val = (process.env[name] || "").trim().replace(/\/$/, "");
+    if (val) allowed.add(/^https?:\/\//.test(val) ? val : "https://" + val);
+  }
   // The request's own Host is the most reliable same-origin signal: it is set
   // by the platform on every request, including local `netlify dev` runs where
   // none of the deployment env vars exist.
@@ -88,11 +93,20 @@ function isForeignOrigin(event) {
 
 function clientKey(event) {
   const headers = (event && event.headers) || {};
-  const forwarded = String(headers["x-nf-client-connection-ip"] || headers["x-forwarded-for"] || "")
+  // Prefer platform-set client IP headers that cannot be spoofed by callers:
+  // Netlify sets x-nf-client-connection-ip; Vercel sets x-real-ip and
+  // x-vercel-forwarded-for. Fall back to x-forwarded-for only when neither is present.
+  const forwarded = String(
+    headers["x-nf-client-connection-ip"] ||
+      headers["x-real-ip"] ||
+      headers["x-vercel-forwarded-for"] ||
+      headers["x-forwarded-for"] ||
+      ""
+  )
     .split(",")[0]
     .trim();
-  // Netlify always sets the connection IP; fall back to a non-identifying
-  // bucket so a missing header degrades to a shared budget, never to "no limit".
+  // Fall back to a non-identifying bucket so a missing header degrades to a
+  // shared budget, never to "no limit".
   return forwarded || "unknown-client";
 }
 

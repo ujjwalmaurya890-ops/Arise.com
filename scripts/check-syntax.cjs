@@ -6,8 +6,8 @@ const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const root = path.resolve(__dirname, "..");
-const dirs = ["src", "server", "netlify/functions", "scripts", "tests"];
-const files = [];
+const dirs = ["api", "src", "server", "netlify/functions", "scripts", "tests"];
+const files = [path.join(root, "service-worker.js")];
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -31,24 +31,24 @@ for (const file of files) {
 }
 if (failed) process.exit(1);
 console.log(`Syntax OK: ${files.length} files parse.`);
+const prettierBin = require.resolve("prettier/bin/prettier.cjs", { paths: [root] });
+const prettierGlobs = [
+  "api/*.js",
+  "api/*.cjs",
+  "src/**/*.js",
+  "server/*.cjs",
+  "netlify/functions/*.js",
+  "scripts/**/*.cjs",
+  "scripts/**/*.mjs",
+  "tests/**/*.cjs",
+  "tests/**/*.js"
+];
 try {
-  execFileSync(
-    path.join(root, "node_modules/.bin/prettier"),
-    [
-      "--check",
-      "src/**/*.js",
-      "server/*.cjs",
-      "netlify/functions/*.js",
-      "scripts/**/*.cjs",
-      "scripts/**/*.mjs",
-      "tests/**/*.cjs",
-      "tests/**/*.js"
-    ],
-    { cwd: root, stdio: "inherit" }
-  );
+  execFileSync(process.execPath, [prettierBin, "--check", ...prettierGlobs], {
+    cwd: root,
+    stdio: "inherit"
+  });
 } catch {
-  console.error(
-    'Formatting drift: run `npx prettier --write "src/**/*.js" "server/*.cjs" "netlify/functions/*.js" "scripts/**/*.cjs" "scripts/**/*.mjs" "tests/**/*.cjs" "tests/**/*.js"`'
-  );
+  console.error("Formatting drift: run `npm run format`");
   process.exit(1);
 }

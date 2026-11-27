@@ -58,8 +58,7 @@ exports.handler = async function (event) {
   }
   const uid = (actor && actor.identity && actor.identity.uid) || "anonymous";
   const minute = aiLimiter.check("ai:" + uid, AI_RATE_LIMIT, 60 * 1000);
-  const daily = aiLimiter.check("ai-daily:" + uid, AI_DAILY_LIMIT, 24 * 60 * 60 * 1000);
-  if (!minute.allowed || !daily.allowed) {
+  if (!minute.allowed) {
     return {
       statusCode: 429,
       headers: {
@@ -67,7 +66,21 @@ exports.handler = async function (event) {
         "Cache-Control": "no-store, private",
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "no-referrer",
-        "Retry-After": String(Math.max(minute.retryAfter, daily.retryAfter))
+        "Retry-After": String(minute.retryAfter)
+      },
+      body: JSON.stringify({ error: "AI rate limit exceeded. Please wait and try again." })
+    };
+  }
+  const daily = aiLimiter.check("ai-daily:" + uid, AI_DAILY_LIMIT, 24 * 60 * 60 * 1000);
+  if (!daily.allowed) {
+    return {
+      statusCode: 429,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store, private",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+        "Retry-After": String(daily.retryAfter)
       },
       body: JSON.stringify({ error: "AI rate limit exceeded. Please wait and try again." })
     };
